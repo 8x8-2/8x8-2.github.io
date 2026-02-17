@@ -1,19 +1,10 @@
 import { calculateFourPillars } from "./vendor/manseryeok/dist/index.js";
-/**
- * 입력은 한국시간(KST) 기준 "숫자"로 받습니다.
- * manseryeok README 기준:
- * calculateFourPillars({
- *   year, month, day, hour, minute,
- *   isLunar?, isLeapMonth?
- * })
- * 결과는 배포 버전에 따라 객체/클래스일 수 있어
- * 가장 안전하게 r.toObject()를 우선 사용합니다.
- */
 
 const $ = (id) => document.getElementById(id);
 
 const calendarEl = $("calendar");
 const leapEl = $("leapMonth");
+const genderEl = $("gender");
 const btn = $("btnCalc");
 const statusEl = $("status");
 const errEl = $("error");
@@ -28,7 +19,6 @@ calendarEl.addEventListener("change", () => {
   if (!isLunar) leapEl.checked = false;
 });
 
-// 아주 간단한 MVP 해석 템플릿 (일간 오행 기반)
 const STEM_TO_ELEMENT = {
   "갑": "목", "을": "목",
   "병": "화", "정": "화",
@@ -37,78 +27,132 @@ const STEM_TO_ELEMENT = {
   "임": "수", "계": "수",
 };
 
+// (선택) 특정 일주만 수동 고퀄 문구를 넣고 싶을 때
+const DAY_PILLAR_DB = {
+  // 예시 1개만
+  "계유": {
+    male: {
+      love: "표현은 절제되어 보이지만 한 번 마음 주면 깊게 갑니다. 신뢰가 핵심입니다.",
+      career: "디테일/분석/품질 기준이 강합니다. 데이터·기획·QA에 강점이 납니다.",
+      money: "큰 베팅보다 규칙형 관리(예산/한도/분산)가 안정적입니다.",
+      health: "수면/신경 피로 누적에 민감. 회복 루틴을 고정하세요.",
+    },
+    female: {
+      love: "기준이 분명해 관계가 안정적입니다. 감정 표현을 조금만 더 해주면 좋아요.",
+      career: "정밀함과 완성도가 강점. 기획·분석·디자인/QA에 강합니다.",
+      money: "계획소비에 강합니다. 자동이체/목표예산으로 안정성이 커집니다.",
+      health: "컨디션 편차가 생기기 쉬워 수면/면역 루틴 관리가 중요합니다.",
+    },
+  },
+};
+
+// 자동 생성 템플릿 (DB 없는 일주는 여기로)
+const STEM_BASE = {
+  "갑": { love: "주도적·개척형", career: "리더·기획형", money: "축적 선호", health: "간/눈 피로" },
+  "을": { love: "섬세·관계형", career: "조율·기획형", money: "분산 선호", health: "피로/면역" },
+  "병": { love: "표현·열정형", career: "세일즈·리딩", money: "단기 성과", health: "수면/과열" },
+  "정": { love: "깊고 은근", career: "정밀·콘텐츠", money: "계획형", health: "신경/스트레스" },
+  "무": { love: "보호·책임형", career: "운영·관리", money: "자산형", health: "소화/체중" },
+  "기": { love: "배려·조율형", career: "행정·정리", money: "저축형", health: "위장/피로" },
+  "경": { love: "직설·원칙형", career: "기술·결단", money: "성과형", health: "폐/피부" },
+  "신": { love: "정교·기준형", career: "품질·분석", money: "절약형", health: "호흡기" },
+  "임": { love: "자유·전략형", career: "확장·전략", money: "변동성", health: "수면/리듬" },
+  "계": { love: "감성·직관형", career: "연구·상담", money: "분산형", health: "신경/면역" },
+};
+
+const BRANCH_MOD = {
+  "자": "관계가 빠르게 형성되지만 감정 기복 관리가 중요합니다.",
+  "축": "안정/루틴을 만들면 성과가 커집니다.",
+  "인": "도전성이 강해 변화가 잦을 수 있습니다.",
+  "묘": "감성·취향이 중요해 ‘맞음’이 핵심입니다.",
+  "진": "책임이 커지기 쉬워 역할 분담이 포인트입니다.",
+  "사": "속도가 빠르니 과열/과로를 조심하세요.",
+  "오": "표현력은 강하지만 감정 과잉에 주의하세요.",
+  "미": "돌봄/관계 피로가 누적되지 않게 경계를 세우세요.",
+  "신": "성과 압박을 받기 쉬워 기준 조정이 필요합니다.",
+  "유": "완성도/디테일 강점, 완벽주의로 지치지 않게 조절하세요.",
+  "술": "원칙을 세우면 흔들림이 줄어듭니다.",
+  "해": "감수성이 깊어 휴식 루틴이 중요합니다.",
+};
+
 function buildEight(p) {
   const stems = [p.year.stem, p.month.stem, p.day.stem, p.hour.stem];
   const branches = [p.year.branch, p.month.branch, p.day.branch, p.hour.branch];
   return { stems, branches, text: `${stems.join(" ")} / ${branches.join(" ")}` };
 }
 
-function elementSummary(p) {
-  const counts = { "목": 0, "화": 0, "토": 0, "금": 0, "수": 0 };
-  const stems = [p.year.stem, p.month.stem, p.day.stem, p.hour.stem];
-
-  for (const s of stems) {
-    const el = STEM_TO_ELEMENT[s];
-    if (el) counts[el] += 1;
-  }
-
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  return {
-    counts,
-    top: sorted[0][0],
-    low: sorted[sorted.length - 1][0],
-    dayMaster: p.day.stem,
-    dayMasterElement: STEM_TO_ELEMENT[p.day.stem],
-  };
+function splitGanji(str) {
+  if (!str || typeof str !== "string" || str.length < 2) return { stem: "", branch: "" };
+  return { stem: str[0], branch: str[1] };
 }
 
-function generateSections(p) {
-  const es = elementSummary(p);
-  const dmEl = es.dayMasterElement;
+function normalizeManseryeok(r) {
+  // 가장 안전: toObject()
+  if (r && typeof r.toObject === "function") {
+    const o = r.toObject(); // { year:'임신', month:'경술', day:'계유', hour:'을묘' }
+    return {
+      year: splitGanji(o.year),
+      month: splitGanji(o.month),
+      day: splitGanji(o.day),
+      hour: splitGanji(o.hour),
+    };
+  }
+  // 혹시 plain object인 경우
+  if (r?.year?.heavenlyStem && r?.year?.earthlyBranch) {
+    return {
+      year: { stem: r.year.heavenlyStem, branch: r.year.earthlyBranch },
+      month: { stem: r.month.heavenlyStem, branch: r.month.earthlyBranch },
+      day: { stem: r.day.heavenlyStem, branch: r.day.earthlyBranch },
+      hour: { stem: r.hour.heavenlyStem, branch: r.hour.earthlyBranch },
+    };
+  }
+  return null;
+}
 
-  const common =
-    dmEl === "목" ? "성장·개척·관계 확장 성향이 강합니다."
-    : dmEl === "화" ? "표현·열정·대인 영향력이 강합니다."
-    : dmEl === "토" ? "안정·책임·조율 성향이 강합니다."
-    : dmEl === "금" ? "기준·결단·성과 지향이 강합니다."
-    : "분석·유연·적응력이 강합니다.";
+function validateInput({ year, month, day, hour, minute, isLunar }) {
+  if (!Number.isInteger(year) || year < 1900 || year > 2100) return "년은 1900~2100 사이여야 합니다.";
+  if (!Number.isInteger(month) || month < 1 || month > 12) return "월은 1~12 사이여야 합니다.";
 
-  const love =
-    dmEl === "화" ? "감정 표현이 빠른 편이라 속도 조절과 신뢰 쌓기가 핵심입니다."
-    : dmEl === "수" ? "관찰/분석 후 확신이 생기면 깊어집니다. 명확한 커뮤니케이션이 중요합니다."
-    : dmEl === "목" ? "‘함께 성장’형 관계를 선호. 상대의 자율성을 존중하면 안정됩니다."
-    : dmEl === "금" ? "기준이 분명해 안정적이지만 단정적으로 보일 수 있어 부드러운 표현이 도움 됩니다."
-    : "돌봄/조율을 잘하지만 과부하가 오지 않도록 경계하세요.";
+  // 음력은 보통 1~30, 양력은 1~31 (정밀한 월별 일수 체크는 추가 가능)
+  const maxDay = isLunar ? 30 : 31;
+  if (!Number.isInteger(day) || day < 1 || day > maxDay) return `일은 ${isLunar ? "음력 기준 1~30" : "1~31"} 사이여야 합니다.`;
 
-  const job =
-    es.top === "금" ? "목표·성과 중심 환경에서 강합니다. 운영/품질/리스크 관리 적성."
-    : es.top === "수" ? "정보/데이터/전략/커뮤니케이션 축에서 강점. 분석·PM·리서치 적합."
-    : es.top === "목" ? "신규 기획/확장/BD/성장 영역과 궁합이 좋습니다."
-    : es.top === "화" ? "브랜딩/세일즈/리더십/대외 커뮤니케이션 강점."
-    : "운영 안정화/프로세스 설계/조정 역할에 강점.";
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return "시는 0~23 사이여야 합니다.";
+  if (!Number.isInteger(minute) || minute < 0 || minute > 59) return "분은 0~59 사이여야 합니다.";
 
-  const money =
-    es.low === "금" ? "규칙(예산/한도) 기반 지출 관리가 재정 안정에 크게 도움 됩니다."
-    : es.low === "수" ? "투자/지출 판단을 ‘검증 루틴’으로 표준화하면 손실 회피에 유리합니다."
-    : "수입 다변화 + 고정비 통제가 핵심입니다.";
+  return null;
+}
 
-  const health =
-    dmEl === "화" ? "과로/수면 부족에 민감할 수 있어 리듬 관리가 중요합니다."
-    : dmEl === "수" ? "스트레스 누적 시 컨디션 편차가 커질 수 있어 회복 루틴이 중요합니다."
-    : "무리한 패턴보다 꾸준한 습관이 효과적입니다. (의학적 판단은 전문의 권장)";
+function generateSectionsAuto(pillars, gender) {
+  const stem = pillars.day.stem;
+  const branch = pillars.day.branch;
+  const base = STEM_BASE[stem] || { love: "기본 성향", career: "기본 성향", money: "기본 성향", health: "기본 성향" };
+  const mod = BRANCH_MOD[branch] || "";
+  const tone = gender === "female" ? "조금 더" : "더";
 
   return [
-    { title: "0) 종합 성향", text: `${common} (일간: ${es.dayMaster} / 오행: ${JSON.stringify(es.counts)})` },
-    { title: "1) 연애·인간관계", text: love },
-    { title: "2) 직업·진로", text: job },
-    { title: "3) 재물·금전", text: money },
-    { title: "4) 건강", text: health },
-    { title: "5) 가족·가정", text: "역할(책임/표현/조율)을 한쪽으로 몰지 않게 분담하는 것이 포인트입니다." },
-    { title: "6) 타이밍", text: "MVP에서는 대운/세운/월운 계산을 제외했습니다. 다음 단계에서 추가 가능합니다." },
+    { title: "1) 연애·인간관계", text: `${base.love}. ${mod} 표현은 ${tone} 부드럽게 하면 안정됩니다.` },
+    { title: "2) 직업·경력", text: `${base.career}. ${mod}` },
+    { title: "3) 재물·돈", text: `${base.money}. 규칙(예산/자동이체/분산)으로 관리하면 유리합니다.` },
+    { title: "4) 건강", text: `${base.health}. 루틴(수면/식사/운동) 고정이 핵심입니다. ${mod}` },
   ];
 }
 
-function render(pillars) {
+function generateSections(pillars, gender) {
+  const key = `${pillars.day.stem}${pillars.day.branch}`; // 일주
+  const manual = DAY_PILLAR_DB[key]?.[gender];
+  if (manual) {
+    return [
+      { title: "1) 연애·인간관계", text: manual.love },
+      { title: "2) 직업·경력", text: manual.career },
+      { title: "3) 재물·돈", text: manual.money },
+      { title: "4) 건강", text: manual.health },
+    ];
+  }
+  return generateSectionsAuto(pillars, gender);
+}
+
+function render(pillars, gender) {
   const eight = buildEight(pillars);
 
   pillarsEl.innerHTML = `
@@ -120,7 +164,7 @@ function render(pillars) {
 
   eightEl.textContent = eight.text;
 
-  const sections = generateSections(pillars);
+  const sections = generateSections(pillars, gender);
   sectionsEl.innerHTML = sections
     .map(
       (s) => `
@@ -135,38 +179,6 @@ function render(pillars) {
   resultEl.classList.remove("hidden");
 }
 
-// ✅ '임신' -> {stem:'임', branch:'신'}
-function splitGanji(str) {
-  if (!str || typeof str !== "string" || str.length < 2) return { stem: "", branch: "" };
-  return { stem: str[0], branch: str[1] };
-}
-
-// ✅ manseryeok 결과를 어떤 형태로 받든 pillars로 정규화
-function normalizeManseryeok(r) {
-  // 1) README에 있는 toObject() 우선 사용 (배포 버전 차이에도 가장 안전)
-  if (r && typeof r.toObject === "function") {
-    const o = r.toObject(); // { year:'임신', month:'경술', day:'계유', hour:'을묘' }
-    return {
-      year: splitGanji(o.year),
-      month: splitGanji(o.month),
-      day: splitGanji(o.day),
-      hour: splitGanji(o.hour),
-    };
-  }
-
-  // 2) 혹시 정말로 FourPillars plain object면(일부 버전)
-  if (r?.year?.heavenlyStem && r?.year?.earthlyBranch) {
-    return {
-      year: { stem: r.year.heavenlyStem, branch: r.year.earthlyBranch },
-      month: { stem: r.month.heavenlyStem, branch: r.month.earthlyBranch },
-      day: { stem: r.day.heavenlyStem, branch: r.day.earthlyBranch },
-      hour: { stem: r.hour.heavenlyStem, branch: r.hour.earthlyBranch },
-    };
-  }
-
-  return null;
-}
-
 btn.addEventListener("click", async () => {
   errEl.textContent = "";
   statusEl.textContent = "";
@@ -175,6 +187,7 @@ btn.addEventListener("click", async () => {
   try {
     const isLunar = calendarEl.value === "lunar";
     const isLeapMonth = leapEl.checked;
+    const gender = genderEl.value; // male | female
 
     const year = Number($("yyyy").value);
     const month = Number($("mm").value);
@@ -182,13 +195,11 @@ btn.addEventListener("click", async () => {
     const hour = Number($("hh").value);
     const minute = Number($("min").value);
 
-    if (![year, month, day, hour, minute].every((n) => Number.isFinite(n))) {
-      throw new Error("숫자 입력이 올바르지 않습니다.");
-    }
+    const validationError = validateInput({ year, month, day, hour, minute, isLunar });
+    if (validationError) throw new Error(validationError);
 
     statusEl.textContent = "계산 중...";
 
-    // ✅ README 방식 그대로 호출
     const r = calculateFourPillars({
       year,
       month,
@@ -200,11 +211,9 @@ btn.addEventListener("click", async () => {
     });
 
     const pillars = normalizeManseryeok(r);
-
     if (!pillars) {
-      // 혹시 또 문제면 콘솔 로그로 형태 확인 가능
       console.log("manseryeok raw result:", r);
-      throw new Error("만세력 결과를 해석할 수 없습니다. 콘솔(manseryeok raw result)을 캡처해 주세요.");
+      throw new Error("만세력 결과를 해석할 수 없습니다. 콘솔 출력 캡처를 보내주세요.");
     }
 
     const allOk =
@@ -216,10 +225,10 @@ btn.addEventListener("click", async () => {
     if (!allOk) {
       console.log("normalized pillars:", pillars);
       if (typeof r?.toObject === "function") console.log("toObject():", r.toObject());
-      throw new Error("간지 문자열 분해에 실패했습니다. 콘솔 출력(normalized/toObject)을 캡처해 주세요.");
+      throw new Error("간지 문자열 분해에 실패했습니다. 콘솔 출력 캡처를 보내주세요.");
     }
 
-    render(pillars);
+    render(pillars, gender);
     statusEl.textContent = "완료";
   } catch (e) {
     errEl.textContent = e?.message || "오류가 발생했습니다.";

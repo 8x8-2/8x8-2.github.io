@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>사주(만세력) MVP</title>
+    <title>내팔자</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -25,14 +25,22 @@
             <input type="checkbox" id="leapMonth" disabled />
             <span>윤달(음력)</span>
           </label>
+
+          <label class="field">
+            <span>성별</span>
+            <select id="gender">
+              <option value="male">남</option>
+              <option value="female">여</option>
+            </select>
+          </label>
         </div>
 
         <div class="grid">
-          <label class="field"><span>년</span><input id="yyyy" type="number" value="1992" /></label>
-          <label class="field"><span>월</span><input id="mm" type="number" value="1" /></label>
-          <label class="field"><span>일</span><input id="dd" type="number" value="1" /></label>
-          <label class="field"><span>시(0-23)</span><input id="hh" type="number" value="10" /></label>
-          <label class="field"><span>분</span><input id="min" type="number" value="0" /></label>
+          <label class="field"><span>년</span><input id="yyyy" type="number" min="1900" max="2100" step="1" required value="1992" /></label>
+          <label class="field"><span>월</span><input id="mm" type="number" min="1" max="12" step="1" required value="10" /></label>
+          <label class="field"><span>일</span><input id="dd" type="number" min="1" max="31" step="1" required value="24" /></label>
+          <label class="field"><span>시(0-23)</span><input id="hh" type="number" min="0" max="23" step="1" required value="5" /></label>
+          <label class="field"><span>분</span><input id="min" type="number" min="0" max="59" step="1" required value="30" /></label>
         </div>
 
         <div class="actions">
@@ -54,11 +62,12 @@
         <div id="sections" class="stack"></div>
       </section>
 
-      <footer class="muted footer">
-        <small>© MVP. 만세력 계산: manseryeok (라이선스 확인 후 OSS NOTICE 추가 권장)</small>
+<footer class="muted footer">
+        <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank">The Mercenary</a></small>
       </footer>
     </main>
 
     <script type="module" src="/app.js"></script>
   </body>
 </html>
+     
