@@ -1,0 +1,26 @@
+{
+  "name": "8x8-2.github.io",
+  "version": "1.0.0",
+  "description": "8x8=2",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/8x8-2/8x8-2.github.io.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "homepage": "https://8x8-2.github.io",
+  "dependencies": {
+    "luxon": "^3.7.2"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}

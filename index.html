@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>사주(만세력) MVP</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>사주 결과 (MVP)</h1>
+      <p class="muted">입력은 한국시간(KST) 기준입니다.</p>
+
+      <section class="card">
+        <div class="row">
+          <label class="field">
+            <span>달력</span>
+            <select id="calendar">
+              <option value="solar">양력</option>
+              <option value="lunar">음력</option>
+            </select>
+          </label>
+
+          <label class="field checkbox">
+            <input type="checkbox" id="leapMonth" disabled />
+            <span>윤달(음력)</span>
+          </label>
+        </div>
+
+        <div class="grid">
+          <label class="field"><span>년</span><input id="yyyy" type="number" value="1992" /></label>
+          <label class="field"><span>월</span><input id="mm" type="number" value="1" /></label>
+          <label class="field"><span>일</span><input id="dd" type="number" value="1" /></label>
+          <label class="field"><span>시(0-23)</span><input id="hh" type="number" value="10" /></label>
+          <label class="field"><span>분</span><input id="min" type="number" value="0" /></label>
+        </div>
+
+        <div class="actions">
+          <button id="btnCalc">사주 보기</button>
+          <span id="status" class="muted"></span>
+        </div>
+
+        <p id="error" class="error"></p>
+      </section>
+
+      <section id="result" class="card hidden">
+        <h2>4주(년/월/일/시)</h2>
+        <ul class="list" id="pillars"></ul>
+
+        <h3>8자</h3>
+        <p id="eight"></p>
+
+        <h2>해석</h2>
+        <div id="sections" class="stack"></div>
+      </section>
+
+      <footer class="muted footer">
+        <small>© MVP. 만세력 계산: manseryeok (라이선스 확인 후 OSS NOTICE 추가 권장)</small>
+      </footer>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
