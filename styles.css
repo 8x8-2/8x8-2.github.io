@@ -46,17 +46,22 @@ body {
 }
 
 .brand-logo-slot {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  border: 1px dashed rgba(17, 24, 39, 0.2);
-  background:
-    linear-gradient(135deg, rgba(17, 24, 39, 0.08), rgba(17, 24, 39, 0.02)),
-    #fff;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.brand-logo-image {
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
 }
 
 .brand-logo-placeholder {
@@ -268,6 +273,10 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
     height: 38px;
     border-radius: 12px;
   }
+  .brand-logo-image {
+    width: 24px;
+    height: 24px;
+  }
   .brand-name { font-size: 16px; }
   .brand-subtitle { font-size: 10px; letter-spacing: 0.12em; }
   .container { margin: 20px auto 28px; padding: 12px; }
@@ -282,6 +291,10 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
     width: 34px;
     height: 34px;
     border-radius: 10px;
+  }
+  .brand-logo-image {
+    width: 22px;
+    height: 22px;
   }
   .brand-name { font-size: 15px; }
   .brand-subtitle { display: none; }

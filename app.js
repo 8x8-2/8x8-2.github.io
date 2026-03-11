@@ -4,8 +4,7 @@ import {
   EARTHLY_BRANCHES_HANJA,
   HEAVENLY_STEMS,
   HEAVENLY_STEMS_HANJA,
-} from "./vendor/manseryeok/dist/index.js";
-// 8x8 내부 사주 계산 엔진
+} from "./src/engine/soulscan-engine.js";
 
 const $ = (id) => document.getElementById(id);
 
