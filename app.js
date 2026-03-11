@@ -299,7 +299,7 @@ function renderPillarsTable(pillars) {
     .map(
       (row) => `
         <tr>
-          <th scope="row">${row.label}</th>
+          <th scope="row"><span class="axis-label">${row.label}</span></th>
           ${PILLAR_COLUMNS.map((column) => `<td>${renderGlyphCell(pillars[column.key][row.key])}</td>`).join("")}
         </tr>
       `
