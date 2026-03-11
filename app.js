@@ -1,16 +1,25 @@
-import { calculateFourPillars } from "./vendor/manseryeok/dist/index.js";
+import {
+  calculateFourPillars,
+  EARTHLY_BRANCHES,
+  EARTHLY_BRANCHES_HANJA,
+  HEAVENLY_STEMS,
+  HEAVENLY_STEMS_HANJA,
+} from "./vendor/manseryeok/dist/index.js";
+// 8x8 내부 사주 계산 엔진
 
 const $ = (id) => document.getElementById(id);
 
 const calendarEl = $("calendar");
 const leapEl = $("leapMonth");
 const genderEl = $("gender");
+const unknownTimeEl = $("unknownTime");
+const birthTimeEl = $("birthTime");
+const timeFeedbackEl = $("timeFeedback");
 const btn = $("btnCalc");
 const statusEl = $("status");
 const errEl = $("error");
 const resultEl = $("result");
 const pillarsEl = $("pillars");
-const eightEl = $("eight");
 const sectionsEl = $("sections");
 
 calendarEl.addEventListener("change", () => {
@@ -19,6 +28,93 @@ calendarEl.addEventListener("change", () => {
   if (!isLunar) leapEl.checked = false;
 });
 
+function normalizeBirthTimeInput(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 4);
+
+  if (digits.length === 0) return "";
+  if (digits.length <= 2) return digits;
+
+  const hh = digits.slice(0, 2);
+  const mm = digits.slice(2, 4);
+  return `${hh}:${mm}`;
+}
+
+function isValidBirthTime(value) {
+  if (!/^\d{2}:\d{2}$/.test(value)) return false;
+  const [hh, mm] = value.split(":").map(Number);
+  if (!Number.isInteger(hh) || !Number.isInteger(mm)) return false;
+  if (hh < 0 || hh > 24) return false;
+  if (mm < 0 || mm > 59) return false;
+  if (hh === 24 && mm !== 0) return false;
+  return true;
+}
+
+function updateBirthTimeState() {
+  if (!unknownTimeEl || !birthTimeEl || !timeFeedbackEl) return;
+
+  const unknown = unknownTimeEl.checked;
+
+  if (unknown) {
+    birthTimeEl.value = "";
+    birthTimeEl.disabled = true;
+    birthTimeEl.readOnly = true;
+    birthTimeEl.placeholder = "시간 모름";
+    birthTimeEl.classList.remove("invalid");
+    birthTimeEl.setCustomValidity("");
+    timeFeedbackEl.textContent = "올바른 시간을 입력해 주세요.";
+    timeFeedbackEl.classList.add("hidden");
+    btn.disabled = false;
+    return;
+  }
+
+  birthTimeEl.disabled = false;
+  birthTimeEl.readOnly = false;
+  birthTimeEl.placeholder = "00:00";
+
+  const normalized = normalizeBirthTimeInput(birthTimeEl.value);
+  if (birthTimeEl.value !== normalized) {
+    birthTimeEl.value = normalized;
+  }
+
+  const value = birthTimeEl.value.trim();
+  const valid = isValidBirthTime(value);
+
+  if (!value) {
+    birthTimeEl.classList.add("invalid");
+    birthTimeEl.setCustomValidity("올바른 시간을 입력해 주세요.");
+    timeFeedbackEl.textContent = "올바른 시간을 입력해 주세요.";
+    timeFeedbackEl.classList.remove("hidden");
+    btn.disabled = true;
+    return;
+  }
+
+  birthTimeEl.classList.toggle("invalid", !valid);
+  birthTimeEl.setCustomValidity(valid ? "" : "올바른 시간을 입력해 주세요.");
+  timeFeedbackEl.textContent = "올바른 시간을 입력해 주세요.";
+  timeFeedbackEl.classList.toggle("hidden", valid);
+  btn.disabled = !valid;
+}
+
+if (birthTimeEl) {
+  birthTimeEl.addEventListener("input", (e) => {
+    const nextValue = normalizeBirthTimeInput(e.target.value);
+    e.target.value = nextValue;
+    updateBirthTimeState();
+  });
+
+  birthTimeEl.addEventListener("blur", () => {
+    updateBirthTimeState();
+  });
+}
+
+if (unknownTimeEl) {
+  unknownTimeEl.addEventListener("change", () => {
+    updateBirthTimeState();
+  });
+}
+
+updateBirthTimeState();
+
 const STEM_TO_ELEMENT = {
   "갑": "목", "을": "목",
   "병": "화", "정": "화",
@@ -26,6 +122,57 @@ const STEM_TO_ELEMENT = {
   "경": "금", "신": "금",
   "임": "수", "계": "수",
 };
+
+const BRANCH_TO_ELEMENT = {
+  "자": "수",
+  "축": "토",
+  "인": "목",
+  "묘": "목",
+  "진": "토",
+  "사": "화",
+  "오": "화",
+  "미": "토",
+  "신": "금",
+  "유": "금",
+  "술": "토",
+  "해": "수",
+};
+
+const STEM_TO_HANJA = Object.fromEntries(
+  HEAVENLY_STEMS.map((stem, index) => [stem, HEAVENLY_STEMS_HANJA[index]])
+);
+
+const BRANCH_TO_HANJA = Object.fromEntries(
+  EARTHLY_BRANCHES.map((branch, index) => [branch, EARTHLY_BRANCHES_HANJA[index]])
+);
+
+const ELEMENT_DISPLAY = {
+  "목": "나무",
+  "화": "불",
+  "토": "땅",
+  "금": "금",
+  "수": "물",
+};
+
+const ELEMENT_CLASS = {
+  "목": "wood",
+  "화": "fire",
+  "토": "earth",
+  "금": "metal",
+  "수": "water",
+};
+
+const PILLAR_COLUMNS = [
+  { key: "hour", label: "시" },
+  { key: "day", label: "일" },
+  { key: "month", label: "월" },
+  { key: "year", label: "년" },
+];
+
+const PILLAR_ROWS = [
+  { key: "stem", label: "천간" },
+  { key: "branch", label: "지지" },
+];
 
 // (선택) 특정 일주만 수동 고퀄 문구를 넣고 싶을 때
 const DAY_PILLAR_DB = {
@@ -75,57 +222,106 @@ const BRANCH_MOD = {
   "해": "감수성이 깊어 휴식 루틴이 중요합니다.",
 };
 
-function buildEight(p) {
-  const stems = [p.year.stem, p.month.stem, p.day.stem, p.hour.stem];
-  const branches = [p.year.branch, p.month.branch, p.day.branch, p.hour.branch];
-  return { stems, branches, text: `${stems.join(" ")} / ${branches.join(" ")}` };
-}
-
 function splitGanji(str) {
   if (!str || typeof str !== "string" || str.length < 2) return { stem: "", branch: "" };
   return { stem: str[0], branch: str[1] };
 }
 
-function normalizeManseryeok(r) {
-  // 가장 안전: toObject()
-  if (r && typeof r.toObject === "function") {
-    const o = r.toObject(); // { year:'임신', month:'경술', day:'계유', hour:'을묘' }
-    return {
-      year: splitGanji(o.year),
-      month: splitGanji(o.month),
-      day: splitGanji(o.day),
-      hour: splitGanji(o.hour),
-    };
-  }
-  // 혹시 plain object인 경우
+function buildGlyph(char, hanja, element, empty = false) {
+  return { char, hanja, element, empty };
+}
+
+function buildStemGlyph(stem, element) {
+  return buildGlyph(stem, STEM_TO_HANJA[stem] || "", element || STEM_TO_ELEMENT[stem] || "");
+}
+
+function buildBranchGlyph(branch, element) {
+  return buildGlyph(branch, BRANCH_TO_HANJA[branch] || "", element || BRANCH_TO_ELEMENT[branch] || "");
+}
+
+function normalizePillar(stem, branch, stemElement, branchElement) {
+  return {
+    stem: buildStemGlyph(stem, stemElement),
+    branch: buildBranchGlyph(branch, branchElement),
+  };
+}
+
+function normalizeFourPillarsResult(r) {
   if (r?.year?.heavenlyStem && r?.year?.earthlyBranch) {
     return {
-      year: { stem: r.year.heavenlyStem, branch: r.year.earthlyBranch },
-      month: { stem: r.month.heavenlyStem, branch: r.month.earthlyBranch },
-      day: { stem: r.day.heavenlyStem, branch: r.day.earthlyBranch },
-      hour: { stem: r.hour.heavenlyStem, branch: r.hour.earthlyBranch },
+      year: normalizePillar(r.year.heavenlyStem, r.year.earthlyBranch, r.yearElement?.stem, r.yearElement?.branch),
+      month: normalizePillar(r.month.heavenlyStem, r.month.earthlyBranch, r.monthElement?.stem, r.monthElement?.branch),
+      day: normalizePillar(r.day.heavenlyStem, r.day.earthlyBranch, r.dayElement?.stem, r.dayElement?.branch),
+      hour: normalizePillar(r.hour.heavenlyStem, r.hour.earthlyBranch, r.hourElement?.stem, r.hourElement?.branch),
     };
   }
+
+  if (r && typeof r.toObject === "function") {
+    const o = r.toObject();
+    const year = splitGanji(o.year);
+    const month = splitGanji(o.month);
+    const day = splitGanji(o.day);
+    const hour = splitGanji(o.hour);
+
+    return {
+      year: normalizePillar(year.stem, year.branch),
+      month: normalizePillar(month.stem, month.branch),
+      day: normalizePillar(day.stem, day.branch),
+      hour: normalizePillar(hour.stem, hour.branch),
+    };
+  }
+
   return null;
 }
 
-function validateInput({ year, month, day, hour, minute, isLunar }) {
+function buildUnknownHourPillar() {
+  return {
+    stem: buildGlyph("미상", "?", "", true),
+    branch: buildGlyph("미상", "?", "", true),
+  };
+}
+
+function renderGlyphCell(glyph) {
+  const elementClass = glyph.empty ? "unknown" : (ELEMENT_CLASS[glyph.element] || "unknown");
+  const elementText = glyph.empty ? "시간 모름" : (ELEMENT_DISPLAY[glyph.element] || "");
+
+  return `
+    <div class="pillar-card ${glyph.empty ? "is-empty" : ""}" data-element="${elementClass}">
+      <span class="pillar-korean">${glyph.char || "-"}</span>
+      <span class="pillar-hanja">${glyph.hanja || "?"}</span>
+      <span class="pillar-element">${elementText}</span>
+    </div>
+  `;
+}
+
+function renderPillarsTable(pillars) {
+  return PILLAR_ROWS
+    .map(
+      (row) => `
+        <tr>
+          <th scope="row">${row.label}</th>
+          ${PILLAR_COLUMNS.map((column) => `<td>${renderGlyphCell(pillars[column.key][row.key])}</td>`).join("")}
+        </tr>
+      `
+    )
+    .join("");
+}
+
+function validateInput({ year, month, day, birthTime, isLunar, unknownTime }) {
   if (!Number.isInteger(year) || year < 1900 || year > 2100) return "년은 1900~2100 사이여야 합니다.";
   if (!Number.isInteger(month) || month < 1 || month > 12) return "월은 1~12 사이여야 합니다.";
 
-  // 음력은 보통 1~30, 양력은 1~31 (정밀한 월별 일수 체크는 추가 가능)
   const maxDay = isLunar ? 30 : 31;
   if (!Number.isInteger(day) || day < 1 || day > maxDay) return `일은 ${isLunar ? "음력 기준 1~30" : "1~31"} 사이여야 합니다.`;
 
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return "시는 0~23 사이여야 합니다.";
-  if (!Number.isInteger(minute) || minute < 0 || minute > 59) return "분은 0~59 사이여야 합니다.";
+  if (!unknownTime && !isValidBirthTime(birthTime)) return "올바른 시간을 입력해 주세요.";
 
   return null;
 }
 
 function generateSectionsAuto(pillars, gender) {
-  const stem = pillars.day.stem;
-  const branch = pillars.day.branch;
+  const stem = pillars.day.stem.char;
+  const branch = pillars.day.branch.char;
   const base = STEM_BASE[stem] || { love: "기본 성향", career: "기본 성향", money: "기본 성향", health: "기본 성향" };
   const mod = BRANCH_MOD[branch] || "";
   const tone = gender === "female" ? "조금 더" : "더";
@@ -139,7 +335,7 @@ function generateSectionsAuto(pillars, gender) {
 }
 
 function generateSections(pillars, gender) {
-  const key = `${pillars.day.stem}${pillars.day.branch}`; // 일주
+  const key = `${pillars.day.stem.char}${pillars.day.branch.char}`; // 일주
   const manual = DAY_PILLAR_DB[key]?.[gender];
   if (manual) {
     return [
@@ -153,16 +349,7 @@ function generateSections(pillars, gender) {
 }
 
 function render(pillars, gender) {
-  const eight = buildEight(pillars);
-
-  pillarsEl.innerHTML = `
-    <li>년주: ${pillars.year.stem}${pillars.year.branch}</li>
-    <li>월주: ${pillars.month.stem}${pillars.month.branch}</li>
-    <li>일주: ${pillars.day.stem}${pillars.day.branch}</li>
-    <li>시주: ${pillars.hour.stem}${pillars.hour.branch}</li>
-  `;
-
-  eightEl.textContent = eight.text;
+  pillarsEl.innerHTML = renderPillarsTable(pillars);
 
   const sections = generateSections(pillars, gender);
   sectionsEl.innerHTML = sections
@@ -187,52 +374,85 @@ btn.addEventListener("click", async () => {
   try {
     const isLunar = calendarEl.value === "lunar";
     const isLeapMonth = leapEl.checked;
-    const gender = genderEl.value; // male | female
+    const gender = genderEl.value;
 
     const year = Number($("yyyy").value);
     const month = Number($("mm").value);
     const day = Number($("dd").value);
-    const hour = Number($("hh").value);
-    const minute = Number($("min").value);
+    const unknownTime = unknownTimeEl?.checked === true;
+    const birthTime = birthTimeEl?.value.trim() || "";
 
-    const validationError = validateInput({ year, month, day, hour, minute, isLunar });
+    const validationError = validateInput({ year, month, day, birthTime, isLunar, unknownTime });
     if (validationError) throw new Error(validationError);
+
+    const [rawHour, rawMinute] = unknownTime ? [null, null] : birthTime.split(":").map(Number);
+
+    let hour = rawHour;
+    let minute = rawMinute;
 
     statusEl.textContent = "계산 중...";
 
-    const r = calculateFourPillars({
-      year,
-      month,
-      day,
-      hour,
-      minute,
-      isLunar: isLunar ? true : false,
-      isLeapMonth: isLunar ? isLeapMonth : undefined,
-    });
+    let pillars;
 
-    const pillars = normalizeManseryeok(r);
-    if (!pillars) {
-      console.log("manseryeok raw result:", r);
-      throw new Error("만세력 결과를 해석할 수 없습니다. 콘솔 출력 캡처를 보내주세요.");
+    if (unknownTime) {
+      const r = calculateFourPillars({
+        year,
+        month,
+        day,
+        hour: 12,
+        minute: 0,
+        isLunar: isLunar ? true : false,
+        isLeapMonth: isLunar ? isLeapMonth : undefined,
+      });
+
+      pillars = normalizeFourPillarsResult(r);
+      if (!pillars) {
+        console.log("8x8 사주 계산 결과:", r);
+        throw new Error("사주 계산 결과를 해석할 수 없습니다. 콘솔 출력 캡처를 보내주세요.");
+      }
+
+      pillars.hour = buildUnknownHourPillar();
+    } else {
+      const r = calculateFourPillars({
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        isLunar: isLunar ? true : false,
+        isLeapMonth: isLunar ? isLeapMonth : undefined,
+      });
+
+      pillars = normalizeFourPillarsResult(r);
+      if (!pillars) {
+        console.log("8x8 사주 계산 결과:", r);
+        throw new Error("사주 계산 결과를 해석할 수 없습니다. 콘솔 출력 캡처를 보내주세요.");
+      }
     }
 
     const allOk =
-      pillars.year.stem && pillars.year.branch &&
-      pillars.month.stem && pillars.month.branch &&
-      pillars.day.stem && pillars.day.branch &&
-      pillars.hour.stem && pillars.hour.branch;
+      pillars.year.stem.char && pillars.year.branch.char &&
+      pillars.month.stem.char && pillars.month.branch.char &&
+      pillars.day.stem.char && pillars.day.branch.char &&
+      (unknownTime || (pillars.hour.stem.char && pillars.hour.branch.char));
 
     if (!allOk) {
-      console.log("normalized pillars:", pillars);
-      if (typeof r?.toObject === "function") console.log("toObject():", r.toObject());
+      console.log("정규화된 사주 결과:", pillars);
       throw new Error("간지 문자열 분해에 실패했습니다. 콘솔 출력 캡처를 보내주세요.");
     }
 
     render(pillars, gender);
+    updateBirthTimeState();
     statusEl.textContent = "완료";
   } catch (e) {
     errEl.textContent = e?.message || "오류가 발생했습니다.";
+    updateBirthTimeState();
   } finally {
-    btn.disabled = false;
+    if (!unknownTimeEl?.checked && birthTimeEl && isValidBirthTime(birthTimeEl.value.trim())) {
+      btn.disabled = false;
+    }
+    if (unknownTimeEl?.checked) {
+      btn.disabled = false;
+    }
   }
 });

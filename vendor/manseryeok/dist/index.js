@@ -180,8 +180,12 @@ export function solarToLunar(year, month, day) {
     return { year: lunarYear, month: lunarMonth, day: lunarDay, isLeapMonth };
 }
 // ===== 절기 계산 =====
-/** 절기 계산을 위한 기본 데이터 */
-const SOLAR_TERM_BASE = [
+/** 절기 계산을 위한 20세기/21세기 보정 상수 */
+const SOLAR_TERM_C20 = [
+    6.11, 20.84, 4.6295, 19.4599, 6.3826, 21.4155, 5.59, 20.888, 6.318, 21.86, 6.5, 22.2, 7.928,
+    23.65, 8.35, 23.95, 8.44, 23.822, 9.098, 24.218, 8.218, 23.08, 7.9, 22.6,
+];
+const SOLAR_TERM_C21 = [
     5.4055, 20.12, 3.87, 18.73, 5.63, 20.646, 4.81, 20.1, 5.52, 21.04, 5.678, 21.37, 7.108, 22.83,
     7.5, 23.13, 7.646, 23.042, 8.318, 23.438, 7.438, 22.36, 7.18, 21.94,
 ];
@@ -191,11 +195,11 @@ const SOLAR_TERM_BASE = [
  * @param termIndex 절기 인덱스 (0-23)
  */
 const getSolarTermDate = (year, termIndex) => {
-    const century = Math.floor(year / 100);
     const yearInCentury = year % 100;
-    const termCoeff = 0.2422;
-    const leapYearAdjust = Math.floor(yearInCentury / 4) - Math.floor(century / 4);
-    const day = Math.floor(SOLAR_TERM_BASE[termIndex] + termCoeff * yearInCentury + leapYearAdjust);
+    const is21stCentury = year >= 2000;
+    const centuryConstants = is21stCentury ? SOLAR_TERM_C21 : SOLAR_TERM_C20;
+    const correction = Math.floor((yearInCentury - 1) / 4);
+    const day = Math.floor(yearInCentury * 0.2422 + centuryConstants[termIndex]) - correction;
     const month = Math.floor(termIndex / 2);
     return new Date(year, month, day);
 };
@@ -203,37 +207,82 @@ const getSolarTermDate = (year, termIndex) => {
 /**
  * 연주 계산
  */
-const getYearPillar = (year) => ({
-    heavenlyStem: HEAVENLY_STEMS[(year - 4) % 10],
-    earthlyBranch: EARTHLY_BRANCHES[(year - 4) % 12],
-});
+const getAdjustedSolarYear = (year, month, day) => {
+    const date = new Date(year, month - 1, day);
+    const lichunDate = getSolarTermDate(year, 2);
+    return date < lichunDate ? year - 1 : year;
+};
+const getYearPillar = (year, month, day) => {
+    const adjustedYear = getAdjustedSolarYear(year, month, day);
+    return {
+        heavenlyStem: HEAVENLY_STEMS[((adjustedYear - 4) % 10 + 10) % 10],
+        earthlyBranch: EARTHLY_BRANCHES[((adjustedYear - 4) % 12 + 12) % 12],
+    };
+};
 /**
  * 월주 계산 (절기 기준)
  */
 const getMonthPillar = (year, month, day) => {
     const date = new Date(year, month - 1, day);
+    const xiaohanDate = getSolarTermDate(year, 0);
+    const lichunDate = getSolarTermDate(year, 2);
+    const jingzheDate = getSolarTermDate(year, 4);
+    const qingmingDate = getSolarTermDate(year, 6);
+    const lixiaDate = getSolarTermDate(year, 8);
+    const mangzhongDate = getSolarTermDate(year, 10);
+    const xiaoshuDate = getSolarTermDate(year, 12);
+    const liqiuDate = getSolarTermDate(year, 14);
+    const bailuDate = getSolarTermDate(year, 16);
+    const hanluDate = getSolarTermDate(year, 18);
+    const lidongDate = getSolarTermDate(year, 20);
+    const daxueDate = getSolarTermDate(year, 22);
     // 입춘 기준으로 연도 조정
-    const lichunDate = getSolarTermDate(year, 2); // 입춘은 3번째 절기 (0-indexed)
-    let adjustedYear = year;
-    if (date < lichunDate) {
-        adjustedYear = year - 1;
+    const adjustedYear = getAdjustedSolarYear(year, month, day);
+    // 절기 기준 월 계산: 입춘=인월(1), 경칩=묘월(2) ... 대설=자월(11), 소한=축월(12)
+    let solarTermMonth;
+    if (date < xiaohanDate) {
+        solarTermMonth = 11;
     }
-    // 절기 기준으로 월 계산
-    let solarTermMonth = 0;
-    for (let i = 0; i < 24; i += 2) {
-        const termDate = getSolarTermDate(adjustedYear, i);
-        if (date >= termDate) {
-            solarTermMonth = Math.floor(i / 2) + 1;
-        }
-        else {
-            break;
-        }
+    else if (date < lichunDate) {
+        solarTermMonth = 12;
     }
-    // 월주 천간 계산 (오행 순환 공식)
-    const yearStem = (adjustedYear - 4) % 10;
-    const yearStemMod5 = yearStem % 5;
-    const monthStemIndex = (yearStemMod5 * 2 + solarTermMonth + 1) % 10;
-    // 월주 지지 맵핑
+    else if (date < jingzheDate) {
+        solarTermMonth = 1;
+    }
+    else if (date < qingmingDate) {
+        solarTermMonth = 2;
+    }
+    else if (date < lixiaDate) {
+        solarTermMonth = 3;
+    }
+    else if (date < mangzhongDate) {
+        solarTermMonth = 4;
+    }
+    else if (date < xiaoshuDate) {
+        solarTermMonth = 5;
+    }
+    else if (date < liqiuDate) {
+        solarTermMonth = 6;
+    }
+    else if (date < bailuDate) {
+        solarTermMonth = 7;
+    }
+    else if (date < hanluDate) {
+        solarTermMonth = 8;
+    }
+    else if (date < lidongDate) {
+        solarTermMonth = 9;
+    }
+    else if (date < daxueDate) {
+        solarTermMonth = 10;
+    }
+    else {
+        solarTermMonth = 11;
+    }
+    // 월주 천간 계산: 갑기년 병인월, 을경년 무인월, 병신년 경인월, 정임년 임인월, 무계년 갑인월
+    const yearStemIndex = ((adjustedYear - 4) % 10 + 10) % 10;
+    const monthStemStartIndex = ((yearStemIndex % 5) * 2 + 2) % 10;
+    const monthStemIndex = (monthStemStartIndex + solarTermMonth - 1) % 10;
     const MONTH_BRANCHES = {
         1: '인',
         2: '묘',
@@ -250,7 +299,7 @@ const getMonthPillar = (year, month, day) => {
     };
     return {
         heavenlyStem: HEAVENLY_STEMS[monthStemIndex],
-        earthlyBranch: MONTH_BRANCHES[solarTermMonth] || '인',
+        earthlyBranch: MONTH_BRANCHES[solarTermMonth],
     };
 };
 /**
@@ -318,7 +367,7 @@ const getHourPillar = (dayPillar, hour, minute) => {
  * @returns 사주팔자 (연주, 월주, 일주, 시주)
  */
 export function calculateFourPillars(birthInfo) {
-    const { hour, minute } = birthInfo;
+    let { hour, minute } = birthInfo;
     let { year, month, day } = birthInfo;
     // 음력인 경우 양력으로 변환
     if (birthInfo.isLunar) {
@@ -327,7 +376,16 @@ export function calculateFourPillars(birthInfo) {
         month = solarDate.month;
         day = solarDate.day;
     }
-    const yearPillar = getYearPillar(year);
+    if (hour === 24 && minute === 0) {
+        const nextDay = new Date(year, month - 1, day);
+        nextDay.setDate(nextDay.getDate() + 1);
+        year = nextDay.getFullYear();
+        month = nextDay.getMonth() + 1;
+        day = nextDay.getDate();
+        hour = 0;
+        minute = 0;
+    }
+    const yearPillar = getYearPillar(year, month, day);
     const monthPillar = getMonthPillar(year, month, day);
     const dayPillar = getDayPillar(year, month, day);
     const hourPillar = getHourPillar(dayPillar, hour, minute);
