@@ -29,6 +29,15 @@ function trackEvent(name, params = {}) {
   window.gtag("event", name, params);
 }
 
+function syncCurrentYear() {
+  const currentYear = String(new Date().getFullYear());
+  document.querySelectorAll("[data-current-year]").forEach((element) => {
+    element.textContent = currentYear;
+  });
+}
+
+syncCurrentYear();
+
 calendarEl.addEventListener("change", () => {
   const isLunar = calendarEl.value === "lunar";
   leapEl.disabled = !isLunar;

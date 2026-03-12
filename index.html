@@ -7,20 +7,25 @@
     <link rel="icon" href="/src/img/bi/favicon-soulscan.png" sizes="any">
     <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-soulscan.png">
     <link rel="manifest" href="/src/img/bi/favicon-soulscan.png">
-    <title>소울 스캔 | 생년월일로 보는 내 운명 사주</title>
+    <title>무료 사주 풀이 | 생년월일로 보는 사주팔자 - 소울 스캔</title>
     <link rel="stylesheet" href="/styles.css" />
+    <meta name="description" content="무료 사주 풀이 서비스 소울 스캔. 생년월일과 태어난 시간으로 사주팔자, 성향, 연애운, 직업운, 재물운 흐름을 확인하세요. 양력·음력과 태어난 시간 미상 입력을 지원합니다.">
     <meta name="robots" content="index,follow,max-image-preview:large">
     <link rel="canonical" href="https://soulscan.me">
     <meta name="author" content="C.B. Lee">
     <meta name="publisher" content="The Mercenary">
-    <meta property="og:title" content="소울 스캔 | 생년월일로 보는 내 운명 사주">
-    <meta property="og:description" content="무료 사주 풀이 서비스 소울 스캔. 생년월일 입력으로 사주팔자, 타고난 운명, 성향과 인생 흐름을 간편하게 확인할 수 있습니다.">
+    <meta property="og:title" content="무료 사주 풀이 | 생년월일로 보는 사주팔자 - 소울 스캔">
+    <meta property="og:description" content="무료 사주 풀이 서비스 소울 스캔. 생년월일과 태어난 시간으로 사주팔자, 성향, 연애운, 직업운, 재물운 흐름을 확인하세요.">
     <meta property="og:image" content="https://soulscan.me/src/img/bi/symbol-soulscan.png">
     <meta property="og:image:alt" content="소울 스캔 무료 사주 웹사이트">
     <meta property="og:url" content="https://soulscan.me">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="소울 스캔">
     <meta property="og:locale" content="ko_KR">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="무료 사주 풀이 | 생년월일로 보는 사주팔자 - 소울 스캔">
+    <meta name="twitter:description" content="생년월일과 태어난 시간으로 무료 사주 풀이와 운세 흐름을 확인하세요.">
+    <meta name="twitter:image" content="https://soulscan.me/src/img/bi/symbol-soulscan.png">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y1LQ26MRQF"></script>
     <script>
@@ -32,6 +37,57 @@
         page_path: window.location.pathname,
         page_location: window.location.href,
       });
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "소울 스캔",
+            "url": "https://soulscan.me",
+            "inLanguage": "ko-KR",
+            "description": "생년월일과 태어난 시간으로 사주팔자와 운세 흐름을 확인할 수 있는 무료 사주 풀이 서비스"
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "사주와 사주팔자는 같은 뜻인가요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "사주는 태어난 연, 월, 일, 시 네 기둥을 뜻하고, 사주팔자는 그 네 기둥을 이루는 천간과 지지 여덟 글자를 함께 부르는 말입니다."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "태어난 시간을 모르면 사주를 볼 수 있나요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "태어난 시간을 모르는 경우에도 년주, 월주, 일주를 바탕으로 기본적인 성향과 흐름은 확인할 수 있습니다. 다만 시주가 빠지면 세부 해석은 제한될 수 있습니다."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "음력 생일도 입력할 수 있나요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "소울 스캔은 양력과 음력 입력을 모두 지원하며, 음력인 경우 윤달 여부도 함께 선택할 수 있습니다."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "사주 결과는 어떻게 활용하면 좋나요?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "사주는 미래를 단정하는 도구보다는 자신의 성향과 선택의 흐름을 이해하는 참고 자료로 활용하는 편이 적절합니다."
+                }
+              }
+            ]
+          }
+        ]
+      }
     </script>
   </head>
   <body>
@@ -54,10 +110,23 @@
     </header>
 
     <main class="container">
-      <h1>생년월일시 입력</h1>
-      <p class="muted">입력은 한국시간(KST) 기준입니다.</p>
+      <section class="card hero-card" aria-labelledby="hero-heading">
+        <p class="eyebrow">무료 사주 풀이 · 생년월일 운세 · 사주팔자 해석</p>
+        <h1 id="hero-heading">생년월일로 보는 무료 사주 풀이, 소울 스캔</h1>
+        <p class="hero-subtitle"><span data-current-year>2026</span>년 운세 흐름이 궁금하다면 먼저 내 사주 원국과 기본 성향부터 확인해 보세요.</p>
+        <p class="hero-lead">소울 스캔은 태어난 연·월·일·시를 바탕으로 사주 원국과 핵심 해석을 빠르게 보여주는 무료 사주 서비스입니다. 연애운, 직업운, 재물운, 기본 성향을 한 화면에서 간단하게 살펴볼 수 있습니다.</p>
+        <div class="hero-chips" aria-label="서비스 특징">
+          <span class="hero-chip">양력·음력 입력 지원</span>
+          <span class="hero-chip">태어난 시간 미상 입력 가능</span>
+          <span class="hero-chip">한국시간 기준 해석</span>
+        </div>
+      </section>
 
-      <section class="card">
+      <section class="card" aria-labelledby="birth-input-heading">
+        <div class="section-intro">
+          <h2 id="birth-input-heading">생년월일시 입력</h2>
+          <p class="muted">정확한 해석을 위해 생년월일과 태어난 시간을 입력해 주세요. 해외에서 태어난 경우에는 현지 시간을 한국시간(KST) 기준으로 환산해 입력하는 편이 더 정확합니다.</p>
+        </div>
         <div class="row">
           <label class="field">
             <span>달력</span>
@@ -97,15 +166,15 @@
         <p id="timeFeedback" class="error hidden">올바른 시간을 입력해 주세요.</p>
 
         <div class="actions">
-          <button id="btnCalc">사주 보기</button>
+          <button id="btnCalc">내 사주팔자 결과 스캔</button>
           <span id="status" class="muted"></span>
         </div>
 
         <p id="error" class="error"></p>
       </section>
 
-      <section id="result" class="card hidden">
-        <h2>사주 원국</h2>
+      <section id="result" class="card hidden" aria-live="polite">
+        <h2>사주 원국 결과</h2>
         <div class="pillars-wrap">
           <table class="saju-table" aria-label="사주 원국">
             <thead>
@@ -125,7 +194,152 @@
         <div id="sections" class="stack"></div>
       </section>
 
-<footer class="muted footer">
+      <section class="card content-card" aria-labelledby="guide-heading">
+        <div class="section-intro">
+          <h2 id="guide-heading">무료 사주 풀이 가이드</h2>
+          <p class="muted">사주를 처음 보는 사람도 이해할 수 있도록 핵심 개념과 많이 찾는 주제를 깔끔하게 정리했습니다.</p>
+        </div>
+
+        <nav class="topic-nav" aria-label="사주 정보 바로가기">
+          <a class="topic-link" href="#what-is-saju">사주란?</a>
+          <a class="topic-link" href="#how-to-read-saju">사주 보는 법</a>
+          <a class="topic-link" href="#what-you-can-learn">무엇을 알 수 있나</a>
+          <a class="topic-link" href="#popular-saju-keywords">인기 키워드</a>
+        </nav>
+
+        <section id="what-is-saju" class="info-section">
+          <h3>사주란 무엇인가요?</h3>
+          <p>사주(四柱)는 사람이 태어난 연·월·일·시 네 가지 시간 정보를 바탕으로 타고난 기질과 삶의 흐름을 해석하는 동양 철학 체계입니다. 각 시간은 하나의 기둥이 되고, 기둥마다 천간과 지지가 붙어 총 여덟 글자가 만들어지는데 이를 사주팔자라고 부릅니다.</p>
+          <p>사주는 단순한 점술이라기보다 음양오행의 균형을 통해 개인의 에너지 구조를 읽는 방식에 가깝습니다. 그래서 사주 해석은 미래를 단정하는 답안보다 자신의 성향, 선택의 방향, 관계의 패턴을 이해하는 참고 자료로 보는 편이 적절합니다.</p>
+        </section>
+
+        <section id="how-to-read-saju" class="info-section">
+          <h3>사주팔자는 어떻게 구성되나요?</h3>
+          <div class="info-grid pillars-grid">
+            <article class="info-card">
+              <h4>년주</h4>
+              <p>태어난 해의 기운으로, 성장 배경과 큰 환경의 흐름을 읽는 데 활용됩니다.</p>
+            </article>
+            <article class="info-card">
+              <h4>월주</h4>
+              <p>계절감과 사회적 역할, 일하는 방식 같은 현실적 리듬을 파악할 때 중요합니다.</p>
+            </article>
+            <article class="info-card">
+              <h4>일주</h4>
+              <p>자신을 대표하는 중심축으로, 기본 성향과 관계 방식의 핵심 기준이 됩니다.</p>
+            </article>
+            <article class="info-card">
+              <h4>시주</h4>
+              <p>후반 인생의 흐름, 잠재력, 자녀운이나 세부 성향을 볼 때 참고하는 기둥입니다.</p>
+            </article>
+          </div>
+          <ul class="bullet-list">
+            <li>사주팔자는 천간 10개와 지지 12개의 조합으로 만들어집니다.</li>
+            <li>같은 생년월일이라도 태어난 시간에 따라 해석이 달라질 수 있습니다.</li>
+            <li>정확한 해석을 위해서는 오행의 강약, 격국, 대운과 세운의 흐름을 함께 살펴봐야 합니다.</li>
+          </ul>
+        </section>
+
+        <section id="what-you-can-learn" class="info-section">
+          <h3>사주로 무엇을 알 수 있나요?</h3>
+          <div class="info-grid">
+            <article class="info-card">
+              <h4>성향과 기질</h4>
+              <p>일간과 오행의 균형을 바탕으로 사고방식, 행동 패턴, 스트레스 반응을 읽을 수 있습니다.</p>
+            </article>
+            <article class="info-card">
+              <h4>직업운과 적성</h4>
+              <p>조직형인지 창의형인지, 안정 지향형인지 변화 대응형인지 같은 업무 성향을 이해하는 데 도움을 줍니다.</p>
+            </article>
+            <article class="info-card">
+              <h4>재물운과 사업운</h4>
+              <p>재성의 흐름과 대운 변화로 돈을 모으는 방식, 투자 성향, 리스크 관리 포인트를 살펴볼 수 있습니다.</p>
+            </article>
+            <article class="info-card">
+              <h4>연애운과 인간관계</h4>
+              <p>관계 에너지의 패턴을 통해 연애 스타일, 배우자 인연, 궁합을 해석할 때 참고할 수 있습니다.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="popular-saju-keywords" class="info-section">
+          <h3>사람들이 많이 찾는 무료 사주 주제</h3>
+          <div class="keyword-grid">
+            <article class="keyword-card">
+              <h4>무료 사주 풀이</h4>
+              <ul class="keyword-list">
+                <li>무료 사주</li>
+                <li>사주팔자 풀이</li>
+                <li>만세력 무료</li>
+                <li>인터넷 사주 보기</li>
+              </ul>
+            </article>
+            <article class="keyword-card">
+              <h4>연애운과 궁합</h4>
+              <ul class="keyword-list">
+                <li>사주 궁합</li>
+                <li>결혼운 사주</li>
+                <li>인연 사주</li>
+                <li>재회 가능성 사주</li>
+              </ul>
+            </article>
+            <article class="keyword-card">
+              <h4>직업운과 성공운</h4>
+              <ul class="keyword-list">
+                <li>나에게 맞는 직업 사주</li>
+                <li>시험운 사주</li>
+                <li>사업운 보는 법</li>
+                <li>대운 바뀌는 시기</li>
+              </ul>
+            </article>
+            <article class="keyword-card">
+              <h4>재물운과 명리학 기초</h4>
+              <ul class="keyword-list">
+                <li>재물운 사주</li>
+                <li>돈복 있는 사주</li>
+                <li>천간 지지 뜻</li>
+                <li>사주 보는 법 기초</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <section class="card faq-card" aria-labelledby="faq-heading">
+        <div class="section-intro">
+          <h2 id="faq-heading">자주 묻는 질문</h2>
+          <p class="muted">검색 사용자가 많이 궁금해하는 질문을 FAQ 형식으로 정리했습니다.</p>
+        </div>
+
+        <div class="accordion-list">
+          <details class="accordion" open>
+            <summary>사주와 사주팔자는 같은 뜻인가요?</summary>
+            <div class="accordion-body">
+              <p>사주는 태어난 연·월·일·시 네 기둥을 뜻하고, 사주팔자는 그 네 기둥을 이루는 천간과 지지 여덟 글자를 함께 부르는 말입니다.</p>
+            </div>
+          </details>
+          <details class="accordion">
+            <summary>태어난 시간을 모르면 사주를 볼 수 있나요?</summary>
+            <div class="accordion-body">
+              <p>가능합니다. 년주, 월주, 일주만으로도 기본 성향과 흐름은 볼 수 있지만, 시주가 빠지면 세부 해석이나 후반 운세의 정밀도는 낮아질 수 있습니다.</p>
+            </div>
+          </details>
+          <details class="accordion">
+            <summary>음력 생일도 입력할 수 있나요?</summary>
+            <div class="accordion-body">
+              <p>소울 스캔은 양력과 음력 입력을 모두 지원합니다. 음력을 선택했다면 윤달 여부도 함께 선택해 주는 것이 좋습니다.</p>
+            </div>
+          </details>
+          <details class="accordion">
+            <summary>사주 결과는 어떻게 활용하면 좋나요?</summary>
+            <div class="accordion-body">
+              <p>사주는 미래를 단정하는 답안보다 자신의 성향과 선택의 흐름을 이해하는 참고 자료로 활용하는 편이 좋습니다. 진로, 관계, 생활 습관을 점검하는 출발점으로 보시면 충분합니다.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <footer class="muted footer">
         <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank">The Mercenary</a></small>
       </footer>
     </main>
