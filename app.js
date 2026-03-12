@@ -13,6 +13,9 @@ const leapEl = $("leapMonth");
 const genderEl = $("gender");
 const unknownTimeEl = $("unknownTime");
 const birthTimeEl = $("birthTime");
+const yearEl = $("yyyy");
+const monthEl = $("mm");
+const dayEl = $("dd");
 const timeFeedbackEl = $("timeFeedback");
 const btn = $("btnCalc");
 const statusEl = $("status");
@@ -36,6 +39,37 @@ function normalizeBirthTimeInput(value) {
   const hh = digits.slice(0, 2);
   const mm = digits.slice(2, 4);
   return `${hh}:${mm}`;
+}
+
+function normalizeDigitsOnlyInput(value, maxLength) {
+  return String(value || "").replace(/\D/g, "").slice(0, maxLength);
+}
+
+function bindDigitsOnlyInput(input, maxLength) {
+  if (!input) return;
+
+  input.addEventListener("beforeinput", (event) => {
+    if (event.isComposing) return;
+    if (event.inputType?.startsWith("delete") || event.inputType === "historyUndo" || event.inputType === "historyRedo") return;
+    if (event.data && !/^\d+$/.test(event.data)) {
+      event.preventDefault();
+      return;
+    }
+
+    const selectionStart = input.selectionStart ?? input.value.length;
+    const selectionEnd = input.selectionEnd ?? input.value.length;
+    const nextLength = input.value.length - (selectionEnd - selectionStart) + (event.data?.length || 0);
+    if (nextLength > maxLength) {
+      event.preventDefault();
+    }
+  });
+
+  input.addEventListener("input", () => {
+    const normalized = normalizeDigitsOnlyInput(input.value, maxLength);
+    if (input.value !== normalized) {
+      input.value = normalized;
+    }
+  });
 }
 
 function isValidBirthTime(value) {
@@ -105,6 +139,10 @@ if (birthTimeEl) {
     updateBirthTimeState();
   });
 }
+
+bindDigitsOnlyInput(yearEl, 4);
+bindDigitsOnlyInput(monthEl, 2);
+bindDigitsOnlyInput(dayEl, 2);
 
 if (unknownTimeEl) {
   unknownTimeEl.addEventListener("change", () => {

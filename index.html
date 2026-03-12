@@ -70,9 +70,9 @@
         </div>
 
         <div class="grid grid-birth">
-          <label class="field"><span>년</span><input id="yyyy" type="number" min="1900" max="2100" step="1" required value="1991" /></label>
-          <label class="field"><span>월</span><input id="mm" type="number" min="1" max="12" step="1" required value="5" /></label>
-          <label class="field"><span>일</span><input id="dd" type="number" min="1" max="31" step="1" required value="23" /></label>
+          <label class="field"><span>년</span><input id="yyyy" type="text" inputmode="numeric" pattern="\d{4}" maxlength="4" required value="1991" /></label>
+          <label class="field"><span>월</span><input id="mm" type="text" inputmode="numeric" pattern="\d{1,2}" maxlength="2" required value="5" /></label>
+          <label class="field"><span>일</span><input id="dd" type="text" inputmode="numeric" pattern="\d{1,2}" maxlength="2" required value="23" /></label>
           <label class="field field-time-input">
             <span>태어난 시간</span>
             <input id="birthTime" type="text" inputmode="numeric" placeholder="00:00" value="11:45" maxlength="5" aria-describedby="timeFeedback" pattern="^([01]\d|2[0-3]):[0-5]\d$|^24:00$" />
