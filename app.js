@@ -24,6 +24,11 @@ const resultEl = $("result");
 const pillarsEl = $("pillars");
 const sectionsEl = $("sections");
 
+function trackEvent(name, params = {}) {
+  if (typeof window === "undefined" || typeof window.gtag !== "function") return;
+  window.gtag("event", name, params);
+}
+
 calendarEl.addEventListener("change", () => {
   const isLunar = calendarEl.value === "lunar";
   leapEl.disabled = !isLunar;
@@ -479,6 +484,10 @@ btn.addEventListener("click", async () => {
     }
 
     render(pillars, gender);
+    trackEvent("saju_calculation_success", {
+      calendar_type: isLunar ? "lunar" : "solar",
+      birth_time_known: unknownTime ? "no" : "yes",
+    });
     updateBirthTimeState();
     statusEl.textContent = "완료";
   } catch (e) {
