@@ -263,6 +263,15 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   line-height: 1.75;
 }
 
+.day-pillar-metaphor {
+  margin-top: 8px;
+  font-family: "Iowan Old Style", "Songti SC", "Noto Serif KR", serif;
+  font-size: clamp(18px, 3vw, 24px);
+  font-weight: 700;
+  line-height: 1.4;
+  color: #1f2937;
+}
+
 .mini-note {
   margin: 10px 0 0;
   color: var(--mut);

@@ -1,5 +1,80 @@
-// key: "갑자" 같은 일주
-// value: 자동 해석 위에 덧붙이는 수동 고급 문구
+// 60일주 물상 정보와 일부 수동 고급 문구
+
+export const DAY_PILLAR_ARCHETYPES = {
+  갑자: { hanja: "甲子", metaphor: "한겨울 추위에 서 있는 나무" },
+  갑인: { hanja: "甲寅", metaphor: "큰 나무 앞의 호랑이" },
+  갑진: { hanja: "甲辰", metaphor: "물기 촉촉한 흙 위에 잘 심어진 큰 나무" },
+  갑오: { hanja: "甲午", metaphor: "불 위에서 타는 나무" },
+  갑신: { hanja: "甲申", metaphor: "남산 위의 소나무" },
+  갑술: { hanja: "甲戌", metaphor: "메마른 초원에 홀로 심어진 나무" },
+
+  을축: { hanja: "乙丑", metaphor: "촉촉한 습토 위의 잡초" },
+  을묘: { hanja: "乙卯", metaphor: "곧게 선 대나무" },
+  을사: { hanja: "乙巳", metaphor: "가시가 있는 장미" },
+  을미: { hanja: "乙未", metaphor: "사막 위의 선인장" },
+  을유: { hanja: "乙酉", metaphor: "유리병 속의 꽃" },
+  을해: { hanja: "乙亥", metaphor: "바다 위에 떠 있는 부평초" },
+
+  병자: { hanja: "丙子", metaphor: "개울에 비친 태양" },
+  병인: { hanja: "丙寅", metaphor: "태양을 받고 자라는 초목" },
+  병진: { hanja: "丙辰", metaphor: "갯벌 위의 태양" },
+  병오: { hanja: "丙午", metaphor: "뜨거운 태양" },
+  병신: { hanja: "丙申", metaphor: "태양 아래 바쁜 원숭이" },
+  병술: { hanja: "丙戌", metaphor: "서쪽으로 넘어가는 해" },
+
+  정축: { hanja: "丁丑", metaphor: "연못 위를 은은히 비추는 달빛" },
+  정묘: { hanja: "丁卯", metaphor: "밤에 피는 꽃" },
+  정사: { hanja: "丁巳", metaphor: "보름달 아래 켜 둔 촛불" },
+  정미: { hanja: "丁未", metaphor: "사막 위에 뜬 달" },
+  정유: { hanja: "丁酉", metaphor: "초를 꽂아 놓은 촛대" },
+  정해: { hanja: "丁亥", metaphor: "호수 위에 떠 있는 달" },
+
+  무자: { hanja: "戊子", metaphor: "산속의 작은 웅덩이" },
+  무인: { hanja: "戊寅", metaphor: "깊은 산속의 큰 호랑이" },
+  무진: { hanja: "戊辰", metaphor: "깊고 깊은 산속" },
+  무오: { hanja: "戊午", metaphor: "화산" },
+  무신: { hanja: "戊申", metaphor: "가을산 속의 원숭이" },
+  무술: { hanja: "戊戌", metaphor: "첩첩산중" },
+
+  기축: { hanja: "己丑", metaphor: "밭을 가는 소" },
+  기묘: { hanja: "己卯", metaphor: "밭 위를 달리는 토끼" },
+  기사: { hanja: "己巳", metaphor: "습한 흙에 사는 뱀" },
+  기미: { hanja: "己未", metaphor: "물기 없이 말라버린 전답" },
+  기유: { hanja: "己酉", metaphor: "땅속에 숨은 보석" },
+  기해: { hanja: "己亥", metaphor: "한강물 옆의 고수부지" },
+
+  경자: { hanja: "庚子", metaphor: "바위틈의 깨끗한 샘물" },
+  경인: { hanja: "庚寅", metaphor: "도끼와 도끼자루" },
+  경진: { hanja: "庚辰", metaphor: "윤택한 땅 위의 큰 바위" },
+  경오: { hanja: "庚午", metaphor: "힘 있고 멋있는 백마" },
+  경신: { hanja: "庚申", metaphor: "쇠몽둥이" },
+  경술: { hanja: "庚戌", metaphor: "험난한 바위산" },
+
+  신축: { hanja: "辛丑", metaphor: "두 개의 뿔을 가진 소" },
+  신묘: { hanja: "辛卯", metaphor: "가을철 말라가는 풀 사이의 토끼" },
+  신사: { hanja: "辛巳", metaphor: "용광로에서 다듬어진 기물" },
+  신미: { hanja: "辛未", metaphor: "뿔이 강한 양" },
+  신유: { hanja: "辛酉", metaphor: "너무 단단한 차돌" },
+  신해: { hanja: "辛亥", metaphor: "하얗고 깨끗하고 맑은 물" },
+
+  임자: { hanja: "壬子", metaphor: "밤에 돌아다니는 쥐" },
+  임인: { hanja: "壬寅", metaphor: "밤의 호랑이" },
+  임진: { hanja: "壬辰", metaphor: "물 만난 용" },
+  임오: { hanja: "壬午", metaphor: "아무나 탈 수 없는 흑마" },
+  임신: { hanja: "壬申", metaphor: "바위틈에서 솟아나는 끊임없는 물" },
+  임술: { hanja: "壬戌", metaphor: "밤새 지키는 개" },
+
+  계축: { hanja: "癸丑", metaphor: "섣달의 차가운 물" },
+  계묘: { hanja: "癸卯", metaphor: "풀잎에 맺힌 이슬" },
+  계사: { hanja: "癸巳", metaphor: "웅덩이에 갇힌 뱀" },
+  계미: { hanja: "癸未", metaphor: "작은 옹달샘을 찾는 목마른 양" },
+  계유: { hanja: "癸酉", metaphor: "술잔" },
+  계해: { hanja: "癸亥", metaphor: "바다 위에 내리는 비" },
+};
+
+export function getDayPillarArchetype(dayPillarKey) {
+  return DAY_PILLAR_ARCHETYPES[dayPillarKey] || null;
+}
 
 export const DAY_PILLAR_DB = {
   계유: {

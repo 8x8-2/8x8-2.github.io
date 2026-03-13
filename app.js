@@ -10,6 +10,7 @@ import {
   formatHiddenStemLine,
   getTenGodBrief,
 } from "./src/engine/saju-advanced.js";
+import { getDayPillarArchetype } from "./data/daypillars.js";
 import { buildSajuReading } from "./src/engine/saju-interpretation.js";
 
 const $ = (id) => document.getElementById(id);
@@ -28,6 +29,7 @@ const statusEl = $("status");
 const errEl = $("error");
 const resultEl = $("result");
 const pillarsEl = $("pillars");
+const dayPillarProfileEl = $("dayPillarProfile");
 const sectionsEl = $("sections");
 const tenGodsSummaryEl = $("tenGodsSummary");
 const tenGodsEl = $("tenGods");
@@ -331,6 +333,25 @@ function renderSummaryBox(element, summary, note = "") {
   `;
 }
 
+function renderDayPillarProfile(pillars) {
+  const dayPillarKey = `${pillars.day.stem.char}${pillars.day.branch.char}`;
+  const info = getDayPillarArchetype(dayPillarKey);
+
+  if (!info) {
+    dayPillarProfileEl.innerHTML = `
+      <div class="title">${dayPillarKey} 일주</div>
+      <div class="text">이 일주에 대한 물상 설명은 아직 준비 중입니다.</div>
+    `;
+    return;
+  }
+
+  dayPillarProfileEl.innerHTML = `
+    <div class="title">${dayPillarKey}(${info.hanja}) 일주</div>
+    <div class="day-pillar-metaphor">${info.metaphor}</div>
+    <div class="text">전통 물상 해석에서는 이 일주를 위와 같은 이미지로 비유합니다. 아래 해석은 이 물상과 원국 전체 오행, 십성, 대운 흐름을 함께 반영한 결과입니다.</div>
+  `;
+}
+
 function renderTenGodCards(tenGods) {
   return tenGods.items
     .map((item) => {
@@ -412,6 +433,7 @@ function validateInput({ year, month, day, birthTime, isLunar, unknownTime }) {
 
 function render(pillars, { gender, unknownTime, birthInfo }) {
   pillarsEl.innerHTML = renderPillarsTable(pillars);
+  renderDayPillarProfile(pillars);
 
   const sections = buildSajuReading(pillars, { gender, unknownTime });
   sectionsEl.innerHTML = sections

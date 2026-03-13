@@ -1,4 +1,4 @@
-import { DAY_PILLAR_DB } from "../../data/daypillars.js";
+import { DAY_PILLAR_ARCHETYPES, DAY_PILLAR_DB } from "../../data/daypillars.js";
 
 const CATEGORY_CONFIG = [
   { key: "innate", title: "1) 타고난 운" },
@@ -508,6 +508,18 @@ function getManualSentences(profile) {
   return pillarDb[profile.gender] || pillarDb.unisex || null;
 }
 
+function buildDayPillarArchetypeSentences(profile) {
+  const info = DAY_PILLAR_ARCHETYPES[profile.dayPillarKey];
+  if (!info) return null;
+
+  return {
+    innate: [
+      `${profile.dayPillarKey}(${info.hanja}) 일주는 흔히 '${info.metaphor}'의 물상으로 비유합니다.`,
+      "이 물상 한 줄은 일주의 기본 분위기와 성정의 결을 직관적으로 읽을 때 먼저 참고하는 표현입니다.",
+    ],
+  };
+}
+
 function buildBalanceSentences(profile) {
   if (profile.isElementBalanced) {
     return BALANCED_FLOW_SENTENCES;
@@ -528,6 +540,7 @@ export function buildSajuReading(pillars, options = {}) {
   const profile = buildProfile(pillars, options);
   const sections = createBuckets();
 
+  pushSentenceMap(sections, buildDayPillarArchetypeSentences(profile), { prepend: true });
   pushSentenceMap(sections, DAY_ELEMENT_BASE[profile.dayElement]);
   pushSentenceMap(sections, YIN_YANG_SENTENCES[profile.yinYangBias]);
   pushSentenceMap(sections, SEASON_SENTENCES[profile.season]);
