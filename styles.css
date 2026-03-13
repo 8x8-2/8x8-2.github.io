@@ -257,6 +257,111 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .box .title { font-weight: 800; }
 
+.box .text {
+  margin-top: 8px;
+  color: #374151;
+  line-height: 1.75;
+}
+
+.mini-note {
+  margin: 10px 0 0;
+  color: var(--mut);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.insight-grid,
+.luck-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.insight-card,
+.luck-card {
+  height: 100%;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-top: 10px;
+}
+
+.metric-row-wide {
+  align-items: start;
+}
+
+.metric-label {
+  color: var(--mut);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.metric-value {
+  color: #1f2937;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+.luck-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.luck-pill,
+.luck-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.luck-pill.is-active {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.luck-period {
+  margin-top: 8px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.luck-meta {
+  margin-top: 8px;
+  color: var(--mut);
+  font-size: 13px;
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.luck-card.is-current {
+  border-color: rgba(17, 24, 39, 0.18);
+  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.08);
+}
+
 .footer { margin-top: 18px; }
 
 .hero-card {
@@ -480,7 +585,9 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   }
 
   .info-grid,
-  .keyword-grid {
+  .keyword-grid,
+  .insight-grid,
+  .luck-grid {
     grid-template-columns: 1fr;
   }
 
@@ -540,4 +647,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   .saju-table tbody th { font-size: 9px; }
   .pillar-card { border-radius: 14px; }
   .pillar-element { padding: 2px 4px; }
+  .metric-row {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 8px;
+  }
 }

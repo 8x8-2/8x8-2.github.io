@@ -199,7 +199,7 @@ export function solarToLunar(year, month, day) {
   };
 }
 
-function getSolarTermDate(year, termIndex) {
+export function getSolarTermDate(year, termIndex) {
   const yearInCentury = year % 100;
   const coefficients = year >= 2000 ? SOLAR_TERM_C21 : SOLAR_TERM_C20;
   const leapYearAdjustment = Math.floor((yearInCentury - 1) / 4);
@@ -209,14 +209,14 @@ function getSolarTermDate(year, termIndex) {
   return new Date(year, month, day);
 }
 
-function getAdjustedSolarYear(year, month, day) {
+export function getAdjustedSolarYear(year, month, day) {
   const date = new Date(year, month - 1, day);
   const lichun = getSolarTermDate(year, 2);
 
   return date < lichun ? year - 1 : year;
 }
 
-function getYearPillar(year, month, day) {
+export function getYearPillar(year, month, day) {
   const adjustedYear = getAdjustedSolarYear(year, month, day);
   const cycleIndex = adjustedYear - 4;
 
@@ -323,7 +323,7 @@ function getPillarString(pillar) {
   return `${pillar.heavenlyStem}${pillar.earthlyBranch}`;
 }
 
-function normalizeBirthInfo(birthInfo) {
+export function normalizeBirthInfo(birthInfo) {
   let { year, month, day, hour, minute } = birthInfo;
 
   if (birthInfo.isLunar) {
@@ -400,6 +400,28 @@ export function calculateFourPillars(birthInfo) {
   };
 
   return result;
+}
+
+export function getPillarCycleIndex(pillar) {
+  const stemIndex = HEAVENLY_STEMS.indexOf(pillar.heavenlyStem);
+  const branchIndex = EARTHLY_BRANCHES.indexOf(pillar.earthlyBranch);
+
+  if (stemIndex < 0 || branchIndex < 0) return -1;
+
+  for (let cycleIndex = 0; cycleIndex < 60; cycleIndex += 1) {
+    if (cycleIndex % 10 === stemIndex && cycleIndex % 12 === branchIndex) {
+      return cycleIndex;
+    }
+  }
+
+  return -1;
+}
+
+export function getPillarByCycleIndex(cycleIndex) {
+  return {
+    heavenlyStem: HEAVENLY_STEMS[((cycleIndex % 10) + 10) % 10],
+    earthlyBranch: EARTHLY_BRANCHES[((cycleIndex % 12) + 12) % 12],
+  };
 }
 
 export function fourPillarsToString(fourPillars) {
