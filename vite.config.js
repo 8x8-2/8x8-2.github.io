@@ -35,8 +35,10 @@ function collectHtmlEntries(startDir) {
   return entries;
 }
 
+const hasCustomDomain = fs.existsSync(path.resolve(process.cwd(), "CNAME"));
+
 export default defineConfig(({ command }) => ({
-  base: command === "serve" ? "/" : "/8x8-2",
+  base: command === "serve" ? "/" : (hasCustomDomain ? "/" : "/8x8-2"),
   build: {
     rollupOptions: {
       input: collectHtmlEntries(process.cwd()),
