@@ -346,6 +346,12 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   border-color: #111827;
 }
 
+.luck-badge-emphasis {
+  background: rgba(219, 234, 254, 0.95);
+  color: #1d4ed8;
+  border-color: rgba(29, 78, 216, 0.15);
+}
+
 .luck-period {
   margin-top: 8px;
   color: #374151;
@@ -359,6 +365,14 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   font-size: 13px;
 }
 
+.luck-track {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  margin-top: 12px;
+}
+
 .badge-row {
   display: flex;
   flex-wrap: wrap;
@@ -366,9 +380,70 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   margin-top: 10px;
 }
 
+.impact-block {
+  margin-top: 12px;
+}
+
+.impact-title {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.impact-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.impact-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.impact-chip-good {
+  border: 1px solid rgba(22, 101, 52, 0.14);
+  background: rgba(220, 252, 231, 0.95);
+  color: #166534;
+}
+
+.impact-chip-warn {
+  border: 1px solid rgba(180, 83, 9, 0.14);
+  background: rgba(254, 243, 199, 0.95);
+  color: #92400e;
+}
+
+.impact-chip-neutral {
+  border: 1px solid rgba(55, 65, 81, 0.12);
+  background: rgba(243, 244, 246, 0.95);
+  color: #374151;
+}
+
 .luck-card.is-current {
   border-color: rgba(17, 24, 39, 0.18);
   box-shadow: 0 12px 24px rgba(17, 24, 39, 0.08);
+}
+
+.diagnosis-card .luck-head {
+  align-items: center;
+}
+
+.diagnosis-card .luck-pill {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.diagnosis-pills {
+  margin-top: 12px;
 }
 
 .footer { margin-top: 18px; }
@@ -658,6 +733,10 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   .pillar-element { padding: 2px 4px; }
   .metric-row {
     grid-template-columns: 78px minmax(0, 1fr);
+    gap: 8px;
+  }
+  .luck-track {
+    grid-template-columns: 42px minmax(0, 1fr);
     gap: 8px;
   }
 }

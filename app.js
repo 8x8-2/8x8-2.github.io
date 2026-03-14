@@ -33,6 +33,8 @@ const dayPillarProfileEl = $("dayPillarProfile");
 const sectionsEl = $("sections");
 const tenGodsSummaryEl = $("tenGodsSummary");
 const tenGodsEl = $("tenGods");
+const diagnosisSummaryEl = $("diagnosisSummary");
+const diagnosisEl = $("diagnosis");
 const wealthSummaryEl = $("wealthSummary");
 const wealthCardsEl = $("wealthCards");
 const majorLuckSummaryEl = $("majorLuckSummary");
@@ -393,12 +395,42 @@ function renderTextBoxes(items) {
     .join("");
 }
 
+function renderImpactChips(items, variant, emptyText) {
+  const source = items.length ? items : [emptyText];
+  return source
+    .map((item) => `<span class="impact-chip impact-chip-${variant}">${item}</span>`)
+    .join("");
+}
+
+function renderToneChips(tags) {
+  return tags
+    .map((tag) => `<span class="impact-chip impact-chip-${tag.tone || "neutral"}">${tag.label}</span>`)
+    .join("");
+}
+
+function renderDiagnosisCards(diagnosis) {
+  return diagnosis.cards
+    .map((card) => `
+      <article class="box insight-card diagnosis-card">
+        <div class="luck-head">
+          <div class="title">${card.title}</div>
+          ${card.headline ? `<span class="luck-pill">${card.headline}</span>` : ""}
+        </div>
+        ${card.tags?.length ? `<div class="impact-pills diagnosis-pills">${renderToneChips(card.tags)}</div>` : ""}
+        <div class="text">${card.text}</div>
+        ${card.note ? `<p class="mini-note">${card.note}</p>` : ""}
+      </article>
+    `)
+    .join("");
+}
+
 function renderLuckCards(items, type) {
   return items
     .map((item) => {
       const periodText = type === "major"
         ? `${item.startYear}~${item.endYear} · 약 ${item.ageStart}세~${item.ageEnd}세`
         : `${item.year}년`;
+      const detailNote = item.interactionNote || item.note;
 
       return `
         <article class="box luck-card ${item.isCurrent ? "is-current" : ""}">
@@ -407,12 +439,35 @@ function renderLuckCards(items, type) {
             <span class="luck-pill ${item.isCurrent ? "is-active" : ""}">${item.isCurrent ? "현재" : item.focus}</span>
           </div>
           <div class="luck-period">${periodText}</div>
-          <div class="luck-meta">${item.stemGod} / ${item.branchGod}</div>
+          <div class="luck-meta">천간 ${item.stemGod} · 지지 ${item.branchGod}</div>
           <div class="badge-row">
             <span class="luck-badge">${item.focus}</span>
             ${item.wealthHitCount > 0 ? `<span class="luck-badge">재성 신호 ${item.wealthHitCount}</span>` : ""}
+            ${item.alignmentText ? `<span class="luck-badge luck-badge-emphasis">${item.alignmentText}</span>` : ""}
           </div>
-          <div class="text">${item.note}</div>
+          <div class="luck-track">
+            <span class="metric-label">배경</span>
+            <span class="metric-value">${item.background}</span>
+          </div>
+          <div class="luck-track">
+            <span class="metric-label">체감</span>
+            <span class="metric-value">${item.result}</span>
+          </div>
+          <div class="impact-block">
+            <div class="impact-title">힘 받는 점</div>
+            <div class="impact-pills">${renderImpactChips(item.boosts, "good", "기본기 정비")}</div>
+          </div>
+          <div class="impact-block">
+            <div class="impact-title">주의할 점</div>
+            <div class="impact-pills">${renderImpactChips(item.cautions, "warn", "무리한 확장")}</div>
+          </div>
+          ${item.interactionTags?.length ? `
+            <div class="impact-block">
+              <div class="impact-title">합·형·충·파·해</div>
+              <div class="impact-pills">${renderToneChips(item.interactionTags)}</div>
+            </div>
+          ` : ""}
+          ${detailNote ? `<p class="mini-note">${detailNote}</p>` : ""}
         </article>
       `;
     })
@@ -458,13 +513,16 @@ function render(pillars, { gender, unknownTime, birthInfo }) {
   renderSummaryBox(tenGodsSummaryEl, advanced.tenGods.summary, advanced.tenGods.note);
   tenGodsEl.innerHTML = renderTenGodCards(advanced.tenGods);
 
+  renderSummaryBox(diagnosisSummaryEl, advanced.diagnosis.summary, advanced.diagnosis.note);
+  diagnosisEl.innerHTML = renderDiagnosisCards(advanced.diagnosis);
+
   renderSummaryBox(wealthSummaryEl, advanced.wealth.summary);
   wealthCardsEl.innerHTML = renderTextBoxes(advanced.wealth.cards);
 
   renderSummaryBox(majorLuckSummaryEl, advanced.majorLuck.summary, advanced.majorLuck.note);
   majorLuckEl.innerHTML = renderLuckCards(advanced.majorLuck.items, "major");
 
-  renderSummaryBox(yearLuckSummaryEl, advanced.yearLuck.summary);
+  renderSummaryBox(yearLuckSummaryEl, advanced.yearLuck.summary, advanced.yearLuck.note);
   yearLuckEl.innerHTML = renderLuckCards(advanced.yearLuck.items, "year");
 
   resultEl.classList.remove("hidden");
