@@ -37,6 +37,15 @@ function closeMenu(menu) {
   menu.classList.remove("is-open");
 }
 
+function renderPending(slot) {
+  slot.innerHTML = `
+    <div class="topbar-auth-pending" aria-hidden="true">
+      <span class="topbar-auth-pending-link"></span>
+      <span class="topbar-auth-pending-avatar"></span>
+    </div>
+  `;
+}
+
 function renderLoggedOut(slot, meta) {
   if (meta.authMode === "hidden") {
     slot.innerHTML = "";
@@ -123,8 +132,14 @@ export function setupAuthUi() {
   }
 
   let activeCleanup = null;
+  let renderVersion = 0;
 
-  const unsubscribe = subscribeAuthState(async (session) => {
+  renderPending(slot);
+
+  const unsubscribe = subscribeAuthState((session) => {
+    renderVersion += 1;
+    const version = renderVersion;
+
     if (!session) {
       if (activeCleanup) {
         activeCleanup();
@@ -139,12 +154,21 @@ export function setupAuthUi() {
       activeCleanup = null;
     }
 
-    try {
-      const profile = await fetchProfile();
-      activeCleanup = renderLoggedIn(slot, meta, session, profile);
-    } catch {
-      activeCleanup = renderLoggedIn(slot, meta, session, null);
-    }
+    // Render immediately from the auth session so the top-nav does not look blank.
+    activeCleanup = renderLoggedIn(slot, meta, session, null);
+
+    fetchProfile(session.user.id)
+      .then((profile) => {
+        if (!profile || version !== renderVersion) return;
+        if (activeCleanup) {
+          activeCleanup();
+          activeCleanup = null;
+        }
+        activeCleanup = renderLoggedIn(slot, meta, session, profile);
+      })
+      .catch(() => {
+        // Keep the session-based UI if the profile query is slow or fails.
+      });
   });
 
   return () => {

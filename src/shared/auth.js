@@ -56,17 +56,17 @@ export async function getUser() {
   return (await getSession())?.user || null;
 }
 
-export async function fetchProfile() {
+export async function fetchProfile(userId = null) {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
 
-  const user = await getUser();
-  if (!user) return null;
+  const resolvedUserId = userId || (await getUser())?.id;
+  if (!resolvedUserId) return null;
 
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", user.id)
+    .eq("id", resolvedUserId)
     .maybeSingle();
 
   if (error) throw new Error("프로필을 불러오지 못했습니다.");

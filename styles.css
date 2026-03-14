@@ -110,6 +110,32 @@ body {
   gap: 12px;
 }
 
+.topbar-auth-pending {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-auth-pending-link,
+.topbar-auth-pending-avatar {
+  display: inline-flex;
+  background: linear-gradient(90deg, rgba(229, 231, 235, 0.9) 0%, rgba(243, 244, 246, 1) 50%, rgba(229, 231, 235, 0.9) 100%);
+  background-size: 180% 100%;
+  animation: auth-pulse 1.4s ease-in-out infinite;
+}
+
+.topbar-auth-pending-link {
+  width: 88px;
+  height: 16px;
+  border-radius: 999px;
+}
+
+.topbar-auth-pending-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+}
+
 .topbar-auth-link {
   display: inline-flex;
   align-items: center;
@@ -139,6 +165,23 @@ body {
   color: #1f2937;
   font-size: 15px;
   font-weight: 800;
+}
+
+@keyframes auth-pulse {
+  0% {
+    background-position: 100% 0;
+    opacity: 0.72;
+  }
+
+  50% {
+    background-position: 0 0;
+    opacity: 1;
+  }
+
+  100% {
+    background-position: 100% 0;
+    opacity: 0.72;
+  }
 }
 
 .profile-panel {
