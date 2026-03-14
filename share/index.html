@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="theme-color" content="#f1f2f3">
+    <link rel="icon" href="/src/img/bi/favicon-soulscan.png" sizes="any">
+    <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-soulscan.png">
+    <title>공유된 사주 | 소울 스캔</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <meta name="description" content="공유 링크로 보는 소울 스캔 사주 상세 페이지입니다.">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y1LQ26MRQF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag() { window.dataLayer.push(arguments); };
+      window.gtag("js", new Date());
+      window.gtag("config", "G-Y1LQ26MRQF", {
+        page_title: document.title,
+        page_path: window.location.pathname,
+        page_location: window.location.href,
+      });
+    </script>
+  </head>
+  <body data-page-name="share">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../" aria-label="Soul Scan 홈">
+          <span class="brand-logo-slot" aria-hidden="true">
+            <img class="brand-logo-image" src="/src/img/bi/symbol-soulscan.png" alt="" />
+          </span>
+          <span class="brand-copy">
+            <span class="brand-name">소울 스캔</span>
+            <span class="brand-subtitle">내 운명 사주 스캐너</span>
+          </span>
+        </a>
+        <a class="topbar-auth-link" href="../" target="_blank" rel="noopener noreferrer">무료 가입 및 내 운명 관리</a>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card hero-card" aria-labelledby="shareHeading">
+        <p class="eyebrow">공유된 사주 정보</p>
+        <h1 id="shareHeading">공유된 사주</h1>
+        <p id="shareSubtitle" class="hero-subtitle">링크로 전달된 사주 상세 페이지를 보고 있습니다.</p>
+      </section>
+
+      <section id="shareConfigError" class="card hidden">
+        <div class="title">Supabase 연결이 아직 설정되지 않았습니다.</div>
+        <div class="text">`.env.local`에 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`를 먼저 넣어 주세요.</div>
+      </section>
+
+      <p id="shareError" class="error"></p>
+
+      <section id="shareSection" class="hidden">
+        <section class="card" aria-labelledby="shared-meta-heading">
+          <div class="section-intro">
+            <h2 id="shared-meta-heading">공유된 사주 정보</h2>
+            <p class="muted">이 페이지에서는 공유된 결과만 볼 수 있으며 로그인, 저장, 수정 같은 다른 기능은 제공하지 않습니다.</p>
+          </div>
+          <div id="sharedMeta"></div>
+        </section>
+
+        <section class="card" aria-labelledby="shared-result-heading">
+          <h2 id="shared-result-heading">사주 원국 결과</h2>
+
+          <div class="pillars-wrap">
+            <table class="saju-table" aria-label="사주 원국">
+              <thead>
+                <tr>
+                  <th scope="col"></th>
+                  <th scope="col">시</th>
+                  <th scope="col">일</th>
+                  <th scope="col">월</th>
+                  <th scope="col">년</th>
+                </tr>
+              </thead>
+              <tbody id="pillars"></tbody>
+            </table>
+          </div>
+
+          <h2>일주 물상</h2>
+          <div id="dayPillarProfile" class="box"></div>
+
+          <h2>해석</h2>
+          <div id="sections" class="stack"></div>
+
+          <h2>십성</h2>
+          <div id="tenGodsSummary" class="box"></div>
+          <div id="tenGods" class="insight-grid"></div>
+
+          <h2>원국 진단</h2>
+          <div id="diagnosisSummary" class="box"></div>
+          <div id="diagnosis" class="insight-grid"></div>
+
+          <h2>재물운</h2>
+          <div id="wealthSummary" class="box"></div>
+          <div id="wealthCards" class="stack"></div>
+
+          <h2>대운 흐름</h2>
+          <div id="majorLuckSummary" class="box"></div>
+          <div id="majorLuck" class="luck-grid"></div>
+
+          <h2>세운 흐름</h2>
+          <div id="yearLuckSummary" class="box"></div>
+          <div id="yearLuck" class="luck-grid"></div>
+        </section>
+      </section>
+
+      <footer class="muted footer">
+        <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a></small>
+      </footer>
+    </main>
+
+    <button id="scrollTopButton" class="scroll-top-button" type="button" aria-label="맨 위로 이동">맨 위로 이동</button>
+
+    <script type="module" src="/src/shared-reading.js"></script>
+  </body>
+</html>

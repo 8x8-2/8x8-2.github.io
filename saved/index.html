@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f1f2f3">
     <link rel="icon" href="/src/img/bi/favicon-soulscan.png" sizes="any">
     <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-soulscan.png">
-    <title>저장한 사주 | 소울 스캔</title>
+    <title>사주 보관함 | 소울 스캔</title>
     <link rel="stylesheet" href="/styles.css" />
     <meta name="description" content="로그인한 회원이 저장한 사주 결과를 다시 찾아보는 페이지입니다.">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y1LQ26MRQF"></script>
@@ -27,7 +27,10 @@
     data-link-soulday="../soulday/"
     data-link-signin="../signin/"
     data-link-signup="../signup/"
+    data-link-profile="../p/"
     data-link-saved="./"
+    data-link-reading="../reading/"
+    data-link-my-saju="../my-saju/"
   >
     <header class="topbar">
       <div class="topbar-inner">
@@ -52,9 +55,9 @@
 
     <main class="container">
       <section class="card hero-card" aria-labelledby="saved-heading">
-        <p class="eyebrow">저장한 사주</p>
-        <h1 id="saved-heading">내가 저장한 사주 기록</h1>
-        <p class="hero-subtitle">이름, 일주, 메모로 바로 찾고 저장한 순서대로 다시 확인할 수 있습니다.</p>
+        <p class="eyebrow">사주 보관함</p>
+        <h1 id="saved-heading">내 사주와 저장한 사주를 한곳에서 관리</h1>
+        <p class="hero-subtitle">맨 위에는 항상 내 사주가 고정되고, 아래에는 저장한 사람들의 사주가 이름과 메모 중심으로 정리됩니다.</p>
       </section>
 
       <section id="savedConfigError" class="card hidden">
@@ -64,27 +67,35 @@
 
       <section id="savedGuest" class="card hidden">
         <div class="title">로그인이 필요합니다</div>
-        <div class="text">저장한 사주 기록은 로그인한 회원만 볼 수 있습니다.</div>
+        <div class="text">사주 보관함은 로그인한 회원만 볼 수 있습니다.</div>
         <div class="actions">
           <a class="cta-link-button" href="../signin/?next=../saved/">로그인하기</a>
           <a class="text-link-button" href="../signup/?next=../saved/">무료 회원가입</a>
         </div>
       </section>
 
+      <section id="mySajuSection" class="card hidden" aria-labelledby="my-saju-heading">
+        <div class="section-intro">
+          <h2 id="my-saju-heading">내 사주</h2>
+          <p class="muted">회원가입 때 등록한 정보 기준으로 항상 가장 위에서 바로 열 수 있습니다.</p>
+        </div>
+        <div id="mySajuCard" class="saved-reading-list"></div>
+      </section>
+
       <section class="card" aria-labelledby="saved-list-heading">
         <div class="section-intro">
-          <h2 id="saved-list-heading">기록 검색</h2>
-          <p class="muted">이름, 일주, 메모에 포함된 텍스트로 실시간 검색할 수 있습니다.</p>
+          <h2 id="saved-list-heading">저장된 사주 검색</h2>
+          <p class="muted">이름, 일주, 메모로 빠르게 찾고, 클릭하면 개별 사주 상세 페이지로 들어갑니다.</p>
         </div>
         <div class="soulday-search-row">
-          <input id="savedSearch" class="soulday-search-input" type="text" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="예: 엄마, 갑자, 연애, 직업" aria-label="저장한 사주 검색" />
+          <input id="savedSearch" class="soulday-search-input" type="text" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="예: 엄마, 계사, 연애 메모" aria-label="저장한 사주 검색" />
           <span id="savedCount" class="muted soulday-count">0개 기록</span>
         </div>
         <p id="savedError" class="error"></p>
         <div id="savedList" class="stack saved-reading-list"></div>
         <div id="savedEmpty" class="box hidden soulday-empty">
-          <div class="title">검색 결과가 없습니다</div>
-          <div class="text">다른 이름이나 메모 키워드로 다시 찾아보세요.</div>
+          <div id="savedEmptyTitle" class="title">검색 결과가 없습니다</div>
+          <div id="savedEmptyText" class="text">다른 이름이나 메모 키워드로 다시 찾아보세요.</div>
         </div>
       </section>
 

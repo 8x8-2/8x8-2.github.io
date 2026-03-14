@@ -7,18 +7,22 @@ import {
   signOut,
   subscribeAuthState,
 } from "./auth.js";
+import { escapeHtml } from "./html.js";
 
 function getPageMeta() {
   const body = document.body;
+  const homeLink = body.dataset.linkHome || "./";
+  const homeUrl = new URL(homeLink, window.location.href);
 
   return {
     pageName: body.dataset.pageName || "",
     links: {
-      home: body.dataset.linkHome || "./",
+      home: homeLink,
       soulday: body.dataset.linkSoulday || "./soulday/",
       signin: body.dataset.linkSignin || "./signin/",
       signup: body.dataset.linkSignup || "./signup/",
-      saved: body.dataset.linkSaved || "./saved/",
+      profile: body.dataset.linkProfile || new URL("p/", homeUrl).toString(),
+      saved: body.dataset.linkSaved || new URL("saved/", homeUrl).toString(),
     },
     authMode: body.dataset.authMode || "default",
   };
@@ -28,6 +32,14 @@ function buildUrl(path, withNext = false) {
   const url = new URL(path, window.location.href);
   if (withNext) {
     url.searchParams.set("next", `${window.location.pathname}${window.location.search}${window.location.hash}`);
+  }
+  return url.toString();
+}
+
+function buildProfileUrl(path, userId) {
+  const url = new URL(path, window.location.href);
+  if (userId) {
+    url.searchParams.set("user_id", userId);
   }
   return url.toString();
 }
@@ -67,17 +79,22 @@ function renderLoggedOut(slot, meta) {
 function renderLoggedIn(slot, meta, session, profile) {
   const displayName = getDisplayName(session.user, profile);
   const initial = getProfileInitial(session.user, profile);
-  const savedActive = meta.pageName === "saved" ? " is-active" : "";
+  const profileActive = ["profile", "password"].includes(meta.pageName) ? " is-active" : "";
+  const savedActive = ["saved", "reading", "my_saju"].includes(meta.pageName) ? " is-active" : "";
+  const profileUrl = buildProfileUrl(meta.links.profile, session.user.id);
 
   slot.innerHTML = `
-    <a class="topbar-menu-link${savedActive}" href="${buildUrl(meta.links.saved)}" data-nav-target="saved_readings">저장한 사주</a>
     <div class="profile-menu" data-profile-menu>
       <button class="profile-button" type="button" aria-haspopup="menu" aria-expanded="false" data-profile-toggle>
-        <span>${initial}</span>
+        <span>${escapeHtml(initial)}</span>
       </button>
       <div class="profile-panel" role="menu" data-profile-panel>
-        <div class="profile-panel-name">${displayName}</div>
-        <div class="profile-panel-email">${session.user.email || ""}</div>
+        <div class="profile-panel-name">${escapeHtml(displayName)}</div>
+        <div class="profile-panel-email">${escapeHtml(session.user.email || "")}</div>
+        <div class="profile-panel-links">
+          <a class="profile-panel-link${profileActive}" href="${profileUrl}" data-nav-target="profile">내 정보</a>
+          <a class="profile-panel-link${savedActive}" href="${buildUrl(meta.links.saved)}" data-nav-target="saved_readings">사주 보관함</a>
+        </div>
         <button class="profile-signout-button" type="button" data-profile-signout>로그아웃</button>
       </div>
     </div>
@@ -107,7 +124,7 @@ function renderLoggedIn(slot, meta, session, profile) {
         page_name: meta.pageName,
       });
 
-      if (meta.pageName === "saved") {
+      if (["saved", "profile", "password", "reading", "my_saju"].includes(meta.pageName)) {
         window.location.href = buildUrl(meta.links.home);
       }
     } catch (error) {

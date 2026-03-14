@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="theme-color" content="#f1f2f3">
+    <link rel="icon" href="/src/img/bi/favicon-soulscan.png" sizes="any">
+    <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-soulscan.png">
+    <title>내 정보 | 소울 스캔</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <meta name="description" content="내 정보와 사주 기준이 되는 회원가입 정보를 수정하는 페이지입니다.">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y1LQ26MRQF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag() { window.dataLayer.push(arguments); };
+      window.gtag("js", new Date());
+      window.gtag("config", "G-Y1LQ26MRQF", {
+        page_title: document.title,
+        page_path: window.location.pathname,
+        page_location: window.location.href,
+      });
+    </script>
+  </head>
+  <body
+    data-page-name="profile"
+    data-link-home="../"
+    data-link-soulday="../soulday/"
+    data-link-signin="../signin/"
+    data-link-signup="../signup/"
+    data-link-profile="./"
+    data-link-saved="../saved/"
+    data-link-password="../account/password/"
+  >
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../" aria-label="Soul Scan 홈">
+          <span class="brand-logo-slot" aria-hidden="true">
+            <img class="brand-logo-image" src="/src/img/bi/symbol-soulscan.png" alt="" />
+          </span>
+          <span class="brand-copy">
+            <span class="brand-name">소울 스캔</span>
+            <span class="brand-subtitle">내 운명 사주 스캐너</span>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <nav class="topbar-menu" aria-label="상단 메뉴">
+            <a class="topbar-menu-link" href="../" data-nav-target="home">사주 보기</a>
+            <a class="topbar-menu-link" href="../soulday/" data-nav-target="soulday_list">일주별 보기</a>
+          </nav>
+          <div class="topbar-auth" data-auth-slot></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card hero-card" aria-labelledby="profile-heading">
+        <p class="eyebrow">내 정보</p>
+        <h1 id="profile-heading">회원가입 때 등록한 정보를 여기서 관리합니다</h1>
+        <p class="hero-subtitle">이름, 생년월일시, 성별, 전화번호, 마케팅 동의 여부를 수정하면 내 사주 기준도 다음 방문부터 같이 반영됩니다.</p>
+      </section>
+
+      <section id="profileConfigError" class="card hidden">
+        <div class="title">Supabase 연결이 아직 설정되지 않았습니다.</div>
+        <div class="text">`.env.local`에 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`를 먼저 넣어 주세요.</div>
+      </section>
+
+      <section id="profileGuest" class="card hidden">
+        <div class="title">로그인이 필요합니다</div>
+        <div class="text">내 정보는 로그인한 회원만 확인하고 수정할 수 있습니다.</div>
+        <div class="actions">
+          <a id="profileGuestSignin" class="cta-link-button" href="../signin/">로그인하기</a>
+          <a id="profileGuestSignup" class="text-link-button" href="../signup/">무료 회원가입</a>
+        </div>
+      </section>
+
+      <p id="profilePageError" class="error"></p>
+
+      <section id="profileSection" class="card hidden" aria-labelledby="profile-summary-heading">
+        <div class="profile-head">
+          <div class="section-intro">
+            <h2 id="profile-summary-heading">현재 등록 정보</h2>
+            <p class="muted">수정 버튼을 눌렀을 때만 편집 폼이 열리도록 구성했습니다.</p>
+          </div>
+          <div class="profile-head-actions">
+            <button id="profileEditButton" type="button">수정</button>
+            <a id="profilePasswordLink" class="text-link-button" href="../account/password/">암호 변경</a>
+          </div>
+        </div>
+
+        <div id="profileSummary"></div>
+
+        <div id="profileEditCard" class="box profile-edit-card hidden">
+          <div class="title">내 정보 수정</div>
+          <form id="profileForm" class="auth-form auth-form-wide">
+            <div class="grid auth-grid-two">
+              <label class="field">
+                <span>이름</span>
+                <input id="profileName" type="text" autocomplete="name" required />
+              </label>
+              <label class="field">
+                <span>전화번호</span>
+                <input id="profilePhone" type="tel" autocomplete="tel" placeholder="010-1234-5678" />
+              </label>
+            </div>
+
+            <div class="row">
+              <label class="field">
+                <span>성별</span>
+                <select id="profileGender" required>
+                  <option value="male">남</option>
+                  <option value="female">여</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>달력</span>
+                <select id="profileCalendar">
+                  <option value="solar">양력</option>
+                  <option value="lunar">음력</option>
+                </select>
+              </label>
+              <label class="field checkbox">
+                <input id="profileLeapMonth" type="checkbox" disabled />
+                <span>윤달(음력)</span>
+              </label>
+            </div>
+
+            <div class="grid grid-birth">
+              <label class="field"><span>년</span><input id="profileYear" type="text" inputmode="numeric" maxlength="4" required /></label>
+              <label class="field"><span>월</span><input id="profileMonth" type="text" inputmode="numeric" maxlength="2" required /></label>
+              <label class="field"><span>일</span><input id="profileDay" type="text" inputmode="numeric" maxlength="2" required /></label>
+              <label class="field field-time-input">
+                <span>태어난 시간</span>
+                <input id="profileBirthTime" type="text" inputmode="numeric" maxlength="5" placeholder="00:00" />
+              </label>
+              <label class="field checkbox time-unknown">
+                <input id="profileUnknownTime" type="checkbox" />
+                <span>시간 모름</span>
+              </label>
+            </div>
+
+            <p id="profileTimeFeedback" class="error hidden">태어난 시간을 올바르게 입력해 주세요.</p>
+
+            <label class="field checkbox auth-consent">
+              <input id="profileMarketing" type="checkbox" />
+              <span>마케팅 정보 수신에 동의합니다.</span>
+            </label>
+
+            <div class="actions">
+              <button type="submit">저장</button>
+              <button id="profileEditCancel" class="button-muted" type="button">취소</button>
+              <span id="profileStatus" class="muted"></span>
+            </div>
+            <p id="profileError" class="error"></p>
+          </form>
+        </div>
+      </section>
+
+      <footer class="muted footer">
+        <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a></small>
+      </footer>
+    </main>
+
+    <script type="module" src="/src/profile.js"></script>
+  </body>
+</html>

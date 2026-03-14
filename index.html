@@ -96,7 +96,9 @@
     data-link-soulday="./soulday/"
     data-link-signin="./signin/"
     data-link-signup="./signup/"
+    data-link-profile="./p/"
     data-link-saved="./saved/"
+    data-link-share="./share/"
   >
     <header class="topbar">
       <div class="topbar-inner">
@@ -193,7 +195,10 @@
             <h2>사주 원국 결과</h2>
             <p class="muted result-head-copy">로그인하면 전체 결과를 끝까지 보고, 원하는 이름과 메모로 저장할 수 있습니다.</p>
           </div>
-          <button id="saveReadingButton" class="text-link-button hidden" type="button">저장하기</button>
+          <div class="result-head-actions">
+            <button id="shareReadingButton" class="text-link-button hidden" type="button">공유하기</button>
+            <button id="saveReadingButton" class="text-link-button hidden" type="button">저장하기</button>
+          </div>
         </div>
 
         <div id="resultContent" class="result-content">
@@ -426,6 +431,8 @@
         </form>
       </div>
     </div>
+
+    <button id="scrollTopButton" class="scroll-top-button" type="button" aria-label="맨 위로 이동">맨 위로 이동</button>
 
     <script type="module" src="/app.js"></script>
   </body>

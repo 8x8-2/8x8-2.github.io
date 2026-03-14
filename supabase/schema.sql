@@ -41,8 +41,33 @@ create table if not exists public.saved_readings (
   preview_summary text not null,
   pillars_json jsonb not null,
   reading_json jsonb not null,
-  created_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
 );
+
+create table if not exists public.shared_readings (
+  id uuid primary key default gen_random_uuid(),
+  share_token uuid not null default gen_random_uuid() unique,
+  owner_id uuid not null references auth.users (id) on delete cascade,
+  source_type text not null check (source_type in ('draft', 'profile', 'saved_reading')),
+  source_record_id uuid,
+  entry_name text not null check (char_length(trim(entry_name)) >= 1),
+  memo text not null default '' check (char_length(memo) <= 500),
+  day_pillar_key text not null,
+  day_pillar_hanja text,
+  day_pillar_metaphor text,
+  element_class text not null default 'unknown',
+  preview_summary text not null,
+  snapshot_json jsonb not null,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
+alter table public.saved_readings
+add column if not exists updated_at timestamptz not null default timezone('utc', now());
+
+create unique index if not exists shared_readings_owner_source_record_unique
+on public.shared_readings (owner_id, source_type, source_record_id);
 
 alter table public.profiles
 add column if not exists gender text;
@@ -141,6 +166,7 @@ for each row execute procedure public.handle_new_user();
 
 alter table public.profiles enable row level security;
 alter table public.saved_readings enable row level security;
+alter table public.shared_readings enable row level security;
 
 drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own"
@@ -179,3 +205,42 @@ create policy "saved_readings_delete_own"
 on public.saved_readings
 for delete
 using (auth.uid() = user_id);
+
+drop policy if exists "shared_readings_select_own" on public.shared_readings;
+create policy "shared_readings_select_own"
+on public.shared_readings
+for select
+using (auth.uid() = owner_id);
+
+drop policy if exists "shared_readings_insert_own" on public.shared_readings;
+create policy "shared_readings_insert_own"
+on public.shared_readings
+for insert
+with check (auth.uid() = owner_id);
+
+drop policy if exists "shared_readings_update_own" on public.shared_readings;
+create policy "shared_readings_update_own"
+on public.shared_readings
+for update
+using (auth.uid() = owner_id)
+with check (auth.uid() = owner_id);
+
+drop policy if exists "shared_readings_delete_own" on public.shared_readings;
+create policy "shared_readings_delete_own"
+on public.shared_readings
+for delete
+using (auth.uid() = owner_id);
+
+create or replace function public.get_shared_reading(share_token_input uuid)
+returns setof public.shared_readings
+language sql
+security definer
+set search_path = public
+as $$
+  select *
+  from public.shared_readings
+  where share_token = share_token_input
+  limit 1;
+$$;
+
+grant execute on function public.get_shared_reading(uuid) to anon, authenticated;

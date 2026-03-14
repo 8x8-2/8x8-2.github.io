@@ -73,6 +73,55 @@ export async function fetchProfile(userId = null) {
   return data;
 }
 
+export async function updateProfile(updates) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 내 정보를 수정할 수 있습니다.");
+  }
+
+  const payload = {
+    ...updates,
+    phone: updates.phone || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(payload)
+    .eq("id", user.id)
+    .select("*")
+    .single();
+
+  if (error) {
+    throw new Error("내 정보를 저장하지 못했습니다.");
+  }
+
+  try {
+    await supabase.auth.updateUser({
+      data: {
+        full_name: data.full_name,
+        gender: data.gender,
+        phone: data.phone || "",
+        calendar_type: data.calendar_type,
+        is_leap_month: data.is_leap_month,
+        birth_year: data.birth_year,
+        birth_month: data.birth_month,
+        birth_day: data.birth_day,
+        birth_hour: data.birth_time_known ? data.birth_hour : "",
+        birth_minute: data.birth_time_known ? data.birth_minute : "",
+        birth_time_known: data.birth_time_known,
+        marketing_opt_in: data.marketing_opt_in,
+      },
+    });
+  } catch {
+    // profiles 테이블이 실제 표시용 데이터 소스라서, 메타데이터 동기화 실패는 저장 실패로 보지 않습니다.
+  }
+
+  return data;
+}
+
 export function subscribeAuthState(callback) {
   const supabase = getSupabaseClient();
 
@@ -133,6 +182,30 @@ export async function signOut() {
   if (error) throw new Error("로그아웃 중 오류가 발생했습니다.");
 }
 
+export async function changePassword({ currentPassword, newPassword }) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user?.email) {
+    throw new Error("계정 정보를 확인할 수 없습니다.");
+  }
+
+  const signInResult = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+
+  if (signInResult.error) {
+    throw new Error("현재 암호가 올바르지 않습니다.");
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (error) throw normalizeAuthError(error, "password");
+}
+
 export async function saveReading(record) {
   const supabase = ensureSupabase();
   const user = await getUser();
@@ -169,6 +242,131 @@ export async function fetchSavedReadings() {
 
   if (error) throw new Error("저장한 사주를 불러오지 못했습니다.");
   return data || [];
+}
+
+export async function fetchSavedReadingById(id) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 저장한 사주를 볼 수 있습니다.");
+  }
+
+  const { data, error } = await supabase
+    .from("saved_readings")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error("저장한 사주를 불러오지 못했습니다.");
+  return data;
+}
+
+export async function updateSavedReading(id, updates) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 저장한 사주를 수정할 수 있습니다.");
+  }
+
+  const { data, error } = await supabase
+    .from("saved_readings")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw new Error("저장한 사주 정보를 수정하지 못했습니다.");
+  return data;
+}
+
+export async function deleteSavedReading(id) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 저장한 사주를 삭제할 수 있습니다.");
+  }
+
+  const { error } = await supabase
+    .from("saved_readings")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error("저장한 사주를 삭제하지 못했습니다.");
+
+  await supabase
+    .from("shared_readings")
+    .delete()
+    .eq("owner_id", user.id)
+    .eq("source_type", "saved_reading")
+    .eq("source_record_id", id);
+}
+
+export async function upsertSharedReading(record) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 공유 링크를 만들 수 있습니다.");
+  }
+
+  const payload = {
+    ...record,
+    owner_id: user.id,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (record.source_record_id) {
+    const { data: existing, error: existingError } = await supabase
+      .from("shared_readings")
+      .select("*")
+      .eq("owner_id", user.id)
+      .eq("source_type", record.source_type)
+      .eq("source_record_id", record.source_record_id)
+      .maybeSingle();
+
+    if (existingError) {
+      throw new Error("공유 링크를 준비하지 못했습니다.");
+    }
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from("shared_readings")
+        .update(payload)
+        .eq("id", existing.id)
+        .select("*")
+        .single();
+
+      if (error) throw new Error("공유 링크를 준비하지 못했습니다.");
+      return data;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("shared_readings")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if (error) throw new Error("공유 링크를 준비하지 못했습니다.");
+  return data;
+}
+
+export async function fetchPublicSharedReading(shareToken) {
+  const supabase = ensureSupabase();
+  const { data, error } = await supabase
+    .rpc("get_shared_reading", {
+      share_token_input: shareToken,
+    })
+    .maybeSingle();
+
+  if (error) throw new Error("공유된 사주 정보를 불러오지 못했습니다.");
+  return data;
 }
 
 export { isSupabaseConfigured };

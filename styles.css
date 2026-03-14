@@ -213,6 +213,32 @@ body {
   word-break: break-all;
 }
 
+.profile-panel-links {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.profile-panel-link {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--bd);
+  border-radius: 12px;
+  background: rgba(249, 250, 251, 0.92);
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profile-panel-link.is-active {
+  border-color: rgba(17, 24, 39, 0.14);
+  background: #111827;
+  color: #fff;
+}
+
 .profile-signout-button {
   width: 100%;
   margin-top: 14px;
@@ -649,6 +675,13 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   gap: 16px;
 }
 
+.result-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .result-head-copy {
   margin: 6px 0 0;
   max-width: 48ch;
@@ -724,6 +757,21 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   box-shadow: 0 18px 34px rgba(17, 24, 39, 0.12);
 }
 
+.saved-reading-card-link {
+  display: block;
+  text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.saved-reading-card-link:visited {
+  color: #fff;
+}
+
+.saved-reading-card-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 38px rgba(17, 24, 39, 0.16);
+}
+
 .saved-reading-card.is-hidden {
   display: none;
 }
@@ -755,6 +803,17 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   gap: 12px;
 }
 
+.saved-reading-label {
+  display: inline-flex;
+  margin-bottom: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .saved-reading-meta,
 .saved-reading-subtitle,
 .saved-reading-note,
@@ -783,8 +842,21 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   line-height: 1.6;
 }
 
+.saved-reading-note-compact {
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: none;
+}
+
 .saved-reading-foot {
   margin-top: 14px;
+}
+
+.saved-reading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .modal {
@@ -1063,6 +1135,96 @@ body.has-modal {
   line-height: 1.65;
 }
 
+.profile-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profile-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.profile-summary-grid,
+.reading-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.profile-summary-box {
+  height: 100%;
+}
+
+.profile-summary-box .text {
+  margin-top: 10px;
+}
+
+.profile-edit-card {
+  margin-top: 18px;
+}
+
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 60;
+  display: grid;
+  gap: 10px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  min-width: min(92vw, 260px);
+  padding: 12px 16px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.94);
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 18px 32px rgba(17, 24, 39, 0.18);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scroll-top-button {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  background: rgba(17, 24, 39, 0.92);
+  color: #fff;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
+}
+
+.scroll-top-button.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .content-card,
 .faq-card {
   scroll-margin-top: 88px;
@@ -1213,7 +1375,9 @@ body.has-modal {
   .keyword-grid,
   .insight-grid,
   .luck-grid,
-  .soulday-grid {
+  .soulday-grid,
+  .profile-summary-grid,
+  .reading-meta-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1249,7 +1413,8 @@ body.has-modal {
 
   .auth-grid-two,
   .result-head,
-  .saved-reading-head {
+  .saved-reading-head,
+  .profile-head {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
@@ -1285,6 +1450,10 @@ body.has-modal {
   .saju-table thead th:first-child { width: 28px; }
   .saju-table tbody th { padding-right: 2px; }
   .saju-table td { padding: 3px 2px; }
+  .scroll-top-button {
+    right: 14px;
+    bottom: 14px;
+  }
 }
 
 @media (max-width: 380px) {
