@@ -33,8 +33,16 @@ function updateListView() {
   }
 }
 
+function scheduleUpdateListView() {
+  window.requestAnimationFrame(() => {
+    updateListView();
+  });
+}
+
 if (searchInput) {
-  searchInput.addEventListener("input", updateListView);
+  ["input", "change", "search", "keyup", "compositionend"].forEach((eventName) => {
+    searchInput.addEventListener(eventName, scheduleUpdateListView);
+  });
 }
 
 cards.forEach((card) => {
@@ -54,4 +62,4 @@ document.querySelectorAll("[data-soulday-home-link]").forEach((link) => {
   });
 });
 
-updateListView();
+scheduleUpdateListView();

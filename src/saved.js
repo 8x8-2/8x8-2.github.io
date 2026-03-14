@@ -78,6 +78,12 @@ function applyFilter() {
   $("savedEmpty").classList.toggle("hidden", visibleCount > 0);
 }
 
+function scheduleApplyFilter() {
+  window.requestAnimationFrame(() => {
+    applyFilter();
+  });
+}
+
 async function init() {
   initCommonPageTracking();
   setupAuthUi();
@@ -105,8 +111,10 @@ async function init() {
     $("savedError").textContent = error.message || "저장한 사주를 불러오지 못했습니다.";
   }
 
-  $("savedSearch")?.addEventListener("input", applyFilter);
-  applyFilter();
+  ["input", "change", "search", "keyup", "compositionend"].forEach((eventName) => {
+    $("savedSearch")?.addEventListener(eventName, scheduleApplyFilter);
+  });
+  scheduleApplyFilter();
 }
 
 init().catch((error) => {

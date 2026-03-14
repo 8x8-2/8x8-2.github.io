@@ -247,7 +247,7 @@ function buildListPage(entries) {
           <p class="muted">일주명, 한자, 물상, 키워드로 바로 찾을 수 있습니다.</p>
         </div>
         <div class="soulday-search-row">
-          <input id="souldaySearch" class="soulday-search-input" type="search" placeholder="예: 갑자, 술잔, 장미, 임신" aria-label="일주 목록 검색" />
+          <input id="souldaySearch" class="soulday-search-input" type="text" inputmode="search" enterkeyhint="search" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="예: 갑자, 술잔, 장미, 임신" aria-label="일주 목록 검색" />
           <span id="souldayCount" class="muted soulday-count">${entries.length}개 일주</span>
         </div>
         <div class="soulday-grid">
