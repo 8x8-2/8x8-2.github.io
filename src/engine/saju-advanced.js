@@ -1336,7 +1336,6 @@ function buildMajorLuckData({ birthInfo, pillars, gender, unknownTime, diagnosis
     const ageStart = formatOneDecimal(startAge + index * 10);
     const ageEnd = formatOneDecimal(ageStart + 9.9);
     const startYear = normalizedBirth.year + Math.floor(ageStart);
-    const endYear = normalizedBirth.year + Math.floor(ageEnd);
     const wealthHitCount = [stemGod, branchGod].filter(isWealthGod).length;
 
     return {
@@ -1347,15 +1346,23 @@ function buildMajorLuckData({ birthInfo, pillars, gender, unknownTime, diagnosis
       ageStart,
       ageEnd,
       startYear,
-      endYear,
       focus: buildLuckFocus(stemGod, branchGod),
       note: buildLuckNote(stemGod, branchGod),
       wealthHitCount,
-      isCurrent: currentYear >= startYear && currentYear <= endYear,
     };
   });
 
-  const items = rawItems.map((item) => enrichLuckItem(item, pillars, diagnosis));
+  const rangedItems = rawItems.map((item, index) => {
+    const nextStartYear = rawItems[index + 1]?.startYear ?? (item.startYear + 10);
+
+    return {
+      ...item,
+      endYear: nextStartYear - 1,
+      isCurrent: currentYear >= item.startYear && currentYear < nextStartYear,
+    };
+  });
+
+  const items = rangedItems.map((item) => enrichLuckItem(item, pillars, diagnosis));
 
   const currentMajorLuck = items.find((item) => item.isCurrent) || items[0];
   const directionText = direction === 1 ? "순행" : "역행";
