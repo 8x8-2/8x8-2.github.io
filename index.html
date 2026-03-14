@@ -90,10 +90,17 @@
       }
     </script>
   </head>
-  <body>
+  <body
+    data-page-name="home"
+    data-link-home="./"
+    data-link-soulday="./soulday/"
+    data-link-signin="./signin/"
+    data-link-signup="./signup/"
+    data-link-saved="./saved/"
+  >
     <header class="topbar">
       <div class="topbar-inner">
-        <a class="brand" href="/" aria-label="Soul Scan 홈">
+        <a class="brand" href="./" aria-label="Soul Scan 홈">
           <span class="brand-logo-slot" aria-hidden="true">
             <img
               class="brand-logo-image"
@@ -106,6 +113,13 @@
             <span class="brand-subtitle">내 운명 사주 스캐너</span>
           </span>
         </a>
+        <div class="topbar-actions">
+          <nav class="topbar-menu" aria-label="상단 메뉴">
+            <a class="topbar-menu-link is-active" href="./" data-nav-target="home" aria-current="page">사주 보기</a>
+            <a class="topbar-menu-link" href="./soulday/" data-nav-target="soulday_list">일주별 보기</a>
+          </nav>
+          <div class="topbar-auth" data-auth-slot></div>
+        </div>
       </div>
     </header>
 
@@ -174,47 +188,67 @@
       </section>
 
       <section id="result" class="card hidden" aria-live="polite">
-        <h2>사주 원국 결과</h2>
-        <div class="pillars-wrap">
-          <table class="saju-table" aria-label="사주 원국">
-            <thead>
-              <tr>
-                <th scope="col"></th>
-                <th scope="col">시</th>
-                <th scope="col">일</th>
-                <th scope="col">월</th>
-                <th scope="col">년</th>
-              </tr>
-            </thead>
-            <tbody id="pillars"></tbody>
-          </table>
+        <div class="result-head">
+          <div>
+            <h2>사주 원국 결과</h2>
+            <p class="muted result-head-copy">로그인하면 전체 결과를 끝까지 보고, 원하는 이름과 메모로 저장할 수 있습니다.</p>
+          </div>
+          <button id="saveReadingButton" class="text-link-button hidden" type="button">저장하기</button>
         </div>
 
-        <h2>일주 물상</h2>
-        <div id="dayPillarProfile" class="box"></div>
+        <div id="resultContent" class="result-content">
+          <div class="pillars-wrap">
+            <table class="saju-table" aria-label="사주 원국">
+              <thead>
+                <tr>
+                  <th scope="col"></th>
+                  <th scope="col">시</th>
+                  <th scope="col">일</th>
+                  <th scope="col">월</th>
+                  <th scope="col">년</th>
+                </tr>
+              </thead>
+              <tbody id="pillars"></tbody>
+            </table>
+          </div>
 
-        <h2>해석</h2>
-        <div id="sections" class="stack"></div>
+          <h2>일주 물상</h2>
+          <div id="dayPillarProfile" class="box"></div>
 
-        <h2>십성</h2>
-        <div id="tenGodsSummary" class="box"></div>
-        <div id="tenGods" class="insight-grid"></div>
+          <h2>해석</h2>
+          <div id="sections" class="stack"></div>
 
-        <h2>원국 진단</h2>
-        <div id="diagnosisSummary" class="box"></div>
-        <div id="diagnosis" class="insight-grid"></div>
+          <h2>십성</h2>
+          <div id="tenGodsSummary" class="box"></div>
+          <div id="tenGods" class="insight-grid"></div>
 
-        <h2>재물운</h2>
-        <div id="wealthSummary" class="box"></div>
-        <div id="wealthCards" class="stack"></div>
+          <h2>원국 진단</h2>
+          <div id="diagnosisSummary" class="box"></div>
+          <div id="diagnosis" class="insight-grid"></div>
 
-        <h2>대운 흐름</h2>
-        <div id="majorLuckSummary" class="box"></div>
-        <div id="majorLuck" class="luck-grid"></div>
+          <h2>재물운</h2>
+          <div id="wealthSummary" class="box"></div>
+          <div id="wealthCards" class="stack"></div>
 
-        <h2>세운 흐름</h2>
-        <div id="yearLuckSummary" class="box"></div>
-        <div id="yearLuck" class="luck-grid"></div>
+          <h2>대운 흐름</h2>
+          <div id="majorLuckSummary" class="box"></div>
+          <div id="majorLuck" class="luck-grid"></div>
+
+          <h2>세운 흐름</h2>
+          <div id="yearLuckSummary" class="box"></div>
+          <div id="yearLuck" class="luck-grid"></div>
+        </div>
+
+        <div id="resultPreviewGate" class="result-preview-gate hidden">
+          <div class="result-preview-card">
+            <div class="title">전체 결과는 회원가입 후 계속 볼 수 있습니다</div>
+            <div class="text">지금은 일부만 미리 보여드리고 있어요. 가입은 무료니까 걱정하지 마세요.</div>
+            <div class="actions">
+              <a id="previewSignupLink" class="cta-link-button" href="./signup/">회원가입하기</a>
+              <a id="previewSigninLink" class="text-link-button" href="./signin/">로그인</a>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="card content-card" aria-labelledby="guide-heading">
@@ -363,9 +397,35 @@
       </section>
 
       <footer class="muted footer">
-        <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank">The Mercenary</a></small>
+        <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a></small>
       </footer>
     </main>
+
+    <div id="saveReadingModal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-save-close></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="saveReadingHeading">
+        <div class="modal-head">
+          <h2 id="saveReadingHeading">사주 결과 저장하기</h2>
+          <button class="modal-close-button" type="button" data-save-close aria-label="닫기">닫기</button>
+        </div>
+        <form id="saveReadingForm" class="auth-form">
+          <label class="field">
+            <span>저장 이름</span>
+            <input id="saveEntryName" type="text" maxlength="40" placeholder="예: 나, 엄마, 동생" required />
+          </label>
+          <label class="field">
+            <span>메모(선택, 최대 500자)</span>
+            <textarea id="saveEntryMemo" rows="5" maxlength="500" placeholder="왜 저장했는지 간단히 메모해 두면 나중에 찾기 편해집니다."></textarea>
+          </label>
+          <div class="actions">
+            <button type="submit">저장하기</button>
+            <button class="button-muted" type="button" data-save-close>취소</button>
+            <span id="saveReadingStatus" class="muted"></span>
+          </div>
+          <p id="saveReadingError" class="error"></p>
+        </form>
+      </div>
+    </div>
 
     <script type="module" src="/app.js"></script>
   </body>

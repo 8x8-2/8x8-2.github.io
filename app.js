@@ -10,6 +10,19 @@ import {
   formatHiddenStemLine,
   getTenGodBrief,
 } from "./src/engine/saju-advanced.js";
+import { initCommonPageTracking, trackEvent } from "./src/shared/analytics.js";
+import {
+  isSupabaseConfigured,
+  saveReading,
+  subscribeAuthState,
+} from "./src/shared/auth.js";
+import { setupAuthUi } from "./src/shared/auth-ui.js";
+import {
+  consumeHomeAutoRun,
+  loadBirthDraft,
+  requestHomeAutoRun,
+  saveBirthDraft,
+} from "./src/shared/drafts.js";
 import { getDayPillarArchetype } from "./data/daypillars.js";
 import { buildSajuReading } from "./src/engine/saju-interpretation.js";
 
@@ -28,6 +41,8 @@ const btn = $("btnCalc");
 const statusEl = $("status");
 const errEl = $("error");
 const resultEl = $("result");
+const resultContentEl = $("resultContent");
+const resultPreviewGateEl = $("resultPreviewGate");
 const pillarsEl = $("pillars");
 const dayPillarProfileEl = $("dayPillarProfile");
 const sectionsEl = $("sections");
@@ -41,11 +56,19 @@ const majorLuckSummaryEl = $("majorLuckSummary");
 const majorLuckEl = $("majorLuck");
 const yearLuckSummaryEl = $("yearLuckSummary");
 const yearLuckEl = $("yearLuck");
+const saveReadingButtonEl = $("saveReadingButton");
+const previewSignupLinkEl = $("previewSignupLink");
+const previewSigninLinkEl = $("previewSigninLink");
+const saveReadingModalEl = $("saveReadingModal");
+const saveReadingFormEl = $("saveReadingForm");
+const saveEntryNameEl = $("saveEntryName");
+const saveEntryMemoEl = $("saveEntryMemo");
+const saveReadingStatusEl = $("saveReadingStatus");
+const saveReadingErrorEl = $("saveReadingError");
 
-function trackEvent(name, params = {}) {
-  if (typeof window === "undefined" || typeof window.gtag !== "function") return;
-  window.gtag("event", name, params);
-}
+let currentSession = null;
+let lastRenderedReading = null;
+let shouldAutoRunAfterAuth = consumeHomeAutoRun();
 
 function syncCurrentYear() {
   const currentYear = String(new Date().getFullYear());
@@ -55,6 +78,11 @@ function syncCurrentYear() {
 }
 
 syncCurrentYear();
+initCommonPageTracking();
+setupAuthUi();
+trackEvent("home_view", {
+  page_name: "home",
+});
 
 calendarEl.addEventListener("change", () => {
   const isLunar = calendarEl.value === "lunar";
@@ -71,6 +99,35 @@ function normalizeBirthTimeInput(value) {
   const hh = digits.slice(0, 2);
   const mm = digits.slice(2, 4);
   return `${hh}:${mm}`;
+}
+
+function getBirthDraftFromForm() {
+  return {
+    calendar: calendarEl.value,
+    leapMonth: leapEl.checked,
+    year: yearEl.value.trim(),
+    month: monthEl.value.trim(),
+    day: dayEl.value.trim(),
+    birthTime: birthTimeEl?.value.trim() || "",
+    unknownTime: unknownTimeEl?.checked === true,
+  };
+}
+
+function applyBirthDraftToForm() {
+  const draft = loadBirthDraft();
+  if (!draft) return;
+
+  calendarEl.value = draft.calendar || calendarEl.value;
+  leapEl.checked = Boolean(draft.leapMonth);
+  yearEl.value = draft.year || yearEl.value;
+  monthEl.value = draft.month || monthEl.value;
+  dayEl.value = draft.day || dayEl.value;
+  if (birthTimeEl) {
+    birthTimeEl.value = draft.birthTime || "";
+  }
+  if (unknownTimeEl) {
+    unknownTimeEl.checked = Boolean(draft.unknownTime);
+  }
 }
 
 function normalizeDigitsOnlyInput(value, maxLength) {
@@ -182,6 +239,9 @@ if (unknownTimeEl) {
   });
 }
 
+updateBirthTimeState();
+applyBirthDraftToForm();
+calendarEl.dispatchEvent(new Event("change"));
 updateBirthTimeState();
 
 const STEM_TO_ELEMENT = {
@@ -335,6 +395,16 @@ function renderSummaryBox(element, summary, note = "") {
   `;
 }
 
+function renderDayPillarKeywords(keywords = []) {
+  if (!keywords.length) return "";
+
+  return `
+    <div class="impact-pills day-pillar-keywords">
+      ${keywords.map((keyword) => `<span class="impact-chip impact-chip-neutral">${keyword}</span>`).join("")}
+    </div>
+  `;
+}
+
 function renderDayPillarProfile(pillars) {
   const dayPillarKey = `${pillars.day.stem.char}${pillars.day.branch.char}`;
   const info = getDayPillarArchetype(dayPillarKey);
@@ -350,7 +420,9 @@ function renderDayPillarProfile(pillars) {
   dayPillarProfileEl.innerHTML = `
     <div class="title">${dayPillarKey}(${info.hanja}) 일주</div>
     <div class="day-pillar-metaphor">${info.metaphor}</div>
-    <div class="text">전통 물상 해석에서는 이 일주를 위와 같은 이미지로 비유합니다. 아래 해석은 이 물상과 원국 전체 오행, 십성, 대운 흐름을 함께 반영한 결과입니다.</div>
+    ${renderDayPillarKeywords(info.keywords)}
+    <div class="text day-pillar-overview">${info.overview || "전통 물상 해석에서는 이 일주를 위와 같은 이미지로 비유합니다."}</div>
+    <p class="mini-note">물상 개요는 공개 일주론 자료와 물상 비유를 바탕으로, 처음 보는 사람도 이해하기 쉽게 풀어쓴 요약입니다.</p>
   `;
 }
 
@@ -474,6 +546,168 @@ function renderLuckCards(items, type) {
     .join("");
 }
 
+function buildReadingSnapshot({ pillars, sections, advanced, gender, unknownTime, birthInfo }) {
+  const dayPillarKey = `${pillars.day.stem.char}${pillars.day.branch.char}`;
+  const dayPillarInfo = getDayPillarArchetype(dayPillarKey) || {};
+
+  return {
+    gender,
+    unknownTime,
+    birthInfo,
+    pillars,
+    sections,
+    advanced,
+    dayPillar: {
+      key: dayPillarKey,
+      hanja: dayPillarInfo.hanja || "",
+      metaphor: dayPillarInfo.metaphor || "",
+      elementClass: ELEMENT_CLASS[pillars.day.stem.element] || "unknown",
+    },
+  };
+}
+
+function updateResultAccessState() {
+  const hasReading = Boolean(lastRenderedReading);
+  const loggedIn = Boolean(currentSession);
+  const shouldLock = hasReading && !loggedIn;
+
+  resultEl.classList.toggle("is-preview-locked", shouldLock);
+  resultPreviewGateEl?.classList.toggle("hidden", !shouldLock);
+  saveReadingButtonEl?.classList.toggle("hidden", !hasReading || !loggedIn || !isSupabaseConfigured());
+}
+
+function openSaveReadingModal() {
+  if (!lastRenderedReading || !currentSession) return;
+
+  saveReadingErrorEl.textContent = "";
+  saveReadingStatusEl.textContent = "";
+  saveEntryMemoEl.value = "";
+  saveEntryNameEl.value = saveEntryNameEl.value.trim() || currentSession.user.user_metadata?.full_name || "나의 사주";
+  saveReadingModalEl.classList.remove("hidden");
+  saveReadingModalEl.setAttribute("aria-hidden", "false");
+  document.body.classList.add("has-modal");
+}
+
+function closeSaveReadingModal() {
+  saveReadingModalEl.classList.add("hidden");
+  saveReadingModalEl.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("has-modal");
+}
+
+function rememberBirthDraftForAuth() {
+  saveBirthDraft(getBirthDraftFromForm());
+  requestHomeAutoRun();
+}
+
+function bindPreviewLink(link, eventName) {
+  if (!link) return;
+  link.addEventListener("click", () => {
+    rememberBirthDraftForAuth();
+    trackEvent(eventName, {
+      page_name: "home",
+    });
+  });
+}
+
+bindPreviewLink(previewSignupLinkEl, "home_preview_signup_click");
+bindPreviewLink(previewSigninLinkEl, "home_preview_signin_click");
+
+document.addEventListener("click", (event) => {
+  const signinTrigger = event.target.closest("[data-auth-action='signin']");
+  if (signinTrigger && lastRenderedReading) {
+    rememberBirthDraftForAuth();
+  }
+});
+
+saveReadingButtonEl?.addEventListener("click", () => {
+  trackEvent("reading_save_modal_open", {
+    page_name: "home",
+  });
+  openSaveReadingModal();
+});
+
+document.querySelectorAll("[data-save-close]").forEach((button) => {
+  button.addEventListener("click", () => {
+    closeSaveReadingModal();
+  });
+});
+
+saveReadingFormEl?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!lastRenderedReading) return;
+
+  const entryName = saveEntryNameEl.value.trim();
+  const memo = saveEntryMemoEl.value.trim();
+
+  saveReadingErrorEl.textContent = "";
+  saveReadingStatusEl.textContent = "";
+
+  if (entryName.length < 1) {
+    saveReadingErrorEl.textContent = "저장 이름을 입력해 주세요.";
+    return;
+  }
+
+  if (memo.length > 500) {
+    saveReadingErrorEl.textContent = "메모는 500자 이하로 입력해 주세요.";
+    return;
+  }
+
+  try {
+    saveReadingStatusEl.textContent = "저장 중...";
+
+    await saveReading({
+      entry_name: entryName,
+      memo,
+      gender: lastRenderedReading.gender,
+      calendar_type: lastRenderedReading.birthInfo.isLunar ? "lunar" : "solar",
+      is_leap_month: Boolean(lastRenderedReading.birthInfo.isLeapMonth),
+      birth_year: lastRenderedReading.birthInfo.year,
+      birth_month: lastRenderedReading.birthInfo.month,
+      birth_day: lastRenderedReading.birthInfo.day,
+      birth_hour: lastRenderedReading.unknownTime ? null : lastRenderedReading.birthInfo.hour,
+      birth_minute: lastRenderedReading.unknownTime ? null : lastRenderedReading.birthInfo.minute,
+      birth_time_known: !lastRenderedReading.unknownTime,
+      day_pillar_key: lastRenderedReading.dayPillar.key,
+      day_pillar_hanja: lastRenderedReading.dayPillar.hanja,
+      day_pillar_metaphor: lastRenderedReading.dayPillar.metaphor,
+      element_class: lastRenderedReading.dayPillar.elementClass,
+      preview_summary: lastRenderedReading.sections[0]?.text || lastRenderedReading.advanced.diagnosis.summary,
+      pillars_json: lastRenderedReading.pillars,
+      reading_json: {
+        birthInfo: lastRenderedReading.birthInfo,
+        sections: lastRenderedReading.sections,
+        advanced: lastRenderedReading.advanced,
+        dayPillar: lastRenderedReading.dayPillar,
+      },
+    });
+
+    trackEvent("reading_save_success", {
+      page_name: "home",
+      day_pillar_name: lastRenderedReading.dayPillar.key,
+    });
+    saveReadingStatusEl.textContent = "저장되었습니다.";
+    setTimeout(() => {
+      closeSaveReadingModal();
+    }, 600);
+  } catch (error) {
+    saveReadingErrorEl.textContent = error.message || "사주 결과를 저장하지 못했습니다.";
+    saveReadingStatusEl.textContent = "";
+  }
+});
+
+subscribeAuthState((session) => {
+  currentSession = session;
+  updateResultAccessState();
+
+  if (session && shouldAutoRunAfterAuth) {
+    shouldAutoRunAfterAuth = false;
+    setTimeout(() => {
+      btn.click();
+    }, 0);
+  }
+});
+
 function validateInput({ year, month, day, birthTime, isLunar, unknownTime }) {
   if (!Number.isInteger(year) || year < 1900 || year > 2100) return "년은 1900~2100 사이여야 합니다.";
   if (!Number.isInteger(month) || month < 1 || month > 12) return "월은 1~12 사이여야 합니다.";
@@ -525,6 +759,15 @@ function render(pillars, { gender, unknownTime, birthInfo }) {
   renderSummaryBox(yearLuckSummaryEl, advanced.yearLuck.summary, advanced.yearLuck.note);
   yearLuckEl.innerHTML = renderLuckCards(advanced.yearLuck.items, "year");
 
+  lastRenderedReading = buildReadingSnapshot({
+    pillars,
+    sections,
+    advanced,
+    gender,
+    unknownTime,
+    birthInfo,
+  });
+  updateResultAccessState();
   resultEl.classList.remove("hidden");
 }
 
@@ -532,6 +775,9 @@ btn.addEventListener("click", async () => {
   errEl.textContent = "";
   statusEl.textContent = "";
   btn.disabled = true;
+  trackEvent("home_ctabtn_click", {
+    page_name: "home",
+  });
 
   try {
     const isLunar = calendarEl.value === "lunar";
@@ -546,6 +792,8 @@ btn.addEventListener("click", async () => {
 
     const validationError = validateInput({ year, month, day, birthTime, isLunar, unknownTime });
     if (validationError) throw new Error(validationError);
+
+    saveBirthDraft(getBirthDraftFromForm());
 
     const [rawHour, rawMinute] = unknownTime ? [null, null] : birthTime.split(":").map(Number);
 

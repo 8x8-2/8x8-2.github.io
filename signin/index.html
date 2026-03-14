@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="theme-color" content="#f1f2f3">
+    <link rel="icon" href="/src/img/bi/favicon-soulscan.png" sizes="any">
+    <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-soulscan.png">
+    <title>로그인 | 소울 스캔</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <meta name="description" content="소울 스캔 로그인 페이지입니다. 저장한 사주 기록과 전체 결과를 보려면 로그인해 주세요.">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y1LQ26MRQF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag() { window.dataLayer.push(arguments); };
+      window.gtag("js", new Date());
+      window.gtag("config", "G-Y1LQ26MRQF", {
+        page_title: document.title,
+        page_path: window.location.pathname,
+        page_location: window.location.href,
+      });
+    </script>
+  </head>
+  <body
+    data-page-name="signin"
+    data-link-home="../"
+    data-link-soulday="../soulday/"
+    data-link-signin="./"
+    data-link-signup="../signup/"
+    data-link-saved="../saved/"
+    data-auth-mode="hidden"
+  >
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../" aria-label="Soul Scan 홈">
+          <span class="brand-logo-slot" aria-hidden="true">
+            <img class="brand-logo-image" src="/src/img/bi/symbol-soulscan.png" alt="" />
+          </span>
+          <span class="brand-copy">
+            <span class="brand-name">소울 스캔</span>
+            <span class="brand-subtitle">내 운명 사주 스캐너</span>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <nav class="topbar-menu" aria-label="상단 메뉴">
+            <a class="topbar-menu-link" href="../" data-nav-target="home">사주 보기</a>
+            <a class="topbar-menu-link" href="../soulday/" data-nav-target="soulday_list">일주별 보기</a>
+          </nav>
+          <div class="topbar-auth" data-auth-slot></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card auth-card" aria-labelledby="signin-heading">
+        <p class="eyebrow">로그인</p>
+        <h1 id="signin-heading">저장한 사주를 이어서 보려면 로그인해 주세요</h1>
+        <p class="hero-subtitle">회원가입은 무료이고, 로그인하면 사주 결과 저장과 전체 결과 보기가 가능합니다.</p>
+
+        <div id="signinConfigError" class="box hidden auth-helper-box">
+          <div class="title">Supabase 연결이 아직 설정되지 않았습니다.</div>
+          <div class="text">`.env.local`에 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`를 먼저 넣어 주세요.</div>
+        </div>
+
+        <form id="signinForm" class="auth-form">
+          <label class="field">
+            <span>이메일 주소</span>
+            <input id="signinEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
+          </label>
+          <label class="field">
+            <span>비밀번호</span>
+            <input id="signinPassword" type="password" autocomplete="current-password" placeholder="비밀번호 입력" required />
+          </label>
+
+          <button type="submit">로그인</button>
+          <span id="signinStatus" class="muted"></span>
+          <p id="signinError" class="error"></p>
+        </form>
+
+        <div class="auth-secondary">
+          <p class="muted">아직 회원이 아니라면, 아래에서 바로 가입할 수 있습니다.</p>
+          <a class="text-link-button auth-secondary-link" href="../signup/">달나라 회원가입</a>
+        </div>
+      </section>
+
+      <footer class="muted footer">
+        <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a></small>
+      </footer>
+    </main>
+
+    <script type="module" src="/src/signin.js"></script>
+  </body>
+</html>

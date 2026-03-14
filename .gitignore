@@ -10,5 +10,10 @@ dist
 # OS
 .DS_Store
 
+# Env
+.env
+.env.local
+.env.*.local
+
 # Logs
 npm-debug.log*

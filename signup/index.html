@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="theme-color" content="#f1f2f3">
+    <link rel="icon" href="/src/img/bi/favicon-soulscan.png" sizes="any">
+    <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-soulscan.png">
+    <title>회원가입 | 소울 스캔</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <meta name="description" content="소울 스캔 회원가입 페이지입니다. 무료로 가입하고 사주 결과를 저장해 보세요.">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y1LQ26MRQF"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag() { window.dataLayer.push(arguments); };
+      window.gtag("js", new Date());
+      window.gtag("config", "G-Y1LQ26MRQF", {
+        page_title: document.title,
+        page_path: window.location.pathname,
+        page_location: window.location.href,
+      });
+    </script>
+  </head>
+  <body
+    data-page-name="signup"
+    data-link-home="../"
+    data-link-soulday="../soulday/"
+    data-link-signin="../signin/"
+    data-link-signup="./"
+    data-link-saved="../saved/"
+    data-auth-mode="hidden"
+  >
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../" aria-label="Soul Scan 홈">
+          <span class="brand-logo-slot" aria-hidden="true">
+            <img class="brand-logo-image" src="/src/img/bi/symbol-soulscan.png" alt="" />
+          </span>
+          <span class="brand-copy">
+            <span class="brand-name">소울 스캔</span>
+            <span class="brand-subtitle">내 운명 사주 스캐너</span>
+          </span>
+        </a>
+        <div class="topbar-actions">
+          <nav class="topbar-menu" aria-label="상단 메뉴">
+            <a class="topbar-menu-link" href="../" data-nav-target="home">사주 보기</a>
+            <a class="topbar-menu-link" href="../soulday/" data-nav-target="soulday_list">일주별 보기</a>
+          </nav>
+          <div class="topbar-auth" data-auth-slot></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card auth-card" aria-labelledby="signup-heading">
+        <p class="eyebrow">무료 회원가입</p>
+        <h1 id="signup-heading">사주 결과를 저장하려면 가입이 필요합니다</h1>
+        <p class="hero-subtitle">가입은 무료이며, 한 번 저장한 결과는 로그인 후 언제든 다시 찾아볼 수 있습니다.</p>
+
+        <div id="signupConfigError" class="box hidden auth-helper-box">
+          <div class="title">Supabase 연결이 아직 설정되지 않았습니다.</div>
+          <div class="text">`.env.local`에 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_PUBLISHABLE_KEY`를 먼저 넣어 주세요.</div>
+        </div>
+
+        <form id="signupForm" class="auth-form auth-form-wide">
+          <div class="grid auth-grid-two">
+            <label class="field">
+              <span>이메일 주소(ID)</span>
+              <input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
+            </label>
+            <label class="field">
+              <span>이름</span>
+              <input id="signupName" type="text" autocomplete="name" placeholder="2글자 이상" required />
+            </label>
+          </div>
+
+          <div class="grid auth-grid-two">
+            <label class="field">
+              <span>비밀번호</span>
+              <input id="signupPassword" type="password" autocomplete="new-password" placeholder="6자 이상" required />
+            </label>
+            <label class="field">
+              <span>비밀번호 재확인</span>
+              <input id="signupPasswordConfirm" type="password" autocomplete="new-password" placeholder="한 번 더 입력" required />
+            </label>
+          </div>
+
+          <div class="row">
+            <label class="field">
+              <span>달력</span>
+              <select id="signupCalendar">
+                <option value="solar">양력</option>
+                <option value="lunar">음력</option>
+              </select>
+            </label>
+            <label class="field checkbox">
+              <input type="checkbox" id="signupLeapMonth" disabled />
+              <span>윤달(음력)</span>
+            </label>
+            <label class="field">
+              <span>전화번호(선택)</span>
+              <input id="signupPhone" type="tel" autocomplete="tel" placeholder="010-1234-5678" />
+            </label>
+          </div>
+
+          <div class="grid grid-birth">
+            <label class="field"><span>년</span><input id="signupYear" type="text" inputmode="numeric" maxlength="4" required /></label>
+            <label class="field"><span>월</span><input id="signupMonth" type="text" inputmode="numeric" maxlength="2" required /></label>
+            <label class="field"><span>일</span><input id="signupDay" type="text" inputmode="numeric" maxlength="2" required /></label>
+            <label class="field field-time-input">
+              <span>태어난 시간</span>
+              <input id="signupBirthTime" type="text" inputmode="numeric" maxlength="5" placeholder="00:00" />
+            </label>
+            <label class="field checkbox time-unknown">
+              <input type="checkbox" id="signupUnknownTime" />
+              <span>시간 모름</span>
+            </label>
+          </div>
+
+          <p id="signupTimeFeedback" class="error hidden">태어난 시간을 올바르게 입력해 주세요.</p>
+
+          <label class="field checkbox auth-consent">
+            <input id="signupMarketing" type="checkbox" />
+            <span>마케팅 정보 수신에 동의합니다.</span>
+          </label>
+
+          <button type="submit">무료로 가입하기</button>
+          <span id="signupStatus" class="muted"></span>
+          <p id="signupError" class="error"></p>
+        </form>
+      </section>
+
+      <footer class="muted footer">
+        <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a></small>
+      </footer>
+    </main>
+
+    <script type="module" src="/src/signup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,154 @@
+import { trackEvent } from "./analytics.js";
+import {
+  fetchProfile,
+  getDisplayName,
+  getProfileInitial,
+  isSupabaseConfigured,
+  signOut,
+  subscribeAuthState,
+} from "./auth.js";
+
+function getPageMeta() {
+  const body = document.body;
+
+  return {
+    pageName: body.dataset.pageName || "",
+    links: {
+      home: body.dataset.linkHome || "./",
+      soulday: body.dataset.linkSoulday || "./soulday/",
+      signin: body.dataset.linkSignin || "./signin/",
+      signup: body.dataset.linkSignup || "./signup/",
+      saved: body.dataset.linkSaved || "./saved/",
+    },
+    authMode: body.dataset.authMode || "default",
+  };
+}
+
+function buildUrl(path, withNext = false) {
+  const url = new URL(path, window.location.href);
+  if (withNext) {
+    url.searchParams.set("next", `${window.location.pathname}${window.location.search}${window.location.hash}`);
+  }
+  return url.toString();
+}
+
+function closeMenu(menu) {
+  if (!menu) return;
+  menu.classList.remove("is-open");
+}
+
+function renderLoggedOut(slot, meta) {
+  if (meta.authMode === "hidden") {
+    slot.innerHTML = "";
+    return;
+  }
+
+  slot.innerHTML = `
+    <a class="topbar-auth-link" href="${buildUrl(meta.links.signin, true)}" data-auth-action="signin">로그인</a>
+  `;
+
+  slot.querySelector("[data-auth-action='signin']")?.addEventListener("click", () => {
+    trackEvent("signin_click", {
+      source: "top_nav",
+      page_name: meta.pageName,
+    });
+  });
+}
+
+function renderLoggedIn(slot, meta, session, profile) {
+  const displayName = getDisplayName(session.user, profile);
+  const initial = getProfileInitial(session.user, profile);
+  const savedActive = meta.pageName === "saved" ? " is-active" : "";
+
+  slot.innerHTML = `
+    <a class="topbar-menu-link${savedActive}" href="${buildUrl(meta.links.saved)}" data-nav-target="saved_readings">저장한 사주</a>
+    <div class="profile-menu" data-profile-menu>
+      <button class="profile-button" type="button" aria-haspopup="menu" aria-expanded="false" data-profile-toggle>
+        <span>${initial}</span>
+      </button>
+      <div class="profile-panel" role="menu" data-profile-panel>
+        <div class="profile-panel-name">${displayName}</div>
+        <div class="profile-panel-email">${session.user.email || ""}</div>
+        <button class="profile-signout-button" type="button" data-profile-signout>로그아웃</button>
+      </div>
+    </div>
+  `;
+
+  const menu = slot.querySelector("[data-profile-menu]");
+  const toggle = slot.querySelector("[data-profile-toggle]");
+  const signoutButton = slot.querySelector("[data-profile-signout]");
+  const handleDocumentClick = (event) => {
+    if (!menu?.contains(event.target)) {
+      closeMenu(menu);
+      toggle?.setAttribute("aria-expanded", "false");
+    }
+  };
+
+  toggle?.addEventListener("click", () => {
+    const opened = menu.classList.toggle("is-open");
+    toggle.setAttribute("aria-expanded", opened ? "true" : "false");
+  });
+
+  document.addEventListener("click", handleDocumentClick);
+
+  signoutButton?.addEventListener("click", async () => {
+    try {
+      await signOut();
+      trackEvent("signout_click", {
+        page_name: meta.pageName,
+      });
+
+      if (meta.pageName === "saved") {
+        window.location.href = buildUrl(meta.links.home);
+      }
+    } catch (error) {
+      window.alert(error.message || "로그아웃에 실패했습니다.");
+    }
+  });
+
+  return () => {
+    document.removeEventListener("click", handleDocumentClick);
+  };
+}
+
+export function setupAuthUi() {
+  const slot = document.querySelector("[data-auth-slot]");
+  if (!slot) return () => {};
+
+  const meta = getPageMeta();
+
+  if (!isSupabaseConfigured()) {
+    renderLoggedOut(slot, meta);
+    return () => {};
+  }
+
+  let activeCleanup = null;
+
+  const unsubscribe = subscribeAuthState(async (session) => {
+    if (!session) {
+      if (activeCleanup) {
+        activeCleanup();
+        activeCleanup = null;
+      }
+      renderLoggedOut(slot, meta);
+      return;
+    }
+
+    if (activeCleanup) {
+      activeCleanup();
+      activeCleanup = null;
+    }
+
+    try {
+      const profile = await fetchProfile();
+      activeCleanup = renderLoggedIn(slot, meta, session, profile);
+    } catch {
+      activeCleanup = renderLoggedIn(slot, meta, session, null);
+    }
+  });
+
+  return () => {
+    if (activeCleanup) activeCleanup();
+    unsubscribe();
+  };
+}
