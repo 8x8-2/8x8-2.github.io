@@ -189,6 +189,7 @@ $("signupForm")?.addEventListener("submit", async (event) => {
   const password = $("signupPassword").value;
   const confirmPassword = $("signupPasswordConfirm").value;
   const fullName = $("signupName").value.trim();
+  const gender = $("signupGender").value.trim();
   const calendarType = $("signupCalendar").value;
   const isLeapMonth = $("signupLeapMonth").checked;
   const birthYear = Number($("signupYear").value);
@@ -216,6 +217,11 @@ $("signupForm")?.addEventListener("submit", async (event) => {
 
   if (fullName.length < 2) {
     errorEl.textContent = "이름은 2글자 이상 입력해 주세요.";
+    return;
+  }
+
+  if (!["male", "female"].includes(gender)) {
+    errorEl.textContent = "성별을 선택해 주세요.";
     return;
   }
 
@@ -268,6 +274,7 @@ $("signupForm")?.addEventListener("submit", async (event) => {
       emailRedirectTo: new URL(signInPath, window.location.href).toString(),
       profile: {
         full_name: fullName,
+        gender,
         phone: normalizedPhone,
         calendar_type: calendarType,
         is_leap_month: calendarType === "lunar" ? isLeapMonth : false,

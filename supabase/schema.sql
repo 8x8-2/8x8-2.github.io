@@ -4,6 +4,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   email text not null unique,
   full_name text not null check (char_length(trim(full_name)) >= 2),
+  gender text not null default 'male',
   phone text,
   calendar_type text not null default 'solar' check (calendar_type in ('solar', 'lunar')),
   is_leap_month boolean not null default false,
@@ -15,7 +16,8 @@ create table if not exists public.profiles (
   birth_time_known boolean not null default true,
   marketing_opt_in boolean not null default false,
   created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
+  updated_at timestamptz not null default timezone('utc', now()),
+  constraint profiles_gender_check check (gender in ('male', 'female'))
 );
 
 create table if not exists public.saved_readings (
@@ -42,6 +44,35 @@ create table if not exists public.saved_readings (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+alter table public.profiles
+add column if not exists gender text;
+
+update public.profiles
+set gender = 'male'
+where gender is null
+   or gender not in ('male', 'female');
+
+alter table public.profiles
+alter column gender set default 'male';
+
+alter table public.profiles
+alter column gender set not null;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_gender_check'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+    add constraint profiles_gender_check
+    check (gender in ('male', 'female'));
+  end if;
+end;
+$$;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -53,6 +84,7 @@ begin
     id,
     email,
     full_name,
+    gender,
     phone,
     calendar_type,
     is_leap_month,
@@ -68,6 +100,7 @@ begin
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'full_name', '회원'),
+    coalesce(new.raw_user_meta_data ->> 'gender', 'male'),
     nullif(new.raw_user_meta_data ->> 'phone', ''),
     coalesce(new.raw_user_meta_data ->> 'calendar_type', 'solar'),
     coalesce((new.raw_user_meta_data ->> 'is_leap_month')::boolean, false),
@@ -83,6 +116,7 @@ begin
   set
     email = excluded.email,
     full_name = excluded.full_name,
+    gender = excluded.gender,
     phone = excluded.phone,
     calendar_type = excluded.calendar_type,
     is_leap_month = excluded.is_leap_month,
