@@ -9,6 +9,8 @@ function $(id) {
   return document.getElementById(id);
 }
 
+let latestSearchToken = 0;
+
 function renderAvatar(result) {
   if (result.profile_image_url) {
     return `<img src="${escapeHtml(result.profile_image_url)}" alt="" />`;
@@ -29,19 +31,48 @@ function renderResultRow(result) {
   `;
 }
 
+function setEmptyState(title, text, { visible = true } = {}) {
+  $("searchEmptyTitle").textContent = title;
+  $("searchEmptyText").textContent = text;
+  $("searchEmpty").classList.toggle("hidden", !visible);
+}
+
+function resetSearchView() {
+  latestSearchToken += 1;
+  $("searchResults").innerHTML = "";
+  $("searchStatus").textContent = "";
+  $("searchError").textContent = "";
+  setEmptyState(
+    "스텔라 프로필을 검색해 보세요",
+    "이름이나 스텔라 ID를 입력하면 계정 검색처럼 바로 결과가 나타납니다."
+  );
+}
+
 async function runSearch() {
   const query = $("searchInput").value.trim();
+  if (!query) {
+    resetSearchView();
+    return;
+  }
+
+  const searchToken = ++latestSearchToken;
   $("searchError").textContent = "";
-  $("searchStatus").textContent = query ? "검색 중..." : "추천 스텔라 프로필을 불러오는 중...";
+  $("searchStatus").textContent = "검색 중...";
 
   try {
     const results = await searchPublicProfiles(query, 20);
+    if (searchToken !== latestSearchToken) return;
     $("searchResults").innerHTML = results.map(renderResultRow).join("");
     $("searchStatus").textContent = results.length
       ? `${results.length}개의 스텔라 프로필`
-      : (query ? "검색 결과가 없습니다." : "추천할 프로필이 아직 없습니다.");
-    $("searchEmpty").classList.toggle("hidden", results.length > 0);
+      : "검색 결과가 없습니다.";
+    setEmptyState(
+      "검색 결과가 없습니다",
+      "다른 이름이나 스텔라 ID로 다시 찾아보세요.",
+      { visible: results.length === 0 }
+    );
   } catch (error) {
+    if (searchToken !== latestSearchToken) return;
     $("searchError").textContent = error.message || "검색에 실패했습니다.";
     $("searchStatus").textContent = "";
   }
@@ -77,14 +108,30 @@ async function init() {
   });
 
   let timer = null;
-  $("searchInput").addEventListener("input", () => {
+  let isComposing = false;
+  const scheduleSearch = () => {
     window.clearTimeout(timer);
     timer = window.setTimeout(() => {
       runSearch().catch(() => {});
-    }, 150);
+    }, 180);
+  };
+
+  $("searchInput").addEventListener("compositionstart", () => {
+    isComposing = true;
+    window.clearTimeout(timer);
   });
 
-  await runSearch();
+  $("searchInput").addEventListener("compositionend", () => {
+    isComposing = false;
+    scheduleSearch();
+  });
+
+  $("searchInput").addEventListener("input", () => {
+    if (isComposing) return;
+    scheduleSearch();
+  });
+
+  resetSearchView();
 }
 
 init().catch((error) => {

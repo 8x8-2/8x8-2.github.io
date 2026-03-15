@@ -342,6 +342,10 @@ export async function fetchPublicProfileByStellarId(stellarId) {
 }
 
 export async function searchPublicProfiles(query, limit = 20) {
+  if (!String(query || "").trim()) {
+    return [];
+  }
+
   const supabase = ensureSupabase();
   const { data, error } = await supabase.rpc("search_stellar_profiles", {
     search_query: query || "",

@@ -4,7 +4,7 @@ import { buildAccountUrl, buildFollowingUrl, buildPublicProfileUrl, buildSearchU
 import { signOut } from "./auth.js";
 
 function getBrandMarkup(stellarId, pageTitle, showProfileIdentity) {
-  const stellarIdText = stellarId ? `/${escapeHtml(String(stellarId))}` : "/";
+  const safeStellarId = stellarId ? escapeHtml(String(stellarId)) : "";
 
   return `
     <div class="social-brand">
@@ -19,7 +19,11 @@ function getBrandMarkup(stellarId, pageTitle, showProfileIdentity) {
           ? `
             <span class="social-brand-meta">
               <span class="social-brand-label">STELLAR-ID</span>
-              <a class="social-brand-id social-brand-home-link" href="#" data-social-home>${stellarIdText}</a>
+              <span class="social-brand-slash">/</span>
+              ${safeStellarId
+                ? `<a class="social-brand-id social-brand-home-link" href="#" data-social-home>${safeStellarId}</a>`
+                : ""
+              }
             </span>
           `
           : ""

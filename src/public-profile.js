@@ -72,7 +72,8 @@ function renderGuestNav() {
             <a class="social-brand-name social-brand-home-link" href="${homeUrl}">스텔라 프로필</a>
             <span class="social-brand-meta">
               <span class="social-brand-label">STELLAR-ID</span>
-              <span class="social-brand-id">${requestedStellarId ? `/${requestedStellarId}` : "/"}</span>
+              <span class="social-brand-slash">/</span>
+              ${requestedStellarId ? `<span class="social-brand-id">${requestedStellarId}</span>` : ""}
             </span>
           </span>
         </div>
