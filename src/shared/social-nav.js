@@ -3,6 +3,7 @@ import { escapeHtml } from "./html.js";
 import { getBellIcon, setupNotificationCenter } from "./notifications.js";
 import { buildAccountUrl, buildFollowingUrl, buildPublicProfileUrl, buildSearchUrl } from "./stellar-id.js";
 import { signOut } from "./auth.js";
+import symbolStellarIdUrl from "../img/bi/symbol-stellarid.png";
 
 function getBrandMarkup(stellarId, pageTitle, showProfileIdentity) {
   const safeStellarId = stellarId ? escapeHtml(String(stellarId)) : "";
@@ -11,7 +12,7 @@ function getBrandMarkup(stellarId, pageTitle, showProfileIdentity) {
     <div class="social-brand">
       <a class="social-brand-logo-link" href="#" data-social-home aria-label="스텔라 ID 홈">
         <span class="social-brand-logo" aria-hidden="true">
-          <img src="/src/img/bi/symbol-stellarid.png" alt="" />
+          <img src="${symbolStellarIdUrl}" alt="" />
         </span>
       </a>
       <span class="social-brand-copy">

@@ -18,6 +18,7 @@ import {
 import { escapeHtml } from "./shared/html.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { showToast } from "./shared/ui.js";
+import symbolStellarIdUrl from "./img/bi/symbol-stellarid.png";
 
 function $(id) {
   return document.getElementById(id);
@@ -63,7 +64,7 @@ function renderGuestNav() {
         <div class="social-brand">
           <a class="social-brand-logo-link" href="${homeUrl}" aria-label="스텔라 ID 홈">
             <span class="social-brand-logo" aria-hidden="true">
-              <img src="/src/img/bi/symbol-stellarid.png" alt="" />
+              <img src="${symbolStellarIdUrl}" alt="" />
             </span>
           </a>
           <span class="social-brand-copy">

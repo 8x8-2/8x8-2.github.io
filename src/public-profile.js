@@ -22,6 +22,7 @@ import { formatGenderLabel } from "./shared/birth.js";
 import { escapeHtml } from "./shared/html.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { shareLink } from "./shared/share.js";
+import symbolStellarIdUrl from "./img/bi/symbol-stellarid.png";
 import { applyPrettyProfilePath, buildProfileSettingsUrl, buildPublicProfileUrl, getRequestedStellarId } from "./shared/stellar-id.js";
 import { formatRegionDisplay } from "./shared/regions.js";
 
@@ -66,7 +67,7 @@ function renderGuestNav() {
       <div class="social-topbar-left">
         <div class="social-brand">
           <a class="social-brand-logo-link" href="${homeUrl}" aria-label="스텔라 ID 홈">
-            <span class="social-brand-logo"><img src="/src/img/bi/symbol-stellarid.png" alt="" /></span>
+            <span class="social-brand-logo"><img src="${symbolStellarIdUrl}" alt="" /></span>
           </a>
           <span class="social-brand-copy">
             <a class="social-brand-name social-brand-home-link" href="${homeUrl}">스텔라 프로필</a>

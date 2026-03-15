@@ -2414,6 +2414,11 @@ summary:focus-visible {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.profile-cta-row button,
+.profile-cta-row .cta-link-button {
+  font-size: 1rem;
+}
+
 .profile-tabs-card {
   position: sticky;
   top: 86px;
