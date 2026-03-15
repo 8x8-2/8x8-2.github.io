@@ -170,6 +170,60 @@ function buildSignalBlock(title, items, tone = "good") {
   `;
 }
 
+function getCurrentYearLuck(snapshot) {
+  return snapshot?.advanced?.yearLuck?.items?.find((item) => item.isCurrent) || snapshot?.advanced?.yearLuck?.items?.[0] || null;
+}
+
+function joinLuckTerms(items, limit = 2) {
+  const values = [...new Set((items || []).filter(Boolean))].slice(0, limit);
+  return values.join(", ");
+}
+
+function buildCurrentLuckSummary(snapshot) {
+  const currentMajor = snapshot?.advanced?.majorLuck?.current || snapshot?.advanced?.majorLuck?.items?.find((item) => item.isCurrent) || null;
+  const currentYear = getCurrentYearLuck(snapshot);
+
+  if (!currentMajor && !currentYear) {
+    return snapshot?.advanced?.majorLuck?.summary || "현재 대세운 정보를 아직 불러오지 못했습니다.";
+  }
+
+  const labels = [currentMajor ? `${currentMajor.index}대운 ${currentMajor.pillarString}` : "", currentYear ? `${currentYear.year}년 ${currentYear.pillarString}` : ""].filter(Boolean);
+  const boosts = joinLuckTerms([...(currentMajor?.boosts || []), ...(currentYear?.boosts || [])], 3);
+  const cautions = joinLuckTerms([...(currentMajor?.cautions || []), ...(currentYear?.cautions || [])], 3);
+  const alignment = joinLuckTerms([currentMajor?.alignmentText, currentYear?.alignmentText], 2);
+  const focusSummary = [currentMajor?.focus ? `큰 배경은 ${currentMajor.focus}` : "", currentYear?.focus ? `올해 촉발점은 ${currentYear.focus}` : ""].filter(Boolean).join(", ");
+  const resultText = currentYear?.result || currentMajor?.result || currentYear?.note || currentMajor?.note || "";
+  const parts = [
+    `현재는 ${labels.length > 1 ? `${labels[0]}과 ${labels[1]}` : labels[0]} 흐름이 중심이 되는 시기입니다.`,
+  ];
+
+  if (focusSummary) {
+    parts.push(`${focusSummary} 쪽으로 읽힙니다.`);
+  }
+
+  if (alignment) {
+    parts.push(`기운 밸런스는 ${alignment} 쪽으로 읽힙니다.`);
+  }
+
+  if (boosts || cautions) {
+    const signalParts = [];
+
+    if (boosts) {
+      signalParts.push(`도움이 되는 기운은 ${boosts}`);
+    }
+
+    if (cautions) {
+      signalParts.push(`주의할 기운은 ${cautions}`);
+    }
+
+    parts.push(`${signalParts.join(", ")}입니다.`);
+  } else if (resultText) {
+    parts.push(resultText);
+  }
+
+  return parts.join(" ");
+}
+
 function getCollaborationLabel(score) {
   if (score == null) return "아직 비교할 수 없어요";
   if (score >= 85) return "매우 잘 맞아요";
@@ -222,7 +276,7 @@ function buildHomeTab(profile, snapshot, visibility) {
   if (visibility.majorLuck) {
     cards.push({
       title: "대세운 요약",
-      text: snapshot?.advanced?.majorLuck?.summary || "",
+      text: buildCurrentLuckSummary(snapshot),
     });
   }
 
@@ -469,10 +523,11 @@ function renderLuckList(items, type) {
     <div class="profile-luck-list">
       ${items.map((item) => `
         <article class="box profile-luck-card ${item.isCurrent ? "is-current" : ""}">
-          <div class="profile-luck-head">
+          <div class="profile-luck-head luck-head">
             <div class="title">${escapeHtml(type === "major" ? `${item.index}대운 ${item.pillarString}` : `${item.year}년 ${item.pillarString}`)}</div>
             <div class="profile-luck-pills">
-              <span class="luck-pill ${item.isCurrent ? "is-active" : ""}">${escapeHtml(item.focus || "흐름")}</span>
+              ${item.isCurrent ? `<span class="luck-pill is-active">현재</span>` : ""}
+              <span class="luck-pill">${escapeHtml(item.focus || "흐름")}</span>
               ${item.alignmentText ? `<span class="luck-pill">${escapeHtml(item.alignmentText)}</span>` : ""}
             </div>
           </div>

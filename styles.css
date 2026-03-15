@@ -2698,6 +2698,18 @@ summary:focus-visible {
   gap: 8px;
 }
 
+.profile-luck-card.is-current {
+  border-color: var(--accent-outline);
+  box-shadow: 0 16px 30px rgba(73, 250, 160, 0.08);
+  background:
+    linear-gradient(135deg, rgba(73, 250, 160, 0.08), rgba(73, 250, 160, 0.02)),
+    rgba(18, 22, 27, 0.94);
+}
+
+.profile-luck-card.is-current .profile-luck-period {
+  color: var(--accent);
+}
+
 .profile-luck-period {
   margin-top: 10px;
   color: var(--accent-strong);

@@ -44,6 +44,17 @@ function resolvePageTitle(meta) {
   }
 }
 
+function resolveGuestPageTitle(meta) {
+  switch (meta.pageName) {
+    case "home":
+    case "soulday_list":
+    case "soulday_detail":
+      return "스텔라 ID";
+    default:
+      return resolvePageTitle(meta);
+  }
+}
+
 function buildLoggedInHomeUrl(session, profile) {
   if (profile?.stellar_id) {
     return buildPublicProfileUrl(profile.stellar_id);
@@ -65,7 +76,7 @@ function renderPageNav(container, meta, session, profile = null) {
   return renderSocialNav(container, {
     session,
     viewerProfile: profile || buildSessionProfileStub(session),
-    pageTitle: resolvePageTitle(meta),
+    pageTitle: session ? resolvePageTitle(meta) : resolveGuestPageTitle(meta),
     homeUrlOverride: session ? buildLoggedInHomeUrl(session, profile) : null,
   });
 }

@@ -39,6 +39,32 @@ function isUniqueViolation(error) {
   return error?.code === "23505" || String(error?.message || "").toLowerCase().includes("duplicate");
 }
 
+function normalizeStorageUploadError(error) {
+  const rawMessage = String(error?.message || "").trim();
+  const normalizedMessage = rawMessage.toLowerCase();
+  const statusCode = String(error?.statusCode || error?.status || "");
+
+  if (normalizedMessage.includes("bucket not found")) {
+    return new Error("Supabase Storage에 `profile-images` 버킷이 없습니다. SQL Editor에서 최신 schema.sql을 다시 실행해 주세요.");
+  }
+
+  if (normalizedMessage.includes("row-level security") || normalizedMessage.includes("policy")) {
+    return new Error("Supabase Storage 업로드 권한이 아직 적용되지 않았습니다. SQL Editor에서 `profile-images` 버킷/정책 구간을 다시 실행해 주세요.");
+  }
+
+  if (normalizedMessage.includes("mime") || normalizedMessage.includes("content type")) {
+    return new Error("이미지 형식이 Storage 설정과 맞지 않습니다. PNG, JPG, WEBP, GIF 파일로 다시 시도해 주세요.");
+  }
+
+  if (statusCode === "400") {
+    return new Error(rawMessage
+      ? `Supabase Storage가 업로드 요청을 거절했습니다. 버킷과 정책 설정을 확인해 주세요. (${rawMessage})`
+      : "Supabase Storage가 업로드 요청을 거절했습니다. 버킷과 정책 설정을 확인해 주세요.");
+  }
+
+  return new Error(rawMessage || "프로필 이미지를 업로드하지 못했습니다.");
+}
+
 function needsDerivedProfileFields(profile) {
   return Boolean(
     profile?.birth_year &&
@@ -540,14 +566,17 @@ export async function uploadProfileImage(file) {
 
   if (uploadError && typeof file?.arrayBuffer === "function") {
     const bytes = await file.arrayBuffer();
+    const retryBody = new Blob([bytes], {
+      type: safeContentType || "application/octet-stream",
+    });
     const retryAttempt = await supabase.storage
       .from("profile-images")
-      .upload(filePath, bytes, uploadOptions);
+      .upload(filePath, retryBody, uploadOptions);
     uploadError = retryAttempt.error;
   }
 
   if (uploadError) {
-    throw new Error(uploadError.message || "프로필 이미지를 업로드하지 못했습니다.");
+    throw normalizeStorageUploadError(uploadError);
   }
 
   const { data } = supabase.storage
