@@ -478,10 +478,19 @@ create trigger on_profile_follow_created
 after insert on public.profile_follows
 for each row execute procedure public.create_follow_notification();
 
-insert into storage.buckets (id, name, public)
-values ('profile-images', 'profile-images', true)
+insert into storage.buckets (id, name, public, allowed_mime_types, file_size_limit)
+values (
+  'profile-images',
+  'profile-images',
+  true,
+  array['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+  5242880
+)
 on conflict (id) do update
-set public = excluded.public;
+set
+  public = excluded.public,
+  allowed_mime_types = array['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+  file_size_limit = 5242880;
 
 drop policy if exists "profile_images_public_read" on storage.objects;
 create policy "profile_images_public_read"
