@@ -553,7 +553,7 @@ export async function uploadProfileImage(file) {
   const filePath = `${user.id}/avatar-${uniqueId}.${safeExtension}`;
   const uploadOptions = {
     cacheControl: "3600",
-    upsert: true,
+    upsert: false,
     contentType: safeContentType,
   };
 
