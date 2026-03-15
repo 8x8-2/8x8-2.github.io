@@ -12,6 +12,7 @@ import { fillCountrySelect, fillRegionSelect } from "./shared/regions.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { getVisibilityLabel, PROFILE_VISIBILITY_VALUES } from "./shared/profile-derived.js";
 import { buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
+import { normalizeProfileBio } from "./shared/profile-text.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -56,6 +57,17 @@ function fillVisibilityOptions(selectEl, value) {
 
 function updateBioCount() {
   $("settingsBioCount").textContent = `${$("settingsBio").value.length} / 150`;
+}
+
+function syncBioField({ normalize = false } = {}) {
+  const bioField = $("settingsBio");
+
+  if (normalize) {
+    bioField.value = normalizeProfileBio(bioField.value);
+  }
+
+  updateBioCount();
+  return bioField.value;
 }
 
 function buildProfileRedirectUrl(stellarId) {
@@ -106,8 +118,8 @@ function fillForm(profile) {
   $("settingsMbti").value = profile.mbti || "";
   fillCountrySelect($("settingsCountry"), profile.region_country || "");
   fillRegionSelect($("settingsRegion"), profile.region_country || "", profile.region_name || "");
-  $("settingsBio").value = profile.bio || "";
-  updateBioCount();
+  $("settingsBio").value = normalizeProfileBio(profile.bio || "");
+  syncBioField();
   fillVisibilityOptions($("settingsVisibilityPersonality"), profile.personality_visibility);
   fillVisibilityOptions($("settingsVisibilityHealth"), profile.health_visibility);
   fillVisibilityOptions($("settingsVisibilityLove"), profile.love_visibility);
@@ -153,6 +165,9 @@ async function init() {
   });
 
   $("settingsBio").addEventListener("input", updateBioCount);
+  $("settingsBio").addEventListener("blur", () => {
+    syncBioField({ normalize: true });
+  });
   $("settingsStellarId").addEventListener("input", (event) => {
     event.target.value = normalizeStellarIdInput(event.target.value);
     stellarIdAvailability = {
@@ -195,7 +210,7 @@ async function init() {
     const stellarId = normalizeStellarIdInput($("settingsStellarId").value);
     const fullName = $("settingsName").value.trim();
     const mbti = $("settingsMbti").value || null;
-    const bio = $("settingsBio").value.trim();
+    const bio = syncBioField({ normalize: true });
     const regionCountry = $("settingsCountry").value || null;
     const regionName = $("settingsRegion").value || null;
 

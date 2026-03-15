@@ -1,5 +1,6 @@
 import { getSupabaseClient, isSupabaseConfigured } from "./supabase.js";
 import { buildProfileDerivedFieldsFromInput } from "./profile-derived.js";
+import { normalizeProfileBio } from "./profile-text.js";
 
 function ensureSupabase() {
   const supabase = getSupabaseClient();
@@ -150,7 +151,7 @@ export async function updateProfile(updates) {
     mbti: mergedProfile.mbti || null,
     region_country: mergedProfile.region_country || null,
     region_name: mergedProfile.region_name || null,
-    bio: mergedProfile.bio || "",
+    bio: normalizeProfileBio(mergedProfile.bio || ""),
     personality_visibility: mergedProfile.personality_visibility || "public",
     health_visibility: mergedProfile.health_visibility || "public",
     love_visibility: mergedProfile.love_visibility || "public",

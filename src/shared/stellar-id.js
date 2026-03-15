@@ -29,11 +29,14 @@ export function buildPublicProfileUrl(stellarId, { absolute = false } = {}) {
     return buildInternalProfileUrl(stellarId);
   }
 
-  const path = `/${encodeURIComponent(String(stellarId))}`;
+  const path = `/profile/${encodeURIComponent(String(stellarId))}`;
   return absolute ? new URL(path, window.location.origin).toString() : path;
 }
 
 export function getRequestedStellarId() {
+  const profilePathMatch = window.location.pathname.match(/^\/profile\/(\d{1,16})\/?$/);
+  if (profilePathMatch) return profilePathMatch[1];
+
   const pathMatch = window.location.pathname.match(/^\/(\d{1,16})\/?$/);
   if (pathMatch) return pathMatch[1];
 
@@ -43,10 +46,11 @@ export function getRequestedStellarId() {
 export function applyPrettyProfilePath(stellarId) {
   if (!stellarId || isLocalDevelopment()) return;
 
-  const targetPath = `/${encodeURIComponent(String(stellarId))}`;
+  const targetPath = `/profile/${encodeURIComponent(String(stellarId))}`;
   const targetUrl = `${targetPath}${window.location.search || ""}${window.location.hash || ""}`;
+  const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
 
-  if (window.location.pathname === targetPath) return;
+  if (currentPath === targetPath) return;
   window.history.replaceState({}, "", targetUrl);
 }
 

@@ -947,8 +947,109 @@ as $$
     source.stellar_id asc;
 $$;
 
+create or replace function public.get_profiles_for_seo()
+returns table (
+  stellar_id bigint,
+  full_name text,
+  profile_image_url text,
+  bio text,
+  mbti text,
+  gender text,
+  day_pillar_key text,
+  day_pillar_hanja text,
+  day_pillar_metaphor text,
+  preview_summary text,
+  personality_visibility text,
+  health_visibility text,
+  love_visibility text,
+  ability_visibility text,
+  major_luck_visibility text,
+  personality_summary text,
+  ability_summary text,
+  love_summary text,
+  health_summary text,
+  major_luck_summary text,
+  updated_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    profiles.stellar_id,
+    profiles.full_name,
+    profiles.profile_image_url,
+    profiles.bio,
+    profiles.mbti,
+    profiles.gender,
+    profiles.day_pillar_key,
+    profiles.day_pillar_hanja,
+    profiles.day_pillar_metaphor,
+    profiles.preview_summary,
+    profiles.personality_visibility,
+    profiles.health_visibility,
+    profiles.love_visibility,
+    profiles.ability_visibility,
+    profiles.major_luck_visibility,
+    case
+      when profiles.personality_visibility = 'public'
+        then coalesce(profiles.public_snapshot -> 'sections' -> 0 ->> 'text', profiles.preview_summary, '')
+      else null
+    end as personality_summary,
+    case
+      when profiles.ability_visibility = 'public'
+        then coalesce(
+          profiles.public_snapshot -> 'sections' -> 1 ->> 'text',
+          profiles.public_snapshot -> 'advanced' -> 'wealth' ->> 'summary',
+          ''
+        )
+      else null
+    end as ability_summary,
+    case
+      when profiles.love_visibility = 'public'
+        then coalesce(profiles.public_snapshot -> 'sections' -> 2 ->> 'text', '')
+      else null
+    end as love_summary,
+    case
+      when profiles.health_visibility = 'public'
+        then coalesce(profiles.public_snapshot -> 'sections' -> 4 ->> 'text', '')
+      else null
+    end as health_summary,
+    case
+      when profiles.major_luck_visibility = 'public'
+        then trim(concat_ws(
+          ' ',
+          case
+            when profiles.public_snapshot -> 'advanced' -> 'majorLuck' -> 'current' ->> 'index' is not null
+              then concat(
+                profiles.public_snapshot -> 'advanced' -> 'majorLuck' -> 'current' ->> 'index',
+                '대운 ',
+                coalesce(profiles.public_snapshot -> 'advanced' -> 'majorLuck' -> 'current' ->> 'pillarString', '')
+              )
+            else null
+          end,
+          case
+            when profiles.public_snapshot -> 'advanced' -> 'yearLuck' -> 'items' -> 0 ->> 'year' is not null
+              then concat(
+                '· ',
+                profiles.public_snapshot -> 'advanced' -> 'yearLuck' -> 'items' -> 0 ->> 'year',
+                '년 ',
+                coalesce(profiles.public_snapshot -> 'advanced' -> 'yearLuck' -> 'items' -> 0 ->> 'pillarString', '')
+              )
+            else null
+          end
+        ))
+      else null
+    end as major_luck_summary,
+    profiles.updated_at
+  from public.profiles as profiles
+  where profiles.stellar_id is not null
+  order by profiles.stellar_id asc;
+$$;
+
 grant execute on function public.peek_next_stellar_id() to authenticated, anon;
 grant execute on function public.is_stellar_id_available(bigint, uuid) to authenticated, anon;
 grant execute on function public.get_public_profile_by_stellar_id(bigint) to authenticated, anon;
 grant execute on function public.search_stellar_profiles(text, integer) to authenticated, anon;
 grant execute on function public.get_following_profiles(text, text) to authenticated;
+grant execute on function public.get_profiles_for_seo() to authenticated, anon;

@@ -19,7 +19,10 @@ import {
   getTodayScore,
 } from "./shared/profile-derived.js";
 import { formatGenderLabel } from "./shared/birth.js";
-import { escapeHtml } from "./shared/html.js";
+import { escapeHtml, escapeHtmlWithBreaks } from "./shared/html.js";
+import { getContextualPeriodCopy } from "./shared/profile-period.js";
+import { applyProfileSeoToDocument, buildProfileSeoData, getProfileSeoSections } from "./shared/profile-seo.js";
+import { normalizeProfileBio } from "./shared/profile-text.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { shareLink } from "./shared/share.js";
 import { showToast } from "./shared/ui.js";
@@ -64,6 +67,38 @@ function renderGuestNav() {
     currentStellarId: getRequestedStellarId(),
     showProfileIdentity: true,
   });
+}
+
+function renderSeoFallback(profile, meta) {
+  const seo = buildProfileSeoData(profile);
+  const sections = getProfileSeoSections(profile);
+  const locationText = formatRegionDisplay(profile.region_country, profile.region_name);
+
+  $("profileSeoFallback").innerHTML = `
+    <p class="eyebrow">스텔라 프로필</p>
+    <h1>${escapeHtml(seo.pageTitle)}</h1>
+    <p class="hero-subtitle">${escapeHtml(seo.metaDescription)}</p>
+    <div class="profile-tag-row">
+      <span class="impact-chip impact-chip-neutral">${escapeHtml(formatGenderLabel(profile.gender))}</span>
+      <span class="impact-chip impact-chip-good">${escapeHtml(meta.dayPillarKey)} 일주</span>
+      ${profile.mbti ? `<span class="impact-chip impact-chip-neutral">${escapeHtml(profile.mbti)}</span>` : ""}
+    </div>
+    ${locationText ? `<p class="muted">${escapeHtml(locationText)}</p>` : ""}
+    ${sections.length
+      ? `
+        <div class="profile-summary-stack">
+          ${sections.map((section) => `
+            <article class="box profile-summary-card">
+              <div class="title">${escapeHtml(section.title)}</div>
+              <div class="text">${escapeHtml(section.text)}</div>
+            </article>
+          `).join("")}
+        </div>
+      `
+      : ""
+    }
+  `;
+  $("profileSeoFallback").classList.remove("hidden");
 }
 
 function renderAvatar(profile) {
@@ -303,6 +338,7 @@ function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
   const todayScore = getTodayScore(snapshot, "personality");
   const bestMatches = buildCompatibilityEntries(snapshot, "personality", false);
   const worstMatches = buildCompatibilityEntries(snapshot, "personality", true);
+  const currentPeriod = getContextualPeriodCopy(snapshot, "personality");
 
   return `
     <section class="card">
@@ -325,6 +361,10 @@ function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
           <div class="title">성격 요약</div>
           <div class="text">${escapeHtml(getSnapshotSection(snapshot, 0) || profile.preview_summary)}</div>
         </article>
+        <article class="box profile-stat-card">
+          <div class="title">이번 시기 포인트</div>
+          <div class="text">${escapeHtml(currentPeriod.point || "나를 이해하고 결을 정리하는 흐름")}</div>
+        </article>
       </div>
       <div class="profile-detail-grid">
         <article class="box">
@@ -334,6 +374,16 @@ function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
         <article class="box">
           <div class="title">보완하면 좋은 점</div>
           <div class="text">${escapeHtml(snapshot?.advanced?.diagnosis?.note || "감정과 속도를 혼자 다 떠안지 않도록, 관계 속 경계를 부드럽게 세우는 연습이 도움이 됩니다.")}</div>
+        </article>
+      </div>
+      <div class="profile-detail-grid">
+        <article class="box">
+          <div class="title">이번 시기 좋은 기운</div>
+          ${buildSignalBlock("도움이 되는 흐름", currentPeriod.good, "good")}
+        </article>
+        <article class="box">
+          <div class="title">이번 시기 주의할 점</div>
+          ${buildSignalBlock("조율 포인트", currentPeriod.warn, "warn")}
         </article>
       </div>
       <section class="profile-rank-section">
@@ -357,7 +407,7 @@ function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
 function buildHealthTab(snapshot) {
   const series = buildFlowSeries(snapshot, "health");
   const todayScore = getTodayScore(snapshot, "health");
-  const currentYearItem = snapshot?.advanced?.yearLuck?.items?.[0] || null;
+  const currentPeriod = getContextualPeriodCopy(snapshot, "health");
 
   return `
     <section class="card">
@@ -373,7 +423,7 @@ function buildHealthTab(snapshot) {
         </article>
         <article class="box profile-stat-card">
           <div class="title">이번 시기 포인트</div>
-          <div class="text">${escapeHtml(currentYearItem?.focus || "생활 리듬 관리")}</div>
+          <div class="text">${escapeHtml(currentPeriod.point || "생활 리듬 관리")}</div>
         </article>
         <article class="box profile-stat-card">
           <div class="title">올해 좋은 점</div>
@@ -383,11 +433,11 @@ function buildHealthTab(snapshot) {
       <div class="profile-detail-grid">
         <article class="box">
           <div class="title">이번 시기 좋은 기운</div>
-          ${buildSignalBlock("도움이 되는 흐름", currentYearItem?.boosts || [], "good") || '<div class="text">무리하지 않고 회복 루틴을 지키는 쪽이 유리합니다.</div>'}
+          ${buildSignalBlock("도움이 되는 흐름", currentPeriod.good, "good")}
         </article>
         <article class="box">
           <div class="title">이번 시기 주의할 점</div>
-          ${buildSignalBlock("미리 챙길 포인트", currentYearItem?.cautions || [], "warn") || '<div class="text">피로 누적과 수면 리듬 붕괴는 먼저 관리하는 편이 좋습니다.</div>'}
+          ${buildSignalBlock("미리 챙길 포인트", currentPeriod.warn, "warn")}
         </article>
       </div>
       <div class="profile-detail-grid">
@@ -397,7 +447,7 @@ function buildHealthTab(snapshot) {
         </article>
         <article class="box">
           <div class="title">주의할 점</div>
-          <div class="text">${escapeHtml(snapshot?.advanced?.yearLuck?.items?.[0]?.cautions?.join(" · ") || "무리한 일정 누적과 수면 리듬 붕괴는 먼저 관리하는 편이 좋습니다.")}</div>
+          <div class="text">${escapeHtml(currentPeriod.warnText || "무리한 일정 누적과 수면 리듬 붕괴는 먼저 관리하는 편이 좋습니다.")}</div>
         </article>
       </div>
     </section>
@@ -409,7 +459,7 @@ function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
   const series = buildFlowSeries(snapshot, "love");
   const bestMatches = buildCompatibilityEntries(snapshot, "love", false);
   const worstMatches = buildCompatibilityEntries(snapshot, "love", true);
-  const currentYearItem = snapshot?.advanced?.yearLuck?.items?.[0] || null;
+  const currentPeriod = getContextualPeriodCopy(snapshot, "love");
 
   return `
     <section class="card">
@@ -433,15 +483,19 @@ function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
           <div class="title">연애 성격 상세</div>
           <div class="text">${escapeHtml(snapshot?.advanced?.diagnosis?.summary || getSnapshotSection(snapshot, 3) || "")}</div>
         </article>
+        <article class="box">
+          <div class="title">이번 시기 포인트</div>
+          <div class="text">${escapeHtml(currentPeriod.point || "관계 온도와 표현 방식을 맞추는 흐름")}</div>
+        </article>
       </div>
       <div class="profile-detail-grid">
         <article class="box">
           <div class="title">이번 시기 설레는 포인트</div>
-          ${buildSignalBlock("좋은 흐름", currentYearItem?.boosts || [], "good") || '<div class="text">감정 표현과 관계의 온도 차이를 자연스럽게 맞춰 가는 흐름이 좋습니다.</div>'}
+          ${buildSignalBlock("좋은 흐름", currentPeriod.good, "good")}
         </article>
         <article class="box">
           <div class="title">이번 시기 조심할 점</div>
-          ${buildSignalBlock("조율 포인트", currentYearItem?.cautions || [], "warn") || '<div class="text">속도 차이와 애매한 반응은 오해를 만들기 쉬워요.</div>'}
+          ${buildSignalBlock("조율 포인트", currentPeriod.warn, "warn")}
         </article>
       </div>
       <section class="profile-rank-section">
@@ -467,7 +521,7 @@ function buildAbilityTab(profile, snapshot, viewerSnapshot, isSelf) {
   const score = getRelationshipScore(viewerSnapshot, snapshot, "ability");
   const todayScore = getTodayScore(snapshot, "ability");
   const wealthCards = snapshot?.advanced?.wealth?.cards || [];
-  const currentYearItem = snapshot?.advanced?.yearLuck?.items?.[0] || null;
+  const currentPeriod = getContextualPeriodCopy(snapshot, "ability");
 
   return `
     <section class="card">
@@ -489,17 +543,17 @@ function buildAbilityTab(profile, snapshot, viewerSnapshot, isSelf) {
         </article>
         <article class="box profile-stat-card">
           <div class="title">이번 시기 핵심 키워드</div>
-          <div class="text">${escapeHtml(currentYearItem?.focus || "실력과 결과물 연결")}</div>
+          <div class="text">${escapeHtml(currentPeriod.point || "실력과 결과물 연결")}</div>
         </article>
       </div>
       <div class="profile-detail-grid">
         <article class="box">
           <div class="title">이번 시기 잘 풀리는 포인트</div>
-          ${buildSignalBlock("도움이 되는 기운", currentYearItem?.boosts || [], "good") || '<div class="text">기획, 분석, 정리, 실행이 분명한 환경에서 장점이 잘 드러납니다.</div>'}
+          ${buildSignalBlock("도움이 되는 기운", currentPeriod.good, "good")}
         </article>
         <article class="box">
           <div class="title">이번 시기 경계 포인트</div>
-          ${buildSignalBlock("주의할 기운", currentYearItem?.cautions || [], "warn") || '<div class="text">속도는 빠른데 기준이 모호한 환경은 피로가 커질 수 있습니다.</div>'}
+          ${buildSignalBlock("주의할 기운", currentPeriod.warn, "warn")}
         </article>
       </div>
       <div class="profile-detail-grid">
@@ -590,6 +644,7 @@ function getVisibilityMap(profile, relationship) {
 function renderHero(profile, meta, relationship) {
   const locationText = formatRegionDisplay(profile.region_country, profile.region_name);
   const isSelf = relationship.isSelf;
+  const normalizedBio = normalizeProfileBio(profile.bio || "");
 
   $("profileHeroInner").innerHTML = `
     <div class="profile-hero">
@@ -609,7 +664,7 @@ function renderHero(profile, meta, relationship) {
           <span>팔로잉 ${profile.following_count}</span>
         </div>
         ${locationText ? `<div class="profile-location">${escapeHtml(locationText)}</div>` : ""}
-        ${profile.bio ? `<p class="profile-bio">${escapeHtml(profile.bio)}</p>` : ""}
+        ${normalizedBio ? `<p class="profile-bio">${escapeHtmlWithBreaks(normalizedBio)}</p>` : ""}
       </div>
       <div class="profile-cta-row ${isSelf ? "is-self" : ""}">
         <button id="profileShareButton" class="button-muted" type="button">프로필 공유</button>
@@ -694,8 +749,9 @@ async function init() {
     : null;
   const snapshot = meta.snapshot || fallbackOwnSnapshot;
 
-  document.title = `${publicProfile.full_name} / ${publicProfile.stellar_id} | 스텔라 ID`;
   applyPrettyProfilePath(publicProfile.stellar_id);
+  applyProfileSeoToDocument(publicProfile);
+  renderSeoFallback(publicProfile, meta);
 
   const profileSaved = new URLSearchParams(window.location.search).get("saved");
   if (profileSaved === "1") {
@@ -707,6 +763,7 @@ async function init() {
   }
 
   $("profileLoading").classList.add("hidden");
+  $("profileSeoFallback")?.classList.add("hidden");
   $("profileHero").classList.remove("hidden");
   $("profileTabsSection").classList.remove("hidden");
   $("profileContent").classList.remove("hidden");

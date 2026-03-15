@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /p/
+Disallow: /saved/
+Disallow: /my-saju/
+Disallow: /reading/
+Disallow: /share/
+Sitemap: https://stellar-id.com/sitemap.xml

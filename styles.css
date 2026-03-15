@@ -2515,6 +2515,7 @@ summary:focus-visible {
 
 .profile-bio {
   max-width: 52ch;
+  white-space: pre-line;
 }
 
 .profile-cta-row {

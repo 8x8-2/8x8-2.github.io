@@ -6,7 +6,7 @@
   "scripts": {
     "predev": "node scripts/generate-soulday-pages.js",
     "dev": "vite",
-    "prebuild": "node scripts/generate-soulday-pages.js",
+    "prebuild": "node scripts/generate-soulday-pages.js && node scripts/generate-profile-pages.js",
     "build": "vite build",
     "preview": "vite preview"
   },
