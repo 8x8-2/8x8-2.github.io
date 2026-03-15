@@ -64,6 +64,17 @@ function validateBirthInput({ year, month, day, birthTime, calendarType, unknown
   return null;
 }
 
+function isAtLeastFourteenYearsOld({ year, month, day }) {
+  const today = new Date();
+  let age = today.getFullYear() - year;
+
+  if (today.getMonth() + 1 < month || (today.getMonth() + 1 === month && today.getDate() < day)) {
+    age -= 1;
+  }
+
+  return age >= 14;
+}
+
 function normalizePhone(value) {
   return String(value || "").replace(/[^\d]/g, "");
 }
@@ -295,7 +306,7 @@ $("signupForm")?.addEventListener("submit", async (event) => {
   const birthTimeKnown = !$("signupUnknownTime").checked;
   const stellarId = normalizeStellarIdInput($("signupStellarId").value);
   const phoneInput = $("signupPhone").value.trim();
-  const marketingOptIn = $("signupMarketing").checked;
+  const marketingOptIn = Boolean($("signupMarketing").checked);
 
   if (!isValidEmail(email)) {
     errorEl.textContent = "올바른 이메일 주소를 입력해 주세요.";
@@ -338,6 +349,15 @@ $("signupForm")?.addEventListener("submit", async (event) => {
 
   if (birthError) {
     errorEl.textContent = birthError;
+    return;
+  }
+
+  if (!isAtLeastFourteenYearsOld({
+    year: birthYear,
+    month: birthMonth,
+    day: birthDay,
+  })) {
+    errorEl.textContent = "만 14세 미만은 가입할 수 없습니다.";
     return;
   }
 

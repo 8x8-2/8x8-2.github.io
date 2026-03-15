@@ -255,7 +255,7 @@ async function init() {
     const birthTime = $("profileBirthTime").value.trim();
     const birthTimeKnown = !$("profileUnknownTime").checked;
     const phone = normalizePhone($("profilePhone").value.trim());
-    const marketingOptIn = $("profileMarketing").checked;
+    const marketingOptIn = Boolean($("profileMarketing").checked);
 
     if (fullName.length < 2) {
       errorEl.textContent = "이름은 2글자 이상 입력해 주세요.";

@@ -63,19 +63,22 @@
         </div>
 
         <form id="signupForm" class="auth-form auth-form-wide">
+          <p class="auth-form-note"><strong>필수 항목</strong>: 이메일, 이름, 성별, 생년월일</p>
+          <p class="auth-form-note"><strong>선택 항목</strong>: 전화번호, 마케팅 수신 동의</p>
+          <p class="auth-section-note">만 14세 미만은 가입할 수 없습니다. 자세한 내용은 <a href="/privacy/">개인정보처리방침</a>에서 확인해 주세요.</p>
         <div class="grid auth-grid-two">
           <label class="field">
-            <span>이메일 주소(ID)</span>
+            <span>이메일 주소(ID) (필수)</span>
             <input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
           </label>
             <label class="field">
-              <span>이름</span>
+              <span>이름 (필수)</span>
               <input id="signupName" type="text" autocomplete="name" placeholder="2글자 이상" required />
             </label>
           </div>
 
           <div class="field">
-            <span>스텔라 등록번호</span>
+            <span>스텔라 등록번호 (필수)</span>
             <div class="inline-field-row">
               <input id="signupStellarId" type="text" inputmode="numeric" maxlength="16" autocomplete="off" placeholder="예: 1" required />
               <button id="signupStellarIdCheck" class="button-muted" type="button">중복 확인</button>
@@ -85,25 +88,25 @@
 
           <div class="grid auth-grid-two">
             <label class="field">
-              <span>비밀번호</span>
+              <span>비밀번호 (필수)</span>
               <input id="signupPassword" type="password" autocomplete="new-password" placeholder="6자 이상" required />
             </label>
             <label class="field">
-              <span>비밀번호 재확인</span>
+              <span>비밀번호 재확인 (필수)</span>
               <input id="signupPasswordConfirm" type="password" autocomplete="new-password" placeholder="한 번 더 입력" required />
             </label>
           </div>
 
           <div class="row">
             <label class="field">
-              <span>성별</span>
+              <span>성별 (필수)</span>
               <select id="signupGender" required>
                 <option value="male" selected>남</option>
                 <option value="female">여</option>
               </select>
             </label>
             <label class="field">
-              <span>달력</span>
+              <span>달력 기준 (필수)</span>
               <select id="signupCalendar">
                 <option value="solar">양력</option>
                 <option value="lunar">음력</option>
@@ -114,17 +117,20 @@
               <span>윤달(음력)</span>
             </label>
             <label class="field">
-              <span>전화번호(선택)</span>
+              <span>전화번호 (선택)</span>
               <input id="signupPhone" type="tel" autocomplete="tel" placeholder="010-1234-5678" />
             </label>
           </div>
 
-          <div class="grid grid-birth">
+          <div class="auth-field-group">
+            <p class="auth-form-note"><strong>생년월일 (필수)</strong></p>
+            <p class="auth-section-note">입력한 생년월일 기준으로 만 14세 미만은 가입할 수 없습니다.</p>
+            <div class="grid grid-birth">
             <label class="field"><span>년</span><input id="signupYear" type="text" inputmode="numeric" maxlength="4" required /></label>
             <label class="field"><span>월</span><input id="signupMonth" type="text" inputmode="numeric" maxlength="2" required /></label>
             <label class="field"><span>일</span><input id="signupDay" type="text" inputmode="numeric" maxlength="2" required /></label>
             <label class="field field-time-input">
-              <span>태어난 시간</span>
+              <span>태어난 시간 (선택)</span>
               <input id="signupBirthTime" type="text" inputmode="numeric" maxlength="5" placeholder="00:00" />
             </label>
             <label class="field checkbox time-unknown">
@@ -132,13 +138,23 @@
               <span>시간 모름</span>
             </label>
           </div>
+          </div>
 
           <p id="signupTimeFeedback" class="error hidden">태어난 시간을 올바르게 입력해 주세요.</p>
 
           <label class="field checkbox auth-consent">
             <input id="signupMarketing" type="checkbox" />
-            <span>마케팅 정보 수신에 동의합니다.</span>
+            <span class="auth-consent-copy">
+              <span>마케팅 정보 수신 동의 (선택)</span>
+              <small>선택 항목이며, 동의하지 않아도 서비스 이용이 가능합니다.</small>
+            </span>
           </label>
+
+          <div class="auth-legal-note">
+            <strong>개인정보 안내</strong><br />
+            회원가입 전 <a href="/privacy/">개인정보처리방침</a>을 확인해 주세요. 개인정보 관련 문의는
+            <a href="mailto:themercenary@mail.com">themercenary@mail.com</a>으로 받을 수 있습니다.
+          </div>
 
           <button type="submit">스텔라 ID 만들기</button>
           <span id="signupStatus" class="muted"></span>
@@ -147,7 +163,13 @@
       </section>
 
       <footer class="muted footer">
-        <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a></small>
+        <small class="footer-meta">
+          <span>© <script>document.write(new Date().getFullYear())</script>.</span>
+          <span class="footer-divider" aria-hidden="true">·</span>
+          <a href="/privacy/" data-footer-link="privacy">개인정보처리방침</a>
+          <span class="footer-divider" aria-hidden="true">·</span>
+          <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a>
+        </small>
       </footer>
     </main>
 

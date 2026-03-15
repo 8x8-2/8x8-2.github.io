@@ -20,10 +20,10 @@ export function initCommonPageTracking() {
       });
     }
 
-    const footerLink = event.target.closest("[data-footer-link='mercenary']");
+    const footerLink = event.target.closest("[data-footer-link]");
     if (footerLink) {
       trackEvent("footer_link_click", {
-        footer_target: "the_mercenary",
+        footer_target: footerLink.dataset.footerLink || "",
       });
     }
   });

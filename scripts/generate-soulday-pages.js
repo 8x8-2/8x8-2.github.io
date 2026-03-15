@@ -107,7 +107,13 @@ function buildTopbar(activeKey, { homeHref, listHref }) {
 function buildFooter() {
   return `
     <footer class="muted footer">
-      <small>© <script>document.write(new Date().getFullYear())</script>. <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a></small>
+      <small class="footer-meta">
+        <span>© <script>document.write(new Date().getFullYear())</script>.</span>
+        <span class="footer-divider" aria-hidden="true">·</span>
+        <a href="/privacy/" data-footer-link="privacy">개인정보처리방침</a>
+        <span class="footer-divider" aria-hidden="true">·</span>
+        <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a>
+      </small>
     </footer>
   `.trim();
 }
