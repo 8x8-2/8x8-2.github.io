@@ -13,15 +13,15 @@
 
 ## 3. 커스텀 도메인 확인
 
-현재 도메인은 `soulscan.me` 입니다. `Settings -> Pages` 에서 커스텀 도메인이 `soulscan.me` 로 설정되어 있는지 확인합니다.
+현재 도메인은 `stellar-id.com` 입니다. `Settings -> Pages` 에서 커스텀 도메인이 `stellar-id.com` 으로 설정되어 있는지 확인합니다.
 
 ## 4. Supabase Auth URL 설정
 
 Supabase `Authentication -> URL Configuration` 에서 아래를 확인합니다.
 
-- Site URL: `https://soulscan.me`
+- Site URL: `https://stellar-id.com`
 - Redirect URLs:
-  - `https://soulscan.me/**`
+  - `https://stellar-id.com/**`
   - `http://localhost:5173/**`
 
 ## 5. 배포

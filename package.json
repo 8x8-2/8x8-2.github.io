@@ -18,7 +18,7 @@
   "author": "",
   "license": "MIT",
   "type": "module",
-  "homepage": "https://8x8-2.github.io",
+  "homepage": "https://stellar-id.com",
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
     "luxon": "^3.7.2"

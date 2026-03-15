@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT_DIR, "soulday");
-const SITE_URL = "https://soulscan.me";
+const SITE_URL = "https://stellar-id.com";
 const OG_IMAGE = `${SITE_URL}/src/img/bi/symbol-soulscan.png`;
 
 function escapeHtml(value = "") {
