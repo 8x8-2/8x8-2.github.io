@@ -453,7 +453,7 @@ function renderHero(profile, meta, relationship) {
         ${renderAvatar(profile)}
       </div>
       <div class="profile-hero-copy">
-        <div class="profile-id-caption">STELLAR ID ${escapeHtml(String(profile.stellar_id))}</div>
+        <div class="profile-id-caption">#${escapeHtml(String(profile.stellar_id))}</div>
         <h1 id="profileNameHeading">${escapeHtml(profile.full_name)}</h1>
         <div class="profile-tag-row">
           <span class="impact-chip impact-chip-neutral">${escapeHtml(formatGenderLabel(profile.gender))}</span>
