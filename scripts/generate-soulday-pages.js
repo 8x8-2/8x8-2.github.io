@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT_DIR, "soulday");
 const SITE_URL = "https://stellar-id.com";
-const OG_IMAGE = `${SITE_URL}/src/img/bi/symbol-soulscan.png`;
+const OG_IMAGE = `${SITE_URL}/src/img/bi/symbol-stellarid.png`;
 
 function escapeHtml(value = "") {
   return String(value)
@@ -45,10 +45,10 @@ function buildHead({ title, description, canonicalPath, jsonLd }) {
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <meta name="theme-color" content="#f1f2f3" />
-      <link rel="icon" href="/src/img/bi/favicon-soulscan.png" sizes="any">
-      <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-soulscan.png">
-      <link rel="manifest" href="/src/img/bi/favicon-soulscan.png">
+      <meta name="theme-color" content="#111314" />
+      <link rel="icon" href="/src/img/bi/favicon-stellarid.png" sizes="any">
+      <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-stellarid.png">
+      <link rel="manifest" href="/src/img/bi/favicon-stellarid.png">
       <title>${escapeHtml(title)}</title>
       <link rel="stylesheet" href="/styles.css" />
       <meta name="description" content="${escapeHtml(description)}">
@@ -59,10 +59,10 @@ function buildHead({ title, description, canonicalPath, jsonLd }) {
       <meta property="og:title" content="${escapeHtml(title)}">
       <meta property="og:description" content="${escapeHtml(description)}">
       <meta property="og:image" content="${OG_IMAGE}">
-      <meta property="og:image:alt" content="소울 스캔 일주별 페이지">
+      <meta property="og:image:alt" content="스텔라 ID 일주별 페이지">
       <meta property="og:url" content="${canonicalUrl}">
       <meta property="og:type" content="website">
-      <meta property="og:site_name" content="소울 스캔">
+      <meta property="og:site_name" content="스텔라 ID">
       <meta property="og:locale" content="ko_KR">
       <meta name="twitter:card" content="summary_large_image">
       <meta name="twitter:title" content="${escapeHtml(title)}">
@@ -83,13 +83,13 @@ function buildTopbar(activeKey, { homeHref, listHref }) {
   return `
     <header class="topbar">
       <div class="topbar-inner">
-        <a class="brand" href="${homeHref}" aria-label="Soul Scan 홈">
+        <a class="brand" href="${homeHref}" aria-label="Stellar ID 홈">
           <span class="brand-logo-slot" aria-hidden="true">
-            <img class="brand-logo-image" src="/src/img/bi/symbol-soulscan.png" alt="" />
+            <img class="brand-logo-image" src="/src/img/bi/symbol-stellarid.png" alt="" />
           </span>
           <span class="brand-copy">
-            <span class="brand-name">소울 스캔</span>
-            <span class="brand-subtitle">내 운명 사주 스캐너</span>
+            <span class="brand-name">스텔라 ID</span>
+            <span class="brand-subtitle">COSMIC PROFILE</span>
           </span>
         </a>
         <div class="topbar-actions">
@@ -158,7 +158,7 @@ function buildListJsonLd(entries) {
     "@type": "CollectionPage",
     name: "60일주별 특징 모음",
     url: `${SITE_URL}/soulday/`,
-    description: "갑자일부터 계해일까지 60일주 물상과 특징을 정리한 소울 스캔 목록 페이지",
+    description: "갑자일부터 계해일까지 60일주 물상과 특징을 정리한 스텔라 ID 일주 아카이브 페이지",
     mainEntity: {
       "@type": "ItemList",
       itemListElement: entries.map((entry, index) => ({
@@ -181,7 +181,7 @@ function buildDetailJsonLd(entry) {
           {
             "@type": "ListItem",
             position: 1,
-            name: "소울 스캔",
+            name: "스텔라 ID",
             item: SITE_URL,
           },
           {
@@ -209,8 +209,8 @@ function buildDetailJsonLd(entry) {
 }
 
 function buildListPage(entries) {
-  const title = "일주별 보기 | 60일주 물상과 특징 모음 - 소울 스캔";
-  const description = "갑자일부터 계해일까지 60일주 물상, 키워드, 성격 개요를 한눈에 찾을 수 있는 소울 스캔 일주 목록 페이지";
+  const title = "일주별 보기 | 60일주 물상과 특징 모음 - 스텔라 ID";
+  const description = "갑자일부터 계해일까지 60일주 물상, 키워드, 성격 개요를 한눈에 찾을 수 있는 스텔라 ID 일주 아카이브 페이지";
 
   return `
 <!doctype html>
@@ -235,10 +235,10 @@ function buildListPage(entries) {
     })}
     <main class="container">
       <section class="card hero-card" aria-labelledby="soulday-list-heading">
-        <p class="eyebrow">일주별 보기 · 60일주 특징 · 물상 해석</p>
+        <p class="eyebrow">일주별 보기 · 60일주 아카이브 · 물상 해석</p>
         <h1 id="soulday-list-heading">60일주별 특징 모음</h1>
-        <p class="hero-subtitle">갑자일부터 계해일까지, 각 일주의 물상과 기본 성향을 빠르게 찾아볼 수 있게 정리했습니다.</p>
-        <p class="hero-lead">목록에서 일주명이나 물상 키워드를 검색하면 바로 걸러지고, 각 카드로 들어가면 해당 일주를 더 자세히 볼 수 있습니다.</p>
+        <p class="hero-subtitle">갑자일부터 계해일까지, 각 일주의 물상과 기본 성향을 우주 프로필처럼 빠르게 찾아볼 수 있게 정리했습니다.</p>
+        <p class="hero-lead">목록에서 일주명이나 물상 키워드를 검색하면 바로 걸러지고, 각 카드로 들어가면 해당 일주가 내 성향과 어떤 결을 가지는지 더 자세히 볼 수 있습니다.</p>
       </section>
 
       <section class="card" aria-labelledby="soulday-search-heading">
@@ -261,11 +261,11 @@ function buildListPage(entries) {
 
       <section class="card soulday-cta-card">
         <div class="section-intro">
-          <h2>내 사주 보러가기</h2>
-          <p class="muted">일주 목록을 본 뒤 실제 내 생년월일시 기준 사주 결과가 궁금하다면 홈에서 바로 계산해 볼 수 있습니다.</p>
+          <h2>내 우주 프로필 보기</h2>
+          <p class="muted">일주 목록을 본 뒤 실제 내 생년월일시 기준 우주 프로필이 궁금하다면 홈에서 바로 계산해 볼 수 있습니다.</p>
         </div>
         <div class="actions">
-          <a class="cta-link-button" href="../" data-soulday-home-link>내 사주 보러가기</a>
+          <a class="cta-link-button" href="../" data-soulday-home-link>내 우주 프로필 보기</a>
         </div>
       </section>
 
@@ -279,8 +279,8 @@ function buildListPage(entries) {
 }
 
 function buildDetailPage(entry) {
-  const title = `${entry.title} 특징 | 물상, 성격, MBTI - 소울 스캔`;
-  const description = `${entry.title} 물상은 '${entry.metaphor}'로 비유합니다. 타고난 성격과 자주 떠올리는 MBTI를 정리한 소울 스캔 일주 상세 페이지`;
+  const title = `${entry.title} 특징 | 물상, 성격, MBTI - 스텔라 ID`;
+  const description = `${entry.title} 물상은 '${entry.metaphor}'로 비유합니다. 타고난 성격과 자주 떠올리는 MBTI를 정리한 스텔라 ID 일주 상세 페이지`;
 
   return `
 <!doctype html>
@@ -334,11 +334,11 @@ function buildDetailPage(entry) {
 
       <section class="card soulday-cta-card">
         <div class="section-intro">
-          <h2>내 사주 보러가기</h2>
-          <p class="muted">${escapeHtml(entry.title)}가 실제 내 사주 결과와 어떻게 겹치는지 궁금하다면, 홈에서 생년월일시를 입력해 바로 확인해 보세요.</p>
+          <h2>내 우주 프로필 보기</h2>
+          <p class="muted">${escapeHtml(entry.title)}가 실제 내 우주 프로필 결과와 어떻게 겹치는지 궁금하다면, 홈에서 생년월일시를 입력해 바로 확인해 보세요.</p>
         </div>
         <div class="actions">
-          <a class="cta-link-button" href="../../" data-soulday-home-link>내 사주 보러가기</a>
+          <a class="cta-link-button" href="../../" data-soulday-home-link>내 우주 프로필 보기</a>
           <a class="text-link-button" href="../">다른 일주 더 보기</a>
         </div>
       </section>
