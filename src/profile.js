@@ -15,8 +15,8 @@ import {
   normalizePhone,
   validateBirthInput,
 } from "./shared/birth.js";
-import { setupAuthUi } from "./shared/auth-ui.js";
 import { escapeHtml } from "./shared/html.js";
+import { renderSocialNav } from "./shared/social-nav.js";
 import { showToast } from "./shared/ui.js";
 
 function $(id) {
@@ -48,6 +48,34 @@ function setGuestLinks() {
   const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
   $("profileGuestSignin").href = `${document.body.dataset.linkSignin || "../signin/"}?next=${encodeURIComponent(currentPath)}`;
   $("profileGuestSignup").href = `${document.body.dataset.linkSignup || "../signup/"}?next=${encodeURIComponent(currentPath)}`;
+}
+
+function renderGuestNav() {
+  const slot = document.querySelector("[data-social-nav]");
+  if (!slot) return;
+
+  const homeUrl = escapeHtml(new URL(document.body.dataset.linkHome || "../", window.location.href).toString());
+  const signinUrl = escapeHtml(new URL(document.body.dataset.linkSignin || "../signin/", window.location.href).toString());
+
+  slot.innerHTML = `
+    <div class="social-topbar">
+      <div class="social-topbar-left">
+        <div class="social-brand">
+          <a class="social-brand-logo-link" href="${homeUrl}" aria-label="스텔라 ID 홈">
+            <span class="social-brand-logo" aria-hidden="true">
+              <img src="/src/img/bi/symbol-stellarid.png" alt="" />
+            </span>
+          </a>
+          <span class="social-brand-copy">
+            <a class="social-brand-name social-brand-home-link" href="${homeUrl}">계정 정보</a>
+          </span>
+        </div>
+      </div>
+      <div class="social-topbar-right">
+        <a class="text-link-button" href="${signinUrl}">로그인</a>
+      </div>
+    </div>
+  `;
 }
 
 function updateCalendarState() {
@@ -143,7 +171,6 @@ function consumeToastFromUrl() {
 
 async function init() {
   initCommonPageTracking();
-  setupAuthUi();
   setGuestLinks();
   trackEvent("profile_view", {
     page_name: "profile",
@@ -156,6 +183,7 @@ async function init() {
 
   const session = await getSession();
   if (!session) {
+    renderGuestNav();
     $("profileGuest").classList.remove("hidden");
     return;
   }
@@ -170,6 +198,12 @@ async function init() {
   if (!currentProfile) {
     throw new Error("내 정보를 불러오지 못했습니다.");
   }
+
+  renderSocialNav(document.querySelector("[data-social-nav]"), {
+    session,
+    viewerProfile: currentProfile,
+    pageTitle: "계정 정보",
+  });
 
   fillProfileSummary(currentProfile, session);
   fillEditForm(currentProfile);

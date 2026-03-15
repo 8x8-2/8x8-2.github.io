@@ -59,6 +59,7 @@ function renderGuestNav() {
   const slot = document.querySelector("[data-social-nav]");
   const homeUrl = escapeHtml(new URL(document.body.dataset.linkHome || "../", window.location.href).toString());
   const signinUrl = escapeHtml(new URL(document.body.dataset.linkSignin || "../signin/", window.location.href).toString());
+  const requestedStellarId = escapeHtml(String(getRequestedStellarId() || ""));
 
   slot.innerHTML = `
     <div class="social-topbar">
@@ -70,8 +71,8 @@ function renderGuestNav() {
           <span class="social-brand-copy">
             <a class="social-brand-name social-brand-home-link" href="${homeUrl}">스텔라 프로필</a>
             <span class="social-brand-meta">
-              <span class="social-brand-id">/PROFILE</span>
               <span class="social-brand-label">STELLAR-ID</span>
+              <span class="social-brand-id">${requestedStellarId ? `/${requestedStellarId}` : "/"}</span>
             </span>
           </span>
         </div>
@@ -520,6 +521,7 @@ async function init() {
       viewerProfile,
       currentStellarId: publicProfile.stellar_id,
       pageTitle: "스텔라 프로필",
+      showProfileIdentity: true,
     });
   } else {
     renderGuestNav();

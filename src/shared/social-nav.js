@@ -3,7 +3,7 @@ import { escapeHtml } from "./html.js";
 import { buildAccountUrl, buildFollowingUrl, buildPublicProfileUrl, buildSearchUrl } from "./stellar-id.js";
 import { signOut } from "./auth.js";
 
-function getBrandMarkup(stellarId, pageTitle) {
+function getBrandMarkup(stellarId, pageTitle, showProfileIdentity) {
   const stellarIdText = stellarId ? `/${escapeHtml(String(stellarId))}` : "/";
 
   return `
@@ -15,10 +15,15 @@ function getBrandMarkup(stellarId, pageTitle) {
       </a>
       <span class="social-brand-copy">
         <a class="social-brand-name social-brand-home-link" href="#" data-social-home>${escapeHtml(pageTitle || "스텔라 ID")}</a>
-        <span class="social-brand-meta">
-          <a class="social-brand-id social-brand-home-link" href="#" data-social-home>${stellarIdText}</a>
-          <span class="social-brand-label">STELLAR-ID</span>
-        </span>
+        ${showProfileIdentity
+          ? `
+            <span class="social-brand-meta">
+              <span class="social-brand-label">STELLAR-ID</span>
+              <a class="social-brand-id social-brand-home-link" href="#" data-social-home>${stellarIdText}</a>
+            </span>
+          `
+          : ""
+        }
       </span>
     </div>
   `;
@@ -55,6 +60,7 @@ export function renderSocialNav(container, {
   currentStellarId = null,
   pageTitle = "스텔라 ID",
   searchTitle = "스텔라 프로필 검색",
+  showProfileIdentity = false,
 }) {
   if (!container) return () => {};
 
@@ -73,7 +79,7 @@ export function renderSocialNav(container, {
             </button>
             <div class="social-page-title">${escapeHtml(searchTitle)}</div>
           `
-          : getBrandMarkup(currentStellarId || viewerProfile?.stellar_id, pageTitle)}
+          : getBrandMarkup(currentStellarId || viewerProfile?.stellar_id, pageTitle, showProfileIdentity)}
       </div>
       <div class="social-topbar-right">
         <a class="social-icon-button" href="${escapeHtml(searchUrl)}" aria-label="스텔라 프로필 검색">
