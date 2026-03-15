@@ -24,12 +24,12 @@ function buildAnalyticsSnippet({ title, canonicalPath }) {
   const canonicalUrl = `${SITE_URL}${canonicalPath}`;
 
   return `
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y1LQ26MRQF"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-RQ5VKHW9NE"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       window.gtag = function gtag() { window.dataLayer.push(arguments); };
       window.gtag("js", new Date());
-      window.gtag("config", "G-Y1LQ26MRQF", {
+      window.gtag("config", "G-RQ5VKHW9NE", {
         page_title: ${JSON.stringify(title)},
         page_path: ${JSON.stringify(canonicalPath)},
         page_location: ${JSON.stringify(canonicalUrl)}
