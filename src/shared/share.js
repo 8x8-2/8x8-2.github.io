@@ -32,11 +32,12 @@ function buildShareBody(text, url) {
 }
 
 export async function shareLink({ title, text, url }) {
+  const cleanText = String(text || "").trim();
   const shareBody = buildShareBody(text, url);
 
   if (navigator.share) {
     try {
-      await navigator.share({ title, text: shareBody, url });
+      await navigator.share({ title, text: cleanText, url });
       return { mode: "native", cancelled: false };
     } catch (error) {
       if (error?.name === "AbortError") {
