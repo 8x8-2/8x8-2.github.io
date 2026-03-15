@@ -40,10 +40,11 @@ function isUniqueViolation(error) {
   return error?.code === "23505" || String(error?.message || "").toLowerCase().includes("duplicate");
 }
 
-function normalizeStorageUploadError(error) {
+function normalizeStorageUploadError(error, context = {}) {
   const rawMessage = String(error?.message || "").trim();
   const normalizedMessage = rawMessage.toLowerCase();
   const statusCode = String(error?.statusCode || error?.status || "");
+  const mimeDebug = [context.originalMimeType, context.safeContentType].filter(Boolean).join(" -> ");
 
   if (normalizedMessage.includes("bucket not found")) {
     return new Error("Supabase Storage에 `profile-images` 버킷이 없습니다. SQL Editor에서 최신 schema.sql을 다시 실행해 주세요.");
@@ -60,7 +61,7 @@ function normalizeStorageUploadError(error) {
   if (statusCode === "400") {
     return new Error(rawMessage
       ? `Supabase Storage가 업로드 요청을 거절했습니다. 버킷과 정책 설정을 확인해 주세요. (${rawMessage})`
-      : "Supabase Storage가 업로드 요청을 거절했습니다. 버킷과 정책 설정을 확인해 주세요.");
+      : `Supabase Storage가 업로드 요청을 거절했습니다. 업로드 MIME 타입과 버킷 제한을 확인해 주세요.${mimeDebug ? ` (전송 MIME: ${mimeDebug})` : ""}`);
   }
 
   return new Error(rawMessage || "프로필 이미지를 업로드하지 못했습니다.");
@@ -368,6 +369,21 @@ export async function fetchPublicProfileByStellarId(stellarId) {
   return data;
 }
 
+export async function refreshPublicProfileByStellarId(stellarId) {
+  const supabase = ensureSupabase();
+  const { data, error } = await supabase.functions.invoke("refresh-public-profile", {
+    body: {
+      stellarId: Number(stellarId),
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || "프로필 사주 정보를 새로 계산하지 못했습니다.");
+  }
+
+  return data || null;
+}
+
 export async function searchPublicProfiles(query, limit = 20) {
   if (!String(query || "").trim()) {
     return [];
@@ -525,10 +541,19 @@ export async function uploadProfileImage(file) {
 
   const mimeToExtension = {
     "image/png": "png",
+    "image/x-png": "png",
     "image/jpeg": "jpg",
     "image/jpg": "jpg",
+    "image/pjpeg": "jpg",
     "image/webp": "webp",
     "image/gif": "gif",
+  };
+  const extensionToCanonicalMime = {
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    gif: "image/gif",
   };
   const normalizedMimeType = String(file?.type || "").toLowerCase();
   const extensionFromMime = mimeToExtension[normalizedMimeType] || "";
@@ -541,13 +566,7 @@ export async function uploadProfileImage(file) {
     throw new Error("프로필 이미지는 PNG, JPG, WEBP, GIF 형식만 올릴 수 있습니다.");
   }
 
-  const safeContentType = normalizedMimeType || ({
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    webp: "image/webp",
-    gif: "image/gif",
-  }[safeExtension]);
+  const safeContentType = extensionToCanonicalMime[safeExtension];
   const uniqueId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
     : String(Date.now());
@@ -555,8 +574,11 @@ export async function uploadProfileImage(file) {
   const uploadOptions = {
     cacheControl: "3600",
     upsert: false,
-    contentType: safeContentType,
   };
+
+  if (safeContentType) {
+    uploadOptions.contentType = safeContentType;
+  }
 
   let uploadError = null;
 
@@ -577,7 +599,10 @@ export async function uploadProfileImage(file) {
   }
 
   if (uploadError) {
-    throw normalizeStorageUploadError(uploadError);
+    throw normalizeStorageUploadError(uploadError, {
+      originalMimeType: normalizedMimeType,
+      safeContentType,
+    });
   }
 
   const { data } = supabase.storage

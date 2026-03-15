@@ -6,6 +6,7 @@ import {
   followProfile,
   getSession,
   isSupabaseConfigured,
+  refreshPublicProfileByStellarId,
   unfollowProfile,
 } from "./shared/auth.js";
 import {
@@ -20,7 +21,7 @@ import {
 } from "./shared/profile-derived.js";
 import { formatGenderLabel } from "./shared/birth.js";
 import { escapeHtml, escapeHtmlWithBreaks } from "./shared/html.js";
-import { getContextualPeriodCopy } from "./shared/profile-period.js";
+import { getKstDateParts, needsPublicProfileRefresh } from "./shared/profile-insights.js";
 import { applyProfileSeoToDocument, buildProfileSeoData, getProfileSeoSections } from "./shared/profile-seo.js";
 import { normalizeProfileBio } from "./shared/profile-text.js";
 import { renderSocialNav } from "./shared/social-nav.js";
@@ -277,6 +278,35 @@ function buildLockCard(label) {
   `;
 }
 
+function buildLocalSnapshotFromProfile(profile) {
+  if (!profile?.birth_year || !profile?.birth_month || !profile?.birth_day || !profile?.gender) {
+    return null;
+  }
+
+  const { referenceDate } = getKstDateParts(new Date());
+
+  return buildProfileDerivedFieldsFromInput({
+    birthYear: profile.birth_year,
+    birthMonth: profile.birth_month,
+    birthDay: profile.birth_day,
+    birthHour: profile.birth_hour,
+    birthMinute: profile.birth_minute,
+    birthTimeKnown: profile.birth_time_known,
+    calendarType: profile.calendar_type,
+    isLeapMonth: profile.is_leap_month,
+    gender: profile.gender,
+  }, {
+    currentDate: referenceDate,
+  }).snapshot;
+}
+
+function shouldRefreshPublicProfile(profile) {
+  return !profile?.day_pillar_key
+    || !profile?.preview_summary
+    || !profile?.element_class
+    || needsPublicProfileRefresh(profile?.public_snapshot);
+}
+
 function buildHomeTab(profile, snapshot, visibility) {
   const cards = [];
 
@@ -338,7 +368,8 @@ function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
   const todayScore = getTodayScore(snapshot, "personality");
   const bestMatches = buildCompatibilityEntries(snapshot, "personality", false);
   const worstMatches = buildCompatibilityEntries(snapshot, "personality", true);
-  const currentPeriod = getContextualPeriodCopy(snapshot, "personality");
+  const dailyInsight = snapshot?.insights?.personalityDaily || {};
+  const dailyPointTitle = `${dailyInsight.dateLabel || "오늘"} 감정 포인트`;
 
   return `
     <section class="card">
@@ -362,28 +393,28 @@ function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
           <div class="text">${escapeHtml(getSnapshotSection(snapshot, 0) || profile.preview_summary)}</div>
         </article>
         <article class="box profile-stat-card">
-          <div class="title">이번 시기 포인트</div>
-          <div class="text">${escapeHtml(currentPeriod.point || "나를 이해하고 결을 정리하는 흐름")}</div>
+          <div class="title">${escapeHtml(dailyPointTitle)}</div>
+          <div class="text">${escapeHtml(dailyInsight.point || "오늘 감정 흐름을 다시 읽는 중입니다.")}</div>
         </article>
       </div>
       <div class="profile-detail-grid">
         <article class="box">
-          <div class="title">장점</div>
-          <div class="text">${escapeHtml(snapshot?.advanced?.diagnosis?.summary || getSnapshotSection(snapshot, 3) || "")}</div>
+          <div class="title">오늘 좋은 감정</div>
+          <div class="text">${escapeHtml(dailyInsight.goodEmotion || "내 마음을 편하게 표현할 수 있는 포인트를 정리하고 있습니다.")}</div>
         </article>
         <article class="box">
           <div class="title">보완하면 좋은 점</div>
-          <div class="text">${escapeHtml(snapshot?.advanced?.diagnosis?.note || "감정과 속도를 혼자 다 떠안지 않도록, 관계 속 경계를 부드럽게 세우는 연습이 도움이 됩니다.")}</div>
+          <div class="text">${escapeHtml(dailyInsight.improve || snapshot?.advanced?.diagnosis?.note || "감정과 속도를 혼자 다 떠안지 않도록, 관계 속 경계를 부드럽게 세우는 연습이 도움이 됩니다.")}</div>
         </article>
       </div>
       <div class="profile-detail-grid">
         <article class="box">
-          <div class="title">이번 시기 좋은 기운</div>
-          ${buildSignalBlock("도움이 되는 흐름", currentPeriod.good, "good")}
+          <div class="title">오늘 좋은 기운</div>
+          ${buildSignalBlock("감정이 잘 흐르는 포인트", dailyInsight.goodSignals, "good")}
         </article>
         <article class="box">
-          <div class="title">이번 시기 주의할 점</div>
-          ${buildSignalBlock("조율 포인트", currentPeriod.warn, "warn")}
+          <div class="title">오늘 주의할 점</div>
+          ${buildSignalBlock("감정적으로 조율할 포인트", dailyInsight.warnSignals, "warn")}
         </article>
       </div>
       <section class="profile-rank-section">
@@ -407,7 +438,8 @@ function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
 function buildHealthTab(snapshot) {
   const series = buildFlowSeries(snapshot, "health");
   const todayScore = getTodayScore(snapshot, "health");
-  const currentPeriod = getContextualPeriodCopy(snapshot, "health");
+  const monthlyInsight = snapshot?.insights?.healthMonthly || {};
+  const monthPointTitle = `${monthlyInsight.monthLabel || "이번 달"} 건강 포인트`;
 
   return `
     <section class="card">
@@ -422,22 +454,22 @@ function buildHealthTab(snapshot) {
           <div class="profile-score-value">${todayScore}</div>
         </article>
         <article class="box profile-stat-card">
-          <div class="title">이번 시기 포인트</div>
-          <div class="text">${escapeHtml(currentPeriod.point || "생활 리듬 관리")}</div>
+          <div class="title">${escapeHtml(monthPointTitle)}</div>
+          <div class="text">${escapeHtml(monthlyInsight.point || "이번 달 건강 흐름을 다시 읽는 중입니다.")}</div>
         </article>
         <article class="box profile-stat-card">
-          <div class="title">올해 좋은 점</div>
-          <div class="text">${escapeHtml(getSnapshotSection(snapshot, 4) || "생활 리듬만 크게 흔들리지 않으면 회복력이 비교적 안정적으로 유지되는 편입니다.")}</div>
+          <div class="title">이번 달 좋은 점</div>
+          <div class="text">${escapeHtml(monthlyInsight.goodPoint || "생활 리듬만 크게 흔들리지 않으면 회복력이 비교적 안정적으로 유지되는 편입니다.")}</div>
         </article>
       </div>
       <div class="profile-detail-grid">
         <article class="box">
-          <div class="title">이번 시기 좋은 기운</div>
-          ${buildSignalBlock("도움이 되는 흐름", currentPeriod.good, "good")}
+          <div class="title">이번 달 좋은 기운</div>
+          ${buildSignalBlock("몸을 받쳐주는 흐름", monthlyInsight.goodSignals, "good")}
         </article>
         <article class="box">
-          <div class="title">이번 시기 주의할 점</div>
-          ${buildSignalBlock("미리 챙길 포인트", currentPeriod.warn, "warn")}
+          <div class="title">이번 달 주의할 점</div>
+          ${buildSignalBlock("미리 챙길 포인트", monthlyInsight.warnSignals, "warn")}
         </article>
       </div>
       <div class="profile-detail-grid">
@@ -447,7 +479,7 @@ function buildHealthTab(snapshot) {
         </article>
         <article class="box">
           <div class="title">주의할 점</div>
-          <div class="text">${escapeHtml(currentPeriod.warnText || "무리한 일정 누적과 수면 리듬 붕괴는 먼저 관리하는 편이 좋습니다.")}</div>
+          <div class="text">${escapeHtml((monthlyInsight.warnSignals || []).join(" · ") || "무리한 일정 누적과 수면 리듬 붕괴는 먼저 관리하는 편이 좋습니다.")}</div>
         </article>
       </div>
     </section>
@@ -459,7 +491,9 @@ function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
   const series = buildFlowSeries(snapshot, "love");
   const bestMatches = buildCompatibilityEntries(snapshot, "love", false);
   const worstMatches = buildCompatibilityEntries(snapshot, "love", true);
-  const currentPeriod = getContextualPeriodCopy(snapshot, "love");
+  const loveInsight = snapshot?.insights?.loveDetail || {};
+  const monthlyInsight = snapshot?.insights?.loveMonthly || {};
+  const monthPointTitle = `${monthlyInsight.monthLabel || "이번 달"} 연애 포인트`;
 
   return `
     <section class="card">
@@ -476,26 +510,34 @@ function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
       ${buildGraph(series, "연애운 흐름 그래프")}
       <div class="profile-detail-grid">
         <article class="box">
-          <div class="title">연애 성격 요약</div>
-          <div class="text">${escapeHtml(getSnapshotSection(snapshot, 2) || "신뢰와 감정 표현의 균형이 관계의 핵심 키워드가 됩니다.")}</div>
+          <div class="title">연애 기본 성향</div>
+          <div class="text">${escapeHtml(loveInsight.summary || getSnapshotSection(snapshot, 2) || "신뢰와 감정 표현의 균형이 관계의 핵심 키워드가 됩니다.")}</div>
         </article>
         <article class="box">
-          <div class="title">연애 성격 상세</div>
-          <div class="text">${escapeHtml(snapshot?.advanced?.diagnosis?.summary || getSnapshotSection(snapshot, 3) || "")}</div>
+          <div class="title">끌리는 포인트</div>
+          <div class="text">${escapeHtml(loveInsight.attraction || "어떤 사람에게 매력을 느끼는지 읽는 중입니다.")}</div>
         </article>
         <article class="box">
-          <div class="title">이번 시기 포인트</div>
-          <div class="text">${escapeHtml(currentPeriod.point || "관계 온도와 표현 방식을 맞추는 흐름")}</div>
+          <div class="title">불편한 포인트</div>
+          <div class="text">${escapeHtml(loveInsight.dislike || "관계에서 피로를 느끼기 쉬운 포인트를 정리하고 있습니다.")}</div>
+        </article>
+        <article class="box">
+          <div class="title">가까워지는 법</div>
+          <div class="text">${escapeHtml(loveInsight.strategy || "천천히 신뢰를 쌓는 방식이 잘 맞는지 살피고 있습니다.")}</div>
         </article>
       </div>
       <div class="profile-detail-grid">
         <article class="box">
-          <div class="title">이번 시기 설레는 포인트</div>
-          ${buildSignalBlock("좋은 흐름", currentPeriod.good, "good")}
+          <div class="title">${escapeHtml(monthPointTitle)}</div>
+          <div class="text">${escapeHtml(monthlyInsight.point || "이번 달 연애 흐름을 다시 읽는 중입니다.")}</div>
         </article>
         <article class="box">
-          <div class="title">이번 시기 조심할 점</div>
-          ${buildSignalBlock("조율 포인트", currentPeriod.warn, "warn")}
+          <div class="title">이번 달 설레는 포인트</div>
+          ${buildSignalBlock("좋은 흐름", monthlyInsight.goodSignals, "good")}
+        </article>
+        <article class="box">
+          <div class="title">이번 달 조심할 점</div>
+          ${buildSignalBlock("조율 포인트", monthlyInsight.warnSignals, "warn")}
         </article>
       </div>
       <section class="profile-rank-section">
@@ -521,7 +563,8 @@ function buildAbilityTab(profile, snapshot, viewerSnapshot, isSelf) {
   const score = getRelationshipScore(viewerSnapshot, snapshot, "ability");
   const todayScore = getTodayScore(snapshot, "ability");
   const wealthCards = snapshot?.advanced?.wealth?.cards || [];
-  const currentPeriod = getContextualPeriodCopy(snapshot, "ability");
+  const monthlyInsight = snapshot?.insights?.abilityMonthly || {};
+  const monthPointTitle = `${monthlyInsight.monthLabel || "이번 달"} 능력 포인트`;
 
   return `
     <section class="card">
@@ -542,18 +585,18 @@ function buildAbilityTab(profile, snapshot, viewerSnapshot, isSelf) {
           <div class="profile-score-value">${todayScore}</div>
         </article>
         <article class="box profile-stat-card">
-          <div class="title">이번 시기 핵심 키워드</div>
-          <div class="text">${escapeHtml(currentPeriod.point || "실력과 결과물 연결")}</div>
+          <div class="title">${escapeHtml(monthPointTitle)}</div>
+          <div class="text">${escapeHtml(monthlyInsight.point || "이번 달 능력 흐름을 다시 읽는 중입니다.")}</div>
         </article>
       </div>
       <div class="profile-detail-grid">
         <article class="box">
-          <div class="title">이번 시기 잘 풀리는 포인트</div>
-          ${buildSignalBlock("도움이 되는 기운", currentPeriod.good, "good")}
+          <div class="title">이번 달 잘 풀리는 포인트</div>
+          ${buildSignalBlock("도움이 되는 기운", monthlyInsight.goodSignals, "good")}
         </article>
         <article class="box">
-          <div class="title">이번 시기 경계 포인트</div>
-          ${buildSignalBlock("주의할 기운", currentPeriod.warn, "warn")}
+          <div class="title">이번 달 경계 포인트</div>
+          ${buildSignalBlock("주의할 기운", monthlyInsight.warnSignals, "warn")}
         </article>
       </div>
       <div class="profile-detail-grid">
@@ -706,13 +749,24 @@ async function init() {
     throw new Error("유효한 스텔라 등록번호가 없습니다.");
   }
 
-  const [session, publicProfile] = await Promise.all([
+  const [session, initialPublicProfile] = await Promise.all([
     getSession(),
     fetchPublicProfileByStellarId(stellarId),
   ]);
 
-  if (!publicProfile) {
+  if (!initialPublicProfile) {
     throw new Error("해당 스텔라 프로필을 찾지 못했습니다.");
+  }
+
+  let publicProfile = initialPublicProfile;
+
+  if (shouldRefreshPublicProfile(publicProfile)) {
+    try {
+      await refreshPublicProfileByStellarId(stellarId);
+      publicProfile = await fetchPublicProfileByStellarId(stellarId) || publicProfile;
+    } catch (error) {
+      console.warn("public profile refresh failed", error);
+    }
   }
 
   let viewerProfile = null;
@@ -734,19 +788,7 @@ async function init() {
     isSelf: Boolean(publicProfile.is_self),
     isFollowing: Boolean(publicProfile.is_following),
   };
-  const fallbackOwnSnapshot = relationship.isSelf && viewerProfile
-    ? buildProfileDerivedFieldsFromInput({
-      birthYear: viewerProfile.birth_year,
-      birthMonth: viewerProfile.birth_month,
-      birthDay: viewerProfile.birth_day,
-      birthHour: viewerProfile.birth_hour,
-      birthMinute: viewerProfile.birth_minute,
-      birthTimeKnown: viewerProfile.birth_time_known,
-      calendarType: viewerProfile.calendar_type,
-      isLeapMonth: viewerProfile.is_leap_month,
-      gender: viewerProfile.gender,
-    }).snapshot
-    : null;
+  const fallbackOwnSnapshot = relationship.isSelf ? buildLocalSnapshotFromProfile(viewerProfile) : null;
   const snapshot = meta.snapshot || fallbackOwnSnapshot;
 
   applyPrettyProfilePath(publicProfile.stellar_id);
@@ -768,7 +810,9 @@ async function init() {
   $("profileTabsSection").classList.remove("hidden");
   $("profileContent").classList.remove("hidden");
 
-  const currentViewerSnapshot = viewerProfile?.public_snapshot || null;
+  const currentViewerSnapshot = viewerProfile?.public_snapshot && !needsPublicProfileRefresh(viewerProfile.public_snapshot)
+    ? viewerProfile.public_snapshot
+    : buildLocalSnapshotFromProfile(viewerProfile);
   renderHero(publicProfile, meta, relationship);
 
   let activeTab = "home";

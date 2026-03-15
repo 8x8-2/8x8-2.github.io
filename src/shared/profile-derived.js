@@ -1,5 +1,6 @@
 import { getDayPillarArchetype } from "../../data/daypillars.js";
 import { ELEMENT_DISPLAY, calculateReadingSnapshot, getReadingPreviewSummary } from "./reading.js";
+import { buildEnrichedPublicProfileSnapshot } from "./profile-insights.js";
 
 export const PROFILE_VISIBILITY_VALUES = ["public", "followers", "private"];
 
@@ -23,15 +24,8 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-export function buildPublicProfileSnapshot(snapshot) {
-  return {
-    gender: snapshot.gender,
-    unknownTime: snapshot.unknownTime,
-    pillars: snapshot.pillars,
-    sections: snapshot.sections,
-    advanced: snapshot.advanced,
-    dayPillar: snapshot.dayPillar,
-  };
+export function buildPublicProfileSnapshot(snapshot, currentDate = new Date()) {
+  return buildEnrichedPublicProfileSnapshot(snapshot, currentDate);
 }
 
 export function buildProfileDerivedFieldsFromInput({
@@ -44,7 +38,7 @@ export function buildProfileDerivedFieldsFromInput({
   calendarType,
   isLeapMonth,
   gender,
-}) {
+}, { currentDate = new Date() } = {}) {
   const snapshot = calculateReadingSnapshot({
     year: Number(birthYear),
     month: Number(birthMonth),
@@ -55,6 +49,7 @@ export function buildProfileDerivedFieldsFromInput({
     isLeapMonth: Boolean(isLeapMonth),
     gender,
     unknownTime: !birthTimeKnown,
+    currentDate,
   });
 
   return {
@@ -65,7 +60,7 @@ export function buildProfileDerivedFieldsFromInput({
       day_pillar_metaphor: snapshot.dayPillar.metaphor,
       element_class: snapshot.dayPillar.elementClass,
       preview_summary: getReadingPreviewSummary(snapshot),
-      public_snapshot: buildPublicProfileSnapshot(snapshot),
+      public_snapshot: buildPublicProfileSnapshot(snapshot, currentDate),
     },
   };
 }
