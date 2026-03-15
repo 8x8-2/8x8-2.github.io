@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT_DIR, "soulday");
 const SITE_URL = "https://stellar-id.com";
-const OG_IMAGE = `${SITE_URL}/src/img/bi/symbol-stellarid.png`;
+const OG_IMAGE = `${SITE_URL}/src/img/og-stellarid-url.png`;
 
 function escapeHtml(value = "") {
   return String(value)
@@ -89,7 +89,7 @@ function buildTopbar(activeKey, { homeHref, listHref }) {
           </span>
           <span class="brand-copy">
             <span class="brand-name">스텔라 ID</span>
-            <span class="brand-subtitle">COSMIC PROFILE</span>
+            <span class="brand-subtitle">STELLAR PROFILE</span>
           </span>
         </a>
         <div class="topbar-actions">
@@ -158,7 +158,7 @@ function buildListJsonLd(entries) {
     "@type": "CollectionPage",
     name: "60일주별 특징 모음",
     url: `${SITE_URL}/soulday/`,
-    description: "갑자일부터 계해일까지 60일주 물상과 특징을 정리한 스텔라 ID 일주 아카이브 페이지",
+    description: "갑자일부터 계해일까지 60일주 물상과 특징을 정리하고 무료 사주와 스텔라 프로필 해석에 참고할 수 있는 스텔라 ID 일주 아카이브 페이지",
     mainEntity: {
       "@type": "ItemList",
       itemListElement: entries.map((entry, index) => ({
@@ -202,7 +202,7 @@ function buildDetailJsonLd(entry) {
         "@type": "WebPage",
         name: `${entry.title} 특징`,
         url: `${SITE_URL}/soulday/${entry.slug}/`,
-        description: `${entry.title} 물상과 타고난 성격, 자주 떠올리는 MBTI를 정리한 페이지`,
+        description: `${entry.title} 물상과 타고난 성격, 자주 떠올리는 MBTI를 정리하고 무료 사주와 스텔라 프로필 해석에 참고할 수 있는 페이지`,
       },
     ],
   };
@@ -210,7 +210,7 @@ function buildDetailJsonLd(entry) {
 
 function buildListPage(entries) {
   const title = "일주별 보기 | 60일주 물상과 특징 모음 - 스텔라 ID";
-  const description = "갑자일부터 계해일까지 60일주 물상, 키워드, 성격 개요를 한눈에 찾을 수 있는 스텔라 ID 일주 아카이브 페이지";
+  const description = "갑자일부터 계해일까지 60일주 물상, 키워드, 성격 개요를 한눈에 찾고 무료 사주와 스텔라 프로필 해석에 참고할 수 있는 스텔라 ID 일주 아카이브 페이지";
 
   return `
 <!doctype html>
@@ -237,7 +237,7 @@ function buildListPage(entries) {
       <section class="card hero-card" aria-labelledby="soulday-list-heading">
         <p class="eyebrow">일주별 보기 · 60일주 아카이브 · 물상 해석</p>
         <h1 id="soulday-list-heading">60일주별 특징 모음</h1>
-        <p class="hero-subtitle">갑자일부터 계해일까지, 각 일주의 물상과 기본 성향을 우주 프로필처럼 빠르게 찾아볼 수 있게 정리했습니다.</p>
+        <p class="hero-subtitle">갑자일부터 계해일까지, 각 일주의 물상과 기본 성향을 스텔라 프로필 관점에서 빠르게 찾아볼 수 있게 정리했습니다.</p>
         <p class="hero-lead">목록에서 일주명이나 물상 키워드를 검색하면 바로 걸러지고, 각 카드로 들어가면 해당 일주가 내 성향과 어떤 결을 가지는지 더 자세히 볼 수 있습니다.</p>
       </section>
 
@@ -261,11 +261,11 @@ function buildListPage(entries) {
 
       <section class="card soulday-cta-card">
         <div class="section-intro">
-          <h2>내 우주 프로필 보기</h2>
-          <p class="muted">일주 목록을 본 뒤 실제 내 생년월일시 기준 우주 프로필이 궁금하다면 홈에서 바로 계산해 볼 수 있습니다.</p>
+          <h2>내 스텔라 프로필 보기</h2>
+          <p class="muted">일주 목록을 본 뒤 실제 내 생년월일시 기준 스텔라 프로필이 궁금하다면 홈에서 바로 계산해 볼 수 있습니다.</p>
         </div>
         <div class="actions">
-          <a class="cta-link-button" href="../" data-soulday-home-link>내 우주 프로필 보기</a>
+          <a class="cta-link-button" href="../" data-soulday-home-link>내 스텔라 프로필 보기</a>
         </div>
       </section>
 
@@ -280,7 +280,7 @@ function buildListPage(entries) {
 
 function buildDetailPage(entry) {
   const title = `${entry.title} 특징 | 물상, 성격, MBTI - 스텔라 ID`;
-  const description = `${entry.title} 물상은 '${entry.metaphor}'로 비유합니다. 타고난 성격과 자주 떠올리는 MBTI를 정리한 스텔라 ID 일주 상세 페이지`;
+  const description = `${entry.title} 물상은 '${entry.metaphor}'로 비유합니다. 타고난 성격과 자주 떠올리는 MBTI를 정리하고 무료 사주와 스텔라 프로필 해석에 참고할 수 있는 스텔라 ID 일주 상세 페이지`;
 
   return `
 <!doctype html>
@@ -334,11 +334,11 @@ function buildDetailPage(entry) {
 
       <section class="card soulday-cta-card">
         <div class="section-intro">
-          <h2>내 우주 프로필 보기</h2>
-          <p class="muted">${escapeHtml(entry.title)}가 실제 내 우주 프로필 결과와 어떻게 겹치는지 궁금하다면, 홈에서 생년월일시를 입력해 바로 확인해 보세요.</p>
+          <h2>내 스텔라 프로필 보기</h2>
+          <p class="muted">${escapeHtml(entry.title)}가 실제 내 스텔라 프로필 결과와 어떻게 겹치는지 궁금하다면, 홈에서 생년월일시를 입력해 바로 확인해 보세요.</p>
         </div>
         <div class="actions">
-          <a class="cta-link-button" href="../../" data-soulday-home-link>내 우주 프로필 보기</a>
+          <a class="cta-link-button" href="../../" data-soulday-home-link>내 스텔라 프로필 보기</a>
           <a class="text-link-button" href="../">다른 일주 더 보기</a>
         </div>
       </section>

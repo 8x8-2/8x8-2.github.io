@@ -8,7 +8,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-stellarid.png">
     <title>회원가입 | 스텔라 ID</title>
     <link rel="stylesheet" href="/styles.css" />
-    <meta name="description" content="스텔라 ID 회원가입 페이지입니다. 무료로 가입하고 내 우주 프로필과 사주 결과를 저장해 보세요.">
+    <meta name="description" content="스텔라 ID 회원가입 페이지입니다. 무료 사주 결과를 저장하고 나만의 스텔라 프로필을 만드는 첫 단계입니다.">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-RQ5VKHW9NE"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -38,7 +38,7 @@
           </span>
           <span class="brand-copy">
             <span class="brand-name">스텔라 ID</span>
-            <span class="brand-subtitle">COSMIC PROFILE</span>
+            <span class="brand-subtitle">STELLAR PROFILE</span>
           </span>
         </a>
         <div class="topbar-actions">
@@ -53,9 +53,9 @@
 
     <main class="container">
       <section class="card auth-card" aria-labelledby="signup-heading">
-        <p class="eyebrow">무료 회원가입</p>
-        <h1 id="signup-heading">우주 프로필을 저장하려면 가입이 필요합니다</h1>
-        <p class="hero-subtitle">가입은 무료이며, 한 번 저장한 결과는 로그인 후 언제든 다시 찾아볼 수 있습니다.</p>
+        <p class="eyebrow">스텔라 ID 만들기</p>
+        <h1 id="signup-heading">나만의 스텔라 프로필을 만들려면 가입이 필요합니다</h1>
+        <p class="hero-subtitle">가입은 무료이며, 무료 사주 결과 저장은 물론 앞으로 사람과 사람을 잇는 관계 기반 경험의 시작점이 됩니다.</p>
 
         <div id="signupConfigError" class="box hidden auth-helper-box">
           <div class="title">Supabase 연결이 아직 설정되지 않았습니다.</div>
@@ -63,15 +63,24 @@
         </div>
 
         <form id="signupForm" class="auth-form auth-form-wide">
-          <div class="grid auth-grid-two">
-            <label class="field">
-              <span>이메일 주소(ID)</span>
-              <input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
-            </label>
+        <div class="grid auth-grid-two">
+          <label class="field">
+            <span>이메일 주소(ID)</span>
+            <input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
+          </label>
             <label class="field">
               <span>이름</span>
               <input id="signupName" type="text" autocomplete="name" placeholder="2글자 이상" required />
             </label>
+          </div>
+
+          <div class="field">
+            <span>스텔라 등록번호</span>
+            <div class="inline-field-row">
+              <input id="signupStellarId" type="text" inputmode="numeric" maxlength="16" autocomplete="off" placeholder="예: 1" required />
+              <button id="signupStellarIdCheck" class="button-muted" type="button">중복 확인</button>
+            </div>
+            <small id="signupStellarIdHint" class="muted">회원가입 순서 기준 추천 번호가 자동으로 채워집니다. 원하면 다른 숫자로 바꿀 수 있습니다.</small>
           </div>
 
           <div class="grid auth-grid-two">
@@ -131,7 +140,7 @@
             <span>마케팅 정보 수신에 동의합니다.</span>
           </label>
 
-          <button type="submit">무료로 가입하기</button>
+          <button type="submit">스텔라 ID 만들기</button>
           <span id="signupStatus" class="muted"></span>
           <p id="signupError" class="error"></p>
         </form>

@@ -8,6 +8,7 @@ import {
   subscribeAuthState,
 } from "./auth.js";
 import { escapeHtml } from "./html.js";
+import { buildAccountUrl, buildFollowingUrl, buildPublicProfileUrl, buildSearchUrl } from "./stellar-id.js";
 
 function getPageMeta() {
   const body = document.body;
@@ -44,6 +45,28 @@ function buildProfileUrl(path, userId) {
   return url.toString();
 }
 
+function syncBrand(profile = null) {
+  const brandLink = document.querySelector(".brand");
+  const brandSubtitle = document.querySelector(".brand-subtitle");
+
+  if (!brandLink) return;
+
+  if (profile?.stellar_id) {
+    brandLink.href = buildPublicProfileUrl(profile.stellar_id);
+    if (brandSubtitle) {
+      brandSubtitle.textContent = `/ ${profile.stellar_id}`;
+    }
+    document.body.classList.add("is-authenticated");
+    return;
+  }
+
+  brandLink.href = buildUrl(document.body.dataset.linkHome || "./");
+  if (brandSubtitle) {
+    brandSubtitle.textContent = "STELLAR PROFILE";
+  }
+  document.body.classList.remove("is-authenticated");
+}
+
 function closeMenu(menu) {
   if (!menu) return;
   menu.classList.remove("is-open");
@@ -59,6 +82,8 @@ function renderPending(slot) {
 }
 
 function renderLoggedOut(slot, meta) {
+  syncBrand(null);
+
   if (meta.authMode === "hidden") {
     slot.innerHTML = "";
     return;
@@ -80,22 +105,36 @@ function renderLoggedIn(slot, meta, session, profile) {
   const displayName = getDisplayName(session.user, profile);
   const initial = getProfileInitial(session.user, profile);
   const profileActive = ["profile", "password"].includes(meta.pageName) ? " is-active" : "";
-  const savedActive = ["saved", "reading", "my_saju"].includes(meta.pageName) ? " is-active" : "";
-  const profileUrl = buildProfileUrl(meta.links.profile, session.user.id);
+  const savedActive = ["saved"].includes(meta.pageName) ? " is-active" : "";
+  const publicProfileUrl = profile?.stellar_id ? buildPublicProfileUrl(profile.stellar_id) : buildUrl(meta.links.home);
+  const accountUrl = buildAccountUrl(session.user.id);
+  const followingUrl = buildFollowingUrl();
+  const searchUrl = buildSearchUrl();
+
+  syncBrand(profile);
 
   slot.innerHTML = `
-    <div class="profile-menu" data-profile-menu>
-      <button class="profile-button" type="button" aria-haspopup="menu" aria-expanded="false" data-profile-toggle>
-        <span>${escapeHtml(initial)}</span>
-      </button>
-      <div class="profile-panel" role="menu" data-profile-panel>
-        <div class="profile-panel-name">${escapeHtml(displayName)}</div>
-        <div class="profile-panel-email">${escapeHtml(session.user.email || "")}</div>
-        <div class="profile-panel-links">
-          <a class="profile-panel-link${profileActive}" href="${profileUrl}" data-nav-target="profile">내 정보</a>
-          <a class="profile-panel-link${savedActive}" href="${buildUrl(meta.links.saved)}" data-nav-target="saved_readings">사주 보관함</a>
+    <div class="topbar-auth-loggedin">
+      <a class="topbar-icon-link" href="${searchUrl}" aria-label="스텔라 프로필 검색" data-nav-target="search_profiles">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M10.75 2a8.75 8.75 0 1 0 5.366 15.66l3.75 3.75a1.25 1.25 0 1 0 1.768-1.767l-3.75-3.75A8.75 8.75 0 0 0 10.75 2Zm0 2.5a6.25 6.25 0 1 1 0 12.5 6.25 6.25 0 0 1 0-12.5Z" fill="currentColor"/>
+        </svg>
+      </a>
+      <div class="profile-menu" data-profile-menu>
+        <button class="profile-button" type="button" aria-haspopup="menu" aria-expanded="false" data-profile-toggle>
+          <span>${escapeHtml(initial)}</span>
+        </button>
+        <div class="profile-panel" role="menu" data-profile-panel>
+          <div class="profile-panel-name">${escapeHtml(displayName)}</div>
+          <div class="profile-panel-email">${escapeHtml(session.user.email || "")}</div>
+          <div class="profile-panel-links">
+            <a class="profile-panel-link${profileActive}" href="${publicProfileUrl}" data-nav-target="public_profile">내 스텔라 프로필</a>
+            <a class="profile-panel-link${savedActive}" href="${followingUrl}" data-nav-target="following_profiles">팔로잉 프로필</a>
+            <span class="profile-panel-divider" aria-hidden="true"></span>
+            <a class="profile-panel-link" href="${accountUrl}" data-nav-target="account_profile">계정 정보</a>
+          </div>
+          <button class="profile-signout-button" type="button" data-profile-signout>로그아웃</button>
         </div>
-        <button class="profile-signout-button" type="button" data-profile-signout>로그아웃</button>
       </div>
     </div>
   `;
@@ -144,6 +183,7 @@ export function setupAuthUi() {
   const meta = getPageMeta();
 
   if (!isSupabaseConfigured()) {
+    syncBrand(null);
     renderLoggedOut(slot, meta);
     return () => {};
   }

@@ -79,19 +79,19 @@ async function init() {
 
   const sharedRecord = await fetchPublicSharedReading(shareToken);
   if (!sharedRecord) {
-    throw new Error("공유된 우주 프로필 정보를 찾지 못했습니다.");
+    throw new Error("공유된 스텔라 프로필 정보를 찾지 못했습니다.");
   }
 
   const snapshot = buildSnapshotFromSharedReading(sharedRecord);
   fillSharedMeta(sharedRecord, snapshot);
   renderReadingSnapshot(getReadingRenderElements(document), snapshot);
 
-  document.title = `${sharedRecord.entry_name} 우주 프로필 공유 | 스텔라 ID`;
-  $("shareHeading").textContent = `${sharedRecord.entry_name}님의 우주 프로필`;
-  $("shareSubtitle").textContent = "공유 링크로 열람 중인 우주 프로필 페이지입니다. 로그인하지 않아도 결과를 그대로 볼 수 있습니다.";
+  document.title = `${sharedRecord.entry_name} 스텔라 프로필 공유 | 스텔라 ID`;
+  $("shareHeading").textContent = `${sharedRecord.entry_name}님의 스텔라 프로필`;
+  $("shareSubtitle").textContent = "공유 링크로 열람 중인 스텔라 프로필 페이지입니다. 로그인하지 않아도 결과를 그대로 볼 수 있습니다.";
   $("shareSection").classList.remove("hidden");
 }
 
 init().catch((error) => {
-  $("shareError").textContent = error.message || "공유된 우주 프로필 페이지를 불러오지 못했습니다.";
+  $("shareError").textContent = error.message || "공유된 스텔라 프로필 페이지를 불러오지 못했습니다.";
 });

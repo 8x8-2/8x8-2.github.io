@@ -1,11 +1,15 @@
 import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
 import {
+  checkStellarIdAvailability,
   getSession,
   isSupabaseConfigured,
+  peekNextStellarId,
   signUpWithPassword,
 } from "./shared/auth.js";
+import { buildProfileDerivedFieldsFromInput } from "./shared/profile-derived.js";
 import { setupAuthUi } from "./shared/auth-ui.js";
 import { loadBirthDraft, saveBirthDraft } from "./shared/drafts.js";
+import { buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -126,6 +130,52 @@ function resolveRedirect(fallbackPath) {
   }
 }
 
+let stellarIdAvailability = {
+  value: "",
+  available: false,
+};
+
+function setStellarIdHint(message, tone = "muted") {
+  const hintEl = $("signupStellarIdHint");
+  hintEl.textContent = message;
+  hintEl.classList.remove("error");
+  if (tone === "error") {
+    hintEl.classList.add("error");
+    return;
+  }
+}
+
+async function checkCurrentStellarId({ silent = false } = {}) {
+  const stellarId = normalizeStellarIdInput($("signupStellarId").value);
+  $("signupStellarId").value = stellarId;
+
+  if (!isValidStellarId(stellarId)) {
+    stellarIdAvailability = {
+      value: stellarId,
+      available: false,
+    };
+    if (!silent) {
+      setStellarIdHint("스텔라 등록번호는 1~16자리 숫자로 입력해 주세요.", "error");
+    }
+    return false;
+  }
+
+  const available = await checkStellarIdAvailability(stellarId);
+  stellarIdAvailability = {
+    value: stellarId,
+    available,
+  };
+
+  setStellarIdHint(
+    available
+      ? `사용 가능한 등록번호입니다. /${stellarId} 주소로 프로필이 연결됩니다.`
+      : "이미 사용 중인 스텔라 등록번호입니다.",
+    available ? "muted" : "error"
+  );
+
+  return available;
+}
+
 const homePath = document.body.dataset.linkHome || "../";
 const signInPath = document.body.dataset.linkSignin || "../signin/";
 
@@ -143,6 +193,18 @@ if (!isSupabaseConfigured()) {
   $("signupConfigError")?.classList.remove("hidden");
 }
 
+if (isSupabaseConfigured()) {
+  peekNextStellarId()
+    .then((stellarId) => {
+      if (!$("signupStellarId").value) {
+        $("signupStellarId").value = String(stellarId || "");
+        return checkCurrentStellarId({ silent: true });
+      }
+      return undefined;
+    })
+    .catch(() => {});
+}
+
 ["signupYear", "signupMonth", "signupDay"].forEach((id) => {
   const input = $(id);
   const maxLength = id === "signupYear" ? 4 : 2;
@@ -154,6 +216,27 @@ if (!isSupabaseConfigured()) {
 $("signupBirthTime")?.addEventListener("input", (event) => {
   event.target.value = normalizeBirthTimeInput(event.target.value);
   updateBirthTimeState();
+});
+
+$("signupStellarId")?.addEventListener("input", (event) => {
+  event.target.value = normalizeStellarIdInput(event.target.value);
+  stellarIdAvailability = {
+    value: event.target.value,
+    available: false,
+  };
+});
+
+$("signupStellarId")?.addEventListener("blur", () => {
+  if (!$("signupStellarId").value) return;
+  checkCurrentStellarId().catch(() => {});
+});
+
+$("signupStellarIdCheck")?.addEventListener("click", async () => {
+  try {
+    await checkCurrentStellarId();
+  } catch (error) {
+    setStellarIdHint(error.message || "등록번호를 확인하지 못했습니다.", "error");
+  }
 });
 
 $("signupPhone")?.addEventListener("input", (event) => {
@@ -197,6 +280,7 @@ $("signupForm")?.addEventListener("submit", async (event) => {
   const birthDay = Number($("signupDay").value);
   const birthTime = $("signupBirthTime").value.trim();
   const birthTimeKnown = !$("signupUnknownTime").checked;
+  const stellarId = normalizeStellarIdInput($("signupStellarId").value);
   const phoneInput = $("signupPhone").value.trim();
   const marketingOptIn = $("signupMarketing").checked;
 
@@ -217,6 +301,11 @@ $("signupForm")?.addEventListener("submit", async (event) => {
 
   if (fullName.length < 2) {
     errorEl.textContent = "이름은 2글자 이상 입력해 주세요.";
+    return;
+  }
+
+  if (!isValidStellarId(stellarId)) {
+    errorEl.textContent = "스텔라 등록번호는 1~16자리 숫자로 입력해 주세요.";
     return;
   }
 
@@ -249,6 +338,31 @@ $("signupForm")?.addEventListener("submit", async (event) => {
     ? birthTime.split(":").map(Number)
     : [null, null];
 
+  if (!stellarIdAvailability.available || stellarIdAvailability.value !== stellarId) {
+    try {
+      const available = await checkCurrentStellarId();
+      if (!available) {
+        errorEl.textContent = "이미 사용 중인 스텔라 등록번호입니다.";
+        return;
+      }
+    } catch (error) {
+      errorEl.textContent = error.message || "스텔라 등록번호를 확인하지 못했습니다.";
+      return;
+    }
+  }
+
+  const { fields: derivedFields } = buildProfileDerivedFieldsFromInput({
+    birthYear,
+    birthMonth,
+    birthDay,
+    birthHour,
+    birthMinute,
+    birthTimeKnown,
+    calendarType,
+    isLeapMonth: calendarType === "lunar" ? isLeapMonth : false,
+    gender,
+  });
+
   const birthDraft = {
     calendar: calendarType,
     leapMonth: calendarType === "lunar" ? isLeapMonth : false,
@@ -275,6 +389,7 @@ $("signupForm")?.addEventListener("submit", async (event) => {
       profile: {
         full_name: fullName,
         gender,
+        stellar_id: stellarId,
         phone: normalizedPhone,
         calendar_type: calendarType,
         is_leap_month: calendarType === "lunar" ? isLeapMonth : false,
@@ -285,11 +400,17 @@ $("signupForm")?.addEventListener("submit", async (event) => {
         birth_minute: birthTimeKnown ? birthMinute : "",
         birth_time_known: birthTimeKnown,
         marketing_opt_in: marketingOptIn,
+        personality_visibility: "public",
+        health_visibility: "public",
+        love_visibility: "public",
+        ability_visibility: "public",
+        major_luck_visibility: "public",
+        ...derivedFields,
       },
     });
 
     if (data.session) {
-      window.location.replace(resolveRedirect(homePath));
+      window.location.replace(resolveRedirect(buildPublicProfileUrl(stellarId)));
       return;
     }
 

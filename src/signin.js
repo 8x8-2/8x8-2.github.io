@@ -1,10 +1,12 @@
 import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
 import {
+  fetchProfile,
   getSession,
   isSupabaseConfigured,
   signInWithPassword,
 } from "./shared/auth.js";
 import { setupAuthUi } from "./shared/auth-ui.js";
+import { buildPublicProfileUrl } from "./shared/stellar-id.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -50,7 +52,14 @@ if (!isSupabaseConfigured() && configEl) {
 getSession()
   .then((session) => {
     if (session) {
-      window.location.replace(resolveRedirect(homePath));
+      fetchProfile(session.user.id)
+        .then((profile) => {
+          const fallback = profile?.stellar_id ? buildPublicProfileUrl(profile.stellar_id) : homePath;
+          window.location.replace(resolveRedirect(fallback));
+        })
+        .catch(() => {
+          window.location.replace(resolveRedirect(homePath));
+        });
     }
   })
   .catch(() => {});
@@ -79,8 +88,10 @@ form?.addEventListener("submit", async (event) => {
 
   try {
     statusEl.textContent = "로그인 중...";
-    await signInWithPassword({ email, password });
-    window.location.replace(resolveRedirect(homePath));
+    const data = await signInWithPassword({ email, password });
+    const profile = data?.user ? await fetchProfile(data.user.id) : null;
+    const fallback = profile?.stellar_id ? buildPublicProfileUrl(profile.stellar_id) : homePath;
+    window.location.replace(resolveRedirect(fallback));
   } catch (error) {
     errorEl.textContent = error.message || "로그인에 실패했습니다.";
     statusEl.textContent = "";

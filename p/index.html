@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#111314">
     <link rel="icon" href="/src/img/bi/favicon-stellarid.png" sizes="any">
     <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-stellarid.png">
-    <title>내 프로필 | 스텔라 ID</title>
+    <title>계정 정보 | 스텔라 ID</title>
     <link rel="stylesheet" href="/styles.css" />
-    <meta name="description" content="내 프로필과 사주 기준이 되는 회원가입 정보를 수정하는 페이지입니다.">
+    <meta name="description" content="생년월일시, 성별, 전화번호 등 내 스텔라 프로필 계산의 기준이 되는 계정 정보를 수정하는 페이지입니다.">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-RQ5VKHW9NE"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -39,7 +39,7 @@
           </span>
           <span class="brand-copy">
             <span class="brand-name">스텔라 ID</span>
-            <span class="brand-subtitle">COSMIC PROFILE</span>
+            <span class="brand-subtitle">STELLAR PROFILE</span>
           </span>
         </a>
         <div class="topbar-actions">
@@ -54,9 +54,9 @@
 
     <main class="container">
       <section class="card hero-card" aria-labelledby="profile-heading">
-        <p class="eyebrow">내 프로필</p>
-        <h1 id="profile-heading">회원가입 때 등록한 우주 프로필 기준 정보를 관리합니다</h1>
-        <p class="hero-subtitle">이름, 생년월일시, 성별, 전화번호, 마케팅 동의 여부를 수정하면 내 우주 프로필 기준도 다음 방문부터 같이 반영됩니다.</p>
+        <p class="eyebrow">계정 정보</p>
+        <h1 id="profile-heading">내 스텔라 프로필 계산 기준이 되는 계정 정보를 관리합니다</h1>
+        <p class="hero-subtitle">생년월일시, 성별, 전화번호, 마케팅 동의 여부를 수정하면 다음 방문부터 스텔라 프로필 계산에도 함께 반영됩니다.</p>
       </section>
 
       <section id="profileConfigError" class="card hidden">
@@ -69,7 +69,7 @@
         <div class="text">내 프로필은 로그인한 회원만 확인하고 수정할 수 있습니다.</div>
         <div class="actions">
           <a id="profileGuestSignin" class="cta-link-button" href="../signin/">로그인하기</a>
-          <a id="profileGuestSignup" class="text-link-button" href="../signup/">무료 회원가입</a>
+          <a id="profileGuestSignup" class="text-link-button" href="../signup/">스텔라 ID 만들기</a>
         </div>
       </section>
 
@@ -78,8 +78,8 @@
       <section id="profileSection" class="card hidden" aria-labelledby="profile-summary-heading">
         <div class="profile-head">
           <div class="section-intro">
-            <h2 id="profile-summary-heading">현재 등록 정보</h2>
-            <p class="muted">수정 버튼을 눌렀을 때만 편집 폼이 열리도록 구성했습니다.</p>
+            <h2 id="profile-summary-heading">현재 계정 기준 정보</h2>
+            <p class="muted">공개 프로필 설정은 별도 페이지에서, 계산 기준 정보는 여기에서 수정합니다.</p>
           </div>
           <div class="profile-head-actions">
             <button id="profileEditButton" type="button">수정</button>
@@ -90,7 +90,7 @@
         <div id="profileSummary"></div>
 
         <div id="profileEditCard" class="box profile-edit-card hidden">
-          <div class="title">내 프로필 수정</div>
+          <div class="title">계정 기준 정보 수정</div>
           <form id="profileForm" class="auth-form auth-form-wide">
             <div class="grid auth-grid-two">
               <label class="field">

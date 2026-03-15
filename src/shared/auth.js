@@ -1,4 +1,5 @@
 import { getSupabaseClient, isSupabaseConfigured } from "./supabase.js";
+import { buildProfileDerivedFieldsFromInput } from "./profile-derived.js";
 
 function ensureSupabase() {
   const supabase = getSupabaseClient();
@@ -32,6 +33,19 @@ function normalizeAuthError(error, mode = "signin") {
   }
 
   return new Error(error?.message || "인증 처리 중 오류가 발생했습니다.");
+}
+
+function isUniqueViolation(error) {
+  return error?.code === "23505" || String(error?.message || "").toLowerCase().includes("duplicate");
+}
+
+function needsDerivedProfileFields(profile) {
+  return Boolean(
+    profile?.birth_year &&
+    profile?.birth_month &&
+    profile?.birth_day &&
+    profile?.gender
+  );
 }
 
 export function getDisplayName(user, profile = null) {
@@ -81,11 +95,59 @@ export async function updateProfile(updates) {
     throw new Error("로그인 후 내 정보를 수정할 수 있습니다.");
   }
 
-  const payload = {
+  const currentProfile = await fetchProfile(user.id);
+  if (!currentProfile) {
+    throw new Error("내 정보를 찾지 못했습니다.");
+  }
+
+  const mergedProfile = {
+    ...currentProfile,
     ...updates,
-    phone: updates.phone || null,
+  };
+
+  const payload = {
+    full_name: mergedProfile.full_name,
+    gender: mergedProfile.gender,
+    phone: mergedProfile.phone || null,
+    calendar_type: mergedProfile.calendar_type,
+    is_leap_month: Boolean(mergedProfile.is_leap_month),
+    birth_year: mergedProfile.birth_year,
+    birth_month: mergedProfile.birth_month,
+    birth_day: mergedProfile.birth_day,
+    birth_hour: mergedProfile.birth_time_known ? mergedProfile.birth_hour : null,
+    birth_minute: mergedProfile.birth_time_known ? mergedProfile.birth_minute : null,
+    birth_time_known: Boolean(mergedProfile.birth_time_known),
+    marketing_opt_in: Boolean(mergedProfile.marketing_opt_in),
+    stellar_id: mergedProfile.stellar_id ? Number(mergedProfile.stellar_id) : null,
+    profile_image_path: mergedProfile.profile_image_path || null,
+    profile_image_url: mergedProfile.profile_image_url || null,
+    mbti: mergedProfile.mbti || null,
+    region_country: mergedProfile.region_country || null,
+    region_name: mergedProfile.region_name || null,
+    bio: mergedProfile.bio || "",
+    personality_visibility: mergedProfile.personality_visibility || "public",
+    health_visibility: mergedProfile.health_visibility || "public",
+    love_visibility: mergedProfile.love_visibility || "public",
+    ability_visibility: mergedProfile.ability_visibility || "public",
+    major_luck_visibility: mergedProfile.major_luck_visibility || "public",
     updated_at: new Date().toISOString(),
   };
+
+  if (needsDerivedProfileFields(mergedProfile)) {
+    const { fields } = buildProfileDerivedFieldsFromInput({
+      birthYear: mergedProfile.birth_year,
+      birthMonth: mergedProfile.birth_month,
+      birthDay: mergedProfile.birth_day,
+      birthHour: mergedProfile.birth_hour,
+      birthMinute: mergedProfile.birth_minute,
+      birthTimeKnown: mergedProfile.birth_time_known,
+      calendarType: mergedProfile.calendar_type,
+      isLeapMonth: mergedProfile.is_leap_month,
+      gender: mergedProfile.gender,
+    });
+
+    Object.assign(payload, fields);
+  }
 
   const { data, error } = await supabase
     .from("profiles")
@@ -95,6 +157,9 @@ export async function updateProfile(updates) {
     .single();
 
   if (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error("이미 사용 중인 스텔라 등록번호입니다.");
+    }
     throw new Error("내 정보를 저장하지 못했습니다.");
   }
 
@@ -113,6 +178,24 @@ export async function updateProfile(updates) {
         birth_minute: data.birth_time_known ? data.birth_minute : "",
         birth_time_known: data.birth_time_known,
         marketing_opt_in: data.marketing_opt_in,
+        stellar_id: data.stellar_id,
+        profile_image_path: data.profile_image_path || "",
+        profile_image_url: data.profile_image_url || "",
+        mbti: data.mbti || "",
+        region_country: data.region_country || "",
+        region_name: data.region_name || "",
+        bio: data.bio || "",
+        day_pillar_key: data.day_pillar_key || "",
+        day_pillar_hanja: data.day_pillar_hanja || "",
+        day_pillar_metaphor: data.day_pillar_metaphor || "",
+        element_class: data.element_class || "unknown",
+        preview_summary: data.preview_summary || "",
+        public_snapshot: data.public_snapshot || {},
+        personality_visibility: data.personality_visibility || "public",
+        health_visibility: data.health_visibility || "public",
+        love_visibility: data.love_visibility || "public",
+        ability_visibility: data.ability_visibility || "public",
+        major_luck_visibility: data.major_luck_visibility || "public",
       },
     });
   } catch {
@@ -225,6 +308,154 @@ export async function saveReading(record) {
 
   if (error) throw new Error("사주 결과를 저장하지 못했습니다.");
   return data;
+}
+
+export async function peekNextStellarId() {
+  const supabase = ensureSupabase();
+  const { data, error } = await supabase.rpc("peek_next_stellar_id");
+
+  if (error) throw new Error("다음 스텔라 등록번호를 불러오지 못했습니다.");
+  return data;
+}
+
+export async function checkStellarIdAvailability(stellarId, exceptProfileId = null) {
+  const supabase = ensureSupabase();
+  const { data, error } = await supabase.rpc("is_stellar_id_available", {
+    stellar_id_input: Number(stellarId),
+    except_profile_id: exceptProfileId,
+  });
+
+  if (error) throw new Error("스텔라 등록번호 중복 여부를 확인하지 못했습니다.");
+  return Boolean(data);
+}
+
+export async function fetchPublicProfileByStellarId(stellarId) {
+  const supabase = ensureSupabase();
+  const { data, error } = await supabase
+    .rpc("get_public_profile_by_stellar_id", {
+      stellar_id_input: Number(stellarId),
+    })
+    .maybeSingle();
+
+  if (error) throw new Error("스텔라 프로필을 불러오지 못했습니다.");
+  return data;
+}
+
+export async function searchPublicProfiles(query, limit = 20) {
+  const supabase = ensureSupabase();
+  const { data, error } = await supabase.rpc("search_stellar_profiles", {
+    search_query: query || "",
+    limit_count: limit,
+  });
+
+  if (error) throw new Error("스텔라 프로필 검색에 실패했습니다.");
+  return data || [];
+}
+
+export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {}) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 팔로잉 프로필을 볼 수 있습니다.");
+  }
+
+  const { data, error } = await supabase.rpc("get_following_profiles", {
+    sort_key: sort,
+    search_query: query,
+  });
+
+  if (error) throw new Error("팔로잉 프로필을 불러오지 못했습니다.");
+  return data || [];
+}
+
+export async function followProfile(targetProfileId) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 팔로우할 수 있습니다.");
+  }
+
+  if (!targetProfileId || targetProfileId === user.id) {
+    throw new Error("내 프로필은 팔로우할 수 없습니다.");
+  }
+
+  const { error } = await supabase
+    .from("profile_follows")
+    .insert({
+      follower_id: user.id,
+      following_id: targetProfileId,
+    });
+
+  if (error && !isUniqueViolation(error)) {
+    throw new Error("팔로우를 시작하지 못했습니다.");
+  }
+}
+
+export async function unfollowProfile(targetProfileId) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 팔로우를 취소할 수 있습니다.");
+  }
+
+  const { error } = await supabase
+    .from("profile_follows")
+    .delete()
+    .eq("follower_id", user.id)
+    .eq("following_id", targetProfileId);
+
+  if (error) {
+    throw new Error("팔로우를 취소하지 못했습니다.");
+  }
+}
+
+export async function uploadProfileImage(file) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 프로필 이미지를 올릴 수 있습니다.");
+  }
+
+  const extension = String(file?.name || "png").split(".").pop()?.toLowerCase() || "png";
+  const safeExtension = ["png", "jpg", "jpeg", "webp", "gif"].includes(extension) ? extension : "png";
+  const filePath = `${user.id}/avatar-${Date.now()}.${safeExtension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("profile-images")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error("프로필 이미지를 업로드하지 못했습니다.");
+  }
+
+  const { data } = supabase.storage
+    .from("profile-images")
+    .getPublicUrl(filePath);
+
+  return {
+    path: filePath,
+    publicUrl: data.publicUrl,
+  };
+}
+
+export async function removeProfileImage(filePath) {
+  const supabase = ensureSupabase();
+  if (!filePath) return;
+
+  const { error } = await supabase.storage
+    .from("profile-images")
+    .remove([filePath]);
+
+  if (error) {
+    throw new Error("기존 프로필 이미지를 삭제하지 못했습니다.");
+  }
 }
 
 export async function fetchSavedReadings() {

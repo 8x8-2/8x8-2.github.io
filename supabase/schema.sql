@@ -244,3 +244,623 @@ as $$
 $$;
 
 grant execute on function public.get_shared_reading(uuid) to anon, authenticated;
+
+create sequence if not exists public.stellar_id_seq
+as bigint
+start with 1
+increment by 1
+minvalue 1
+cache 1;
+
+alter table public.profiles
+add column if not exists stellar_id bigint,
+add column if not exists profile_image_path text,
+add column if not exists profile_image_url text,
+add column if not exists mbti text,
+add column if not exists region_country text,
+add column if not exists region_name text,
+add column if not exists bio text not null default '',
+add column if not exists day_pillar_key text,
+add column if not exists day_pillar_hanja text,
+add column if not exists day_pillar_metaphor text,
+add column if not exists element_class text not null default 'unknown',
+add column if not exists preview_summary text not null default '',
+add column if not exists public_snapshot jsonb not null default '{}'::jsonb,
+add column if not exists personality_visibility text not null default 'public',
+add column if not exists health_visibility text not null default 'public',
+add column if not exists love_visibility text not null default 'public',
+add column if not exists ability_visibility text not null default 'public',
+add column if not exists major_luck_visibility text not null default 'public';
+
+update public.profiles
+set bio = ''
+where bio is null;
+
+create unique index if not exists profiles_stellar_id_unique
+on public.profiles (stellar_id);
+
+create index if not exists profiles_full_name_lower_idx
+on public.profiles (lower(full_name));
+
+create index if not exists profiles_day_pillar_key_idx
+on public.profiles (day_pillar_key);
+
+do $$
+declare
+  max_stellar_id bigint;
+begin
+  if exists (
+    select 1
+    from public.profiles
+    where stellar_id is null
+  ) and not exists (
+    select 1
+    from public.profiles
+    where stellar_id is not null
+  ) then
+    with ordered as (
+      select id, row_number() over (order by created_at asc, id asc) as seq_id
+      from public.profiles
+    )
+    update public.profiles as profiles
+    set stellar_id = ordered.seq_id
+    from ordered
+    where profiles.id = ordered.id;
+  end if;
+
+  select max(stellar_id) into max_stellar_id
+  from public.profiles;
+
+  if max_stellar_id is null then
+    perform setval('public.stellar_id_seq', 1, false);
+  else
+    perform setval('public.stellar_id_seq', max_stellar_id, true);
+    update public.profiles
+    set stellar_id = nextval('public.stellar_id_seq')
+    where stellar_id is null;
+  end if;
+end;
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_stellar_id_check'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+    add constraint profiles_stellar_id_check
+    check (stellar_id between 1 and 9999999999999999);
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_visibility_check'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+    add constraint profiles_visibility_check
+    check (
+      personality_visibility in ('public', 'followers', 'private')
+      and health_visibility in ('public', 'followers', 'private')
+      and love_visibility in ('public', 'followers', 'private')
+      and ability_visibility in ('public', 'followers', 'private')
+      and major_luck_visibility in ('public', 'followers', 'private')
+    );
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_bio_length_check'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+    add constraint profiles_bio_length_check
+    check (char_length(bio) <= 150);
+  end if;
+end;
+$$;
+
+create table if not exists public.profile_follows (
+  follower_id uuid not null references auth.users (id) on delete cascade,
+  following_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default timezone('utc', now()),
+  primary key (follower_id, following_id),
+  constraint profile_follows_no_self check (follower_id <> following_id)
+);
+
+create index if not exists profile_follows_following_idx
+on public.profile_follows (following_id, created_at desc);
+
+create index if not exists profile_follows_follower_idx
+on public.profile_follows (follower_id, created_at desc);
+
+alter table public.profile_follows enable row level security;
+
+drop policy if exists "profile_follows_select_involved" on public.profile_follows;
+create policy "profile_follows_select_involved"
+on public.profile_follows
+for select
+using (auth.uid() = follower_id or auth.uid() = following_id);
+
+drop policy if exists "profile_follows_insert_own" on public.profile_follows;
+create policy "profile_follows_insert_own"
+on public.profile_follows
+for insert
+with check (auth.uid() = follower_id and follower_id <> following_id);
+
+drop policy if exists "profile_follows_delete_own" on public.profile_follows;
+create policy "profile_follows_delete_own"
+on public.profile_follows
+for delete
+using (auth.uid() = follower_id);
+
+insert into storage.buckets (id, name, public)
+values ('profile-images', 'profile-images', true)
+on conflict (id) do update
+set public = excluded.public;
+
+drop policy if exists "profile_images_public_read" on storage.objects;
+create policy "profile_images_public_read"
+on storage.objects
+for select
+using (bucket_id = 'profile-images');
+
+drop policy if exists "profile_images_upload_own" on storage.objects;
+create policy "profile_images_upload_own"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'profile-images'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+drop policy if exists "profile_images_update_own" on storage.objects;
+create policy "profile_images_update_own"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'profile-images'
+  and auth.uid()::text = (storage.foldername(name))[1]
+)
+with check (
+  bucket_id = 'profile-images'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+drop policy if exists "profile_images_delete_own" on storage.objects;
+create policy "profile_images_delete_own"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'profile-images'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  requested_stellar_id bigint;
+begin
+  requested_stellar_id :=
+    case
+      when nullif(new.raw_user_meta_data ->> 'stellar_id', '') ~ '^\d{1,16}$'
+        then (new.raw_user_meta_data ->> 'stellar_id')::bigint
+      else null
+    end;
+
+  insert into public.profiles (
+    id,
+    email,
+    full_name,
+    gender,
+    phone,
+    calendar_type,
+    is_leap_month,
+    birth_year,
+    birth_month,
+    birth_day,
+    birth_hour,
+    birth_minute,
+    birth_time_known,
+    marketing_opt_in,
+    stellar_id,
+    profile_image_path,
+    profile_image_url,
+    mbti,
+    region_country,
+    region_name,
+    bio,
+    day_pillar_key,
+    day_pillar_hanja,
+    day_pillar_metaphor,
+    element_class,
+    preview_summary,
+    public_snapshot,
+    personality_visibility,
+    health_visibility,
+    love_visibility,
+    ability_visibility,
+    major_luck_visibility
+  )
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data ->> 'full_name', '회원'),
+    coalesce(new.raw_user_meta_data ->> 'gender', 'male'),
+    nullif(new.raw_user_meta_data ->> 'phone', ''),
+    coalesce(new.raw_user_meta_data ->> 'calendar_type', 'solar'),
+    coalesce((new.raw_user_meta_data ->> 'is_leap_month')::boolean, false),
+    coalesce((new.raw_user_meta_data ->> 'birth_year')::integer, 2000),
+    coalesce((new.raw_user_meta_data ->> 'birth_month')::integer, 1),
+    coalesce((new.raw_user_meta_data ->> 'birth_day')::integer, 1),
+    nullif(new.raw_user_meta_data ->> 'birth_hour', '')::integer,
+    nullif(new.raw_user_meta_data ->> 'birth_minute', '')::integer,
+    coalesce((new.raw_user_meta_data ->> 'birth_time_known')::boolean, true),
+    coalesce((new.raw_user_meta_data ->> 'marketing_opt_in')::boolean, false),
+    coalesce(requested_stellar_id, nextval('public.stellar_id_seq')),
+    nullif(new.raw_user_meta_data ->> 'profile_image_path', ''),
+    nullif(new.raw_user_meta_data ->> 'profile_image_url', ''),
+    nullif(new.raw_user_meta_data ->> 'mbti', ''),
+    nullif(new.raw_user_meta_data ->> 'region_country', ''),
+    nullif(new.raw_user_meta_data ->> 'region_name', ''),
+    left(coalesce(new.raw_user_meta_data ->> 'bio', ''), 150),
+    nullif(new.raw_user_meta_data ->> 'day_pillar_key', ''),
+    nullif(new.raw_user_meta_data ->> 'day_pillar_hanja', ''),
+    nullif(new.raw_user_meta_data ->> 'day_pillar_metaphor', ''),
+    coalesce(nullif(new.raw_user_meta_data ->> 'element_class', ''), 'unknown'),
+    coalesce(new.raw_user_meta_data ->> 'preview_summary', ''),
+    coalesce((new.raw_user_meta_data -> 'public_snapshot')::jsonb, '{}'::jsonb),
+    coalesce(new.raw_user_meta_data ->> 'personality_visibility', 'public'),
+    coalesce(new.raw_user_meta_data ->> 'health_visibility', 'public'),
+    coalesce(new.raw_user_meta_data ->> 'love_visibility', 'public'),
+    coalesce(new.raw_user_meta_data ->> 'ability_visibility', 'public'),
+    coalesce(new.raw_user_meta_data ->> 'major_luck_visibility', 'public')
+  )
+  on conflict (id) do update
+  set
+    email = excluded.email,
+    full_name = excluded.full_name,
+    gender = excluded.gender,
+    phone = excluded.phone,
+    calendar_type = excluded.calendar_type,
+    is_leap_month = excluded.is_leap_month,
+    birth_year = excluded.birth_year,
+    birth_month = excluded.birth_month,
+    birth_day = excluded.birth_day,
+    birth_hour = excluded.birth_hour,
+    birth_minute = excluded.birth_minute,
+    birth_time_known = excluded.birth_time_known,
+    marketing_opt_in = excluded.marketing_opt_in,
+    stellar_id = coalesce(excluded.stellar_id, public.profiles.stellar_id),
+    profile_image_path = coalesce(excluded.profile_image_path, public.profiles.profile_image_path),
+    profile_image_url = coalesce(excluded.profile_image_url, public.profiles.profile_image_url),
+    mbti = excluded.mbti,
+    region_country = excluded.region_country,
+    region_name = excluded.region_name,
+    bio = excluded.bio,
+    day_pillar_key = excluded.day_pillar_key,
+    day_pillar_hanja = excluded.day_pillar_hanja,
+    day_pillar_metaphor = excluded.day_pillar_metaphor,
+    element_class = excluded.element_class,
+    preview_summary = excluded.preview_summary,
+    public_snapshot = excluded.public_snapshot,
+    personality_visibility = excluded.personality_visibility,
+    health_visibility = excluded.health_visibility,
+    love_visibility = excluded.love_visibility,
+    ability_visibility = excluded.ability_visibility,
+    major_luck_visibility = excluded.major_luck_visibility,
+    updated_at = timezone('utc', now());
+
+  return new;
+end;
+$$;
+
+create or replace function public.peek_next_stellar_id()
+returns bigint
+language sql
+security definer
+set search_path = public
+as $$
+  select coalesce((select max(stellar_id) + 1 from public.profiles), 1::bigint);
+$$;
+
+create or replace function public.is_stellar_id_available(stellar_id_input bigint, except_profile_id uuid default null)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select not exists (
+    select 1
+    from public.profiles
+    where stellar_id = stellar_id_input
+      and (except_profile_id is null or id <> except_profile_id)
+  );
+$$;
+
+create or replace function public.get_public_profile_by_stellar_id(stellar_id_input bigint)
+returns table (
+  profile_id uuid,
+  stellar_id bigint,
+  full_name text,
+  gender text,
+  profile_image_url text,
+  mbti text,
+  region_country text,
+  region_name text,
+  bio text,
+  day_pillar_key text,
+  day_pillar_hanja text,
+  day_pillar_metaphor text,
+  element_class text,
+  preview_summary text,
+  public_snapshot jsonb,
+  personality_visibility text,
+  health_visibility text,
+  love_visibility text,
+  ability_visibility text,
+  major_luck_visibility text,
+  follower_count bigint,
+  following_count bigint,
+  is_following boolean,
+  is_self boolean
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with target as (
+    select *
+    from public.profiles
+    where public.profiles.stellar_id = stellar_id_input
+    limit 1
+  ),
+  follower_counts as (
+    select following_id, count(*)::bigint as count
+    from public.profile_follows
+    group by following_id
+  ),
+  following_counts as (
+    select follower_id, count(*)::bigint as count
+    from public.profile_follows
+    group by follower_id
+  )
+  select
+    target.id as profile_id,
+    target.stellar_id,
+    target.full_name,
+    target.gender,
+    target.profile_image_url,
+    target.mbti,
+    target.region_country,
+    target.region_name,
+    target.bio,
+    target.day_pillar_key,
+    target.day_pillar_hanja,
+    target.day_pillar_metaphor,
+    target.element_class,
+    target.preview_summary,
+    target.public_snapshot,
+    target.personality_visibility,
+    target.health_visibility,
+    target.love_visibility,
+    target.ability_visibility,
+    target.major_luck_visibility,
+    coalesce(follower_counts.count, 0) as follower_count,
+    coalesce(following_counts.count, 0) as following_count,
+    exists (
+      select 1
+      from public.profile_follows
+      where follower_id = auth.uid()
+        and following_id = target.id
+    ) as is_following,
+    auth.uid() = target.id as is_self
+  from target
+  left join follower_counts on follower_counts.following_id = target.id
+  left join following_counts on following_counts.follower_id = target.id;
+$$;
+
+create or replace function public.search_stellar_profiles(search_query text, limit_count integer default 20)
+returns table (
+  profile_id uuid,
+  stellar_id bigint,
+  full_name text,
+  gender text,
+  profile_image_url text,
+  day_pillar_key text,
+  day_pillar_hanja text,
+  day_pillar_metaphor text,
+  element_class text,
+  mbti text,
+  follower_count bigint,
+  is_following boolean
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with normalized as (
+    select
+      trim(coalesce(search_query, '')) as query,
+      regexp_replace(trim(coalesce(search_query, '')), '\D', '', 'g') as numeric_query,
+      greatest(1, least(coalesce(limit_count, 20), 50)) as safe_limit
+  ),
+  follower_counts as (
+    select following_id, count(*)::bigint as count
+    from public.profile_follows
+    group by following_id
+  ),
+  source as (
+    select
+      profiles.id as profile_id,
+      profiles.stellar_id,
+      profiles.full_name,
+      profiles.gender,
+      profiles.profile_image_url,
+      profiles.day_pillar_key,
+      profiles.day_pillar_hanja,
+      profiles.day_pillar_metaphor,
+      profiles.element_class,
+      profiles.mbti,
+      coalesce(follower_counts.count, 0) as follower_count,
+      exists (
+        select 1
+        from public.profile_follows
+        where follower_id = auth.uid()
+          and following_id = profiles.id
+      ) as is_following,
+      position((select numeric_query from normalized) in profiles.stellar_id::text) as numeric_position,
+      char_length(profiles.stellar_id::text) as stellar_length
+    from public.profiles as profiles
+    left join follower_counts
+      on follower_counts.following_id = profiles.id
+    cross join normalized
+    where
+      normalized.query = ''
+      or lower(profiles.full_name) like '%' || lower(normalized.query) || '%'
+      or lower(coalesce(profiles.day_pillar_key, '')) like '%' || lower(normalized.query) || '%'
+      or lower(coalesce(profiles.mbti, '')) like '%' || lower(normalized.query) || '%'
+      or (
+        normalized.numeric_query <> ''
+        and profiles.stellar_id::text like '%' || normalized.numeric_query || '%'
+      )
+  )
+  select
+    source.profile_id,
+    source.stellar_id,
+    source.full_name,
+    source.gender,
+    source.profile_image_url,
+    source.day_pillar_key,
+    source.day_pillar_hanja,
+    source.day_pillar_metaphor,
+    source.element_class,
+    source.mbti,
+    source.follower_count,
+    source.is_following
+  from source
+  cross join normalized
+  order by
+    case
+      when normalized.numeric_query <> '' and source.stellar_id::text = normalized.numeric_query then 0
+      when normalized.numeric_query <> '' and source.numeric_position > 0 then 1
+      when normalized.numeric_query = '' and lower(source.full_name) = lower(normalized.query) then 0
+      else 2
+    end,
+    case
+      when normalized.numeric_query <> '' and source.numeric_position > 0 then source.numeric_position
+      else null
+    end asc nulls last,
+    case
+      when normalized.numeric_query <> '' and source.numeric_position > 0 then source.stellar_length
+      else null
+    end asc nulls last,
+    case
+      when normalized.numeric_query = '' then source.follower_count
+      else null
+    end desc nulls last,
+    source.stellar_id asc
+  limit (select safe_limit from normalized);
+$$;
+
+create or replace function public.get_following_profiles(sort_key text default 'recent', search_query text default '')
+returns table (
+  profile_id uuid,
+  stellar_id bigint,
+  full_name text,
+  gender text,
+  profile_image_url text,
+  day_pillar_key text,
+  day_pillar_hanja text,
+  day_pillar_metaphor text,
+  element_class text,
+  mbti text,
+  follower_count bigint,
+  followed_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with normalized as (
+    select
+      lower(trim(coalesce(sort_key, 'recent'))) as requested_sort,
+      trim(coalesce(search_query, '')) as query,
+      regexp_replace(trim(coalesce(search_query, '')), '\D', '', 'g') as numeric_query
+  ),
+  follower_counts as (
+    select following_id, count(*)::bigint as count
+    from public.profile_follows
+    group by following_id
+  ),
+  source as (
+    select
+      profiles.id as profile_id,
+      profiles.stellar_id,
+      profiles.full_name,
+      profiles.gender,
+      profiles.profile_image_url,
+      profiles.day_pillar_key,
+      profiles.day_pillar_hanja,
+      profiles.day_pillar_metaphor,
+      profiles.element_class,
+      profiles.mbti,
+      coalesce(follower_counts.count, 0) as follower_count,
+      profile_follows.created_at as followed_at
+    from public.profile_follows
+    join public.profiles
+      on profiles.id = profile_follows.following_id
+    left join follower_counts
+      on follower_counts.following_id = profiles.id
+    cross join normalized
+    where profile_follows.follower_id = auth.uid()
+      and (
+        normalized.query = ''
+        or lower(profiles.full_name) like '%' || lower(normalized.query) || '%'
+        or lower(coalesce(profiles.day_pillar_key, '')) like '%' || lower(normalized.query) || '%'
+        or lower(coalesce(profiles.mbti, '')) like '%' || lower(normalized.query) || '%'
+        or (
+          normalized.numeric_query <> ''
+          and profiles.stellar_id::text like '%' || normalized.numeric_query || '%'
+        )
+      )
+  )
+  select
+    source.profile_id,
+    source.stellar_id,
+    source.full_name,
+    source.gender,
+    source.profile_image_url,
+    source.day_pillar_key,
+    source.day_pillar_hanja,
+    source.day_pillar_metaphor,
+    source.element_class,
+    source.mbti,
+    source.follower_count,
+    source.followed_at
+  from source
+  cross join normalized
+  order by
+    case when normalized.requested_sort = 'name' then lower(source.full_name) end asc nulls last,
+    case when normalized.requested_sort = 'id' then source.stellar_id end asc nulls last,
+    case when normalized.requested_sort not in ('name', 'id') then source.followed_at end desc nulls last,
+    source.stellar_id asc;
+$$;
+
+grant execute on function public.peek_next_stellar_id() to authenticated, anon;
+grant execute on function public.is_stellar_id_available(bigint, uuid) to authenticated, anon;
+grant execute on function public.get_public_profile_by_stellar_id(bigint) to authenticated, anon;
+grant execute on function public.search_stellar_profiles(text, integer) to authenticated, anon;
+grant execute on function public.get_following_profiles(text, text) to authenticated;

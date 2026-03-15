@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111314" />
+    <link rel="icon" href="/src/img/bi/favicon-stellarid.png" sizes="any" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-stellarid.png" />
+    <title>스텔라 ID 검색 | 스텔라 ID</title>
+    <meta name="description" content="이름과 스텔라 등록번호로 스텔라 프로필을 검색해 인연을 찾아보세요." />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body
+    data-page-name="search"
+    data-link-home="../"
+    data-link-signin="../signin/"
+    data-link-search="./"
+    data-link-public-profile="../profile/"
+    data-link-saved="../saved/"
+    data-link-account="../p/"
+  >
+    <header class="social-header-shell">
+      <div class="container">
+        <div data-social-nav></div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <form id="searchForm" class="stack social-search-form" autocomplete="off">
+          <label class="field">
+            <span class="sr-only">스텔라 ID 검색</span>
+            <input
+              id="searchInput"
+              class="soulday-search-input social-search-input"
+              type="search"
+              inputmode="search"
+              enterkeyhint="search"
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              placeholder="이름, 스텔라 ID를 입력해 인연을 검색해 주세요."
+            />
+          </label>
+          <p id="searchStatus" class="muted"></p>
+          <p id="searchError" class="error"></p>
+        </form>
+      </section>
+
+      <section id="searchResults" class="stack"></section>
+
+      <section id="searchEmpty" class="card hidden">
+        <div class="title">아직 검색 결과가 없습니다</div>
+        <div class="text">이름이나 스텔라 ID를 입력하면 자동완성처럼 바로 결과가 나타납니다.</div>
+      </section>
+    </main>
+
+    <script type="module" src="/src/search.js"></script>
+  </body>
+</html>
