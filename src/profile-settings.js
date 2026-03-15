@@ -11,7 +11,7 @@ import {
 import { fillCountrySelect, fillRegionSelect } from "./shared/regions.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { getVisibilityLabel, PROFILE_VISIBILITY_VALUES } from "./shared/profile-derived.js";
-import { isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
+import { buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -56,6 +56,12 @@ function fillVisibilityOptions(selectEl, value) {
 
 function updateBioCount() {
   $("settingsBioCount").textContent = `${$("settingsBio").value.length} / 150`;
+}
+
+function buildProfileRedirectUrl(stellarId) {
+  const url = new URL(buildPublicProfileUrl(stellarId), window.location.href);
+  url.searchParams.set("saved", "1");
+  return url.toString();
 }
 
 function renderAvatarPreview(profile = currentProfile) {
@@ -254,13 +260,14 @@ async function init() {
       });
 
       if (previousImagePath && previousImagePath !== nextImagePath) {
-        removeProfileImage(previousImagePath).catch(() => {});
+        await removeProfileImage(previousImagePath).catch(() => {});
       }
 
       selectedAvatarFile = null;
       removeAvatar = false;
       fillForm(currentProfile);
-      statusEl.textContent = "저장되었습니다.";
+      statusEl.textContent = "저장되었습니다. 프로필로 이동합니다...";
+      window.location.href = buildProfileRedirectUrl(currentProfile.stellar_id);
     } catch (error) {
       errorEl.textContent = error.message || "프로필을 저장하지 못했습니다.";
       statusEl.textContent = "";

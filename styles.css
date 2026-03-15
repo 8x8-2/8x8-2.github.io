@@ -2579,6 +2579,10 @@ summary:focus-visible {
   gap: 12px;
 }
 
+.profile-luck-list {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
 .profile-stat-grid,
 .profile-detail-grid,
 .profile-mini-list {
@@ -2603,38 +2607,53 @@ summary:focus-visible {
   border-radius: 18px;
   border: 1px solid rgba(56, 62, 75, 0.86);
   background: rgba(18, 22, 27, 0.92);
+  overflow: hidden;
 }
 
-.profile-graph-bars {
-  height: 170px;
-  display: grid;
-  grid-template-columns: repeat(25, minmax(0, 1fr));
-  gap: 6px;
-  align-items: end;
-}
-
-.profile-graph-bar-wrap {
+.profile-graph-canvas {
   position: relative;
-  height: 100%;
-  display: flex;
-  align-items: end;
-  justify-content: center;
+  height: 170px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(73, 250, 160, 0.08), rgba(73, 250, 160, 0) 52%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0) 100%);
 }
 
-.profile-graph-bar {
+.profile-graph-svg {
   width: 100%;
-  border-radius: 999px 999px 8px 8px;
-  background: linear-gradient(180deg, rgba(73, 250, 160, 0.9), rgba(73, 250, 160, 0.16));
+  height: 100%;
 }
 
-.profile-graph-bar-wrap.is-current .profile-graph-bar {
-  background: linear-gradient(180deg, rgba(241, 242, 243, 0.96), rgba(73, 250, 160, 0.28));
+.profile-graph-baseline {
+  stroke: rgba(115, 126, 138, 0.28);
+  stroke-width: 1;
+}
+
+.profile-graph-area {
+  fill: rgba(73, 250, 160, 0.14);
+}
+
+.profile-graph-line {
+  fill: none;
+  stroke: rgba(132, 255, 208, 0.96);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.profile-graph-point {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 3px solid rgba(15, 19, 23, 0.96);
+  box-shadow: 0 0 0 4px rgba(73, 250, 160, 0.14);
+  transform: translate(-50%, 50%);
 }
 
 .profile-graph-bubble {
   position: absolute;
-  top: -10px;
-  left: 50%;
   transform: translate(-50%, -100%);
   padding: 4px 8px;
   border-radius: 999px;
@@ -2655,6 +2674,39 @@ summary:focus-visible {
 
 .profile-rank-section {
   margin-top: 20px;
+}
+
+.profile-signal-block + .profile-signal-block {
+  margin-top: 12px;
+}
+
+.profile-signal-title,
+.profile-luck-note {
+  color: var(--mut);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.profile-signal-title {
+  margin-bottom: 8px;
+}
+
+.profile-luck-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.profile-luck-period {
+  margin-top: 10px;
+  color: var(--accent-strong);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.profile-luck-note {
+  margin-top: 12px;
 }
 
 .profile-mini-card .title,
@@ -2733,6 +2785,32 @@ summary:focus-visible {
   gap: 16px;
   align-items: center;
   margin-top: 14px;
+  min-width: 0;
+}
+
+.profile-settings-avatar-row > * {
+  min-width: 0;
+}
+
+.profile-settings-form .actions {
+  flex-wrap: wrap;
+}
+
+.profile-settings-form .inline-field-row {
+  align-items: stretch;
+}
+
+.profile-settings-form .inline-field-row > * {
+  min-width: 0;
+}
+
+.profile-settings-form input[type="file"] {
+  width: 100%;
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .is-authenticated .topbar-menu {
@@ -2752,6 +2830,7 @@ summary:focus-visible {
   .profile-stat-grid,
   .profile-detail-grid,
   .profile-mini-list,
+  .profile-luck-list,
   .profile-cta-row,
   .inline-field-row,
   .social-filter-row,
@@ -2801,7 +2880,11 @@ summary:focus-visible {
     overflow-x: auto;
   }
 
-  .profile-graph-bars {
-    gap: 4px;
+  .profile-graph-canvas {
+    height: 154px;
+  }
+
+  .profile-luck-pills {
+    justify-content: flex-start;
   }
 }

@@ -44,7 +44,7 @@ export function applyPrettyProfilePath(stellarId) {
   if (!stellarId || isLocalDevelopment()) return;
 
   const targetPath = `/${encodeURIComponent(String(stellarId))}`;
-  const targetUrl = `${targetPath}${window.location.hash || ""}`;
+  const targetUrl = `${targetPath}${window.location.search || ""}${window.location.hash || ""}`;
 
   if (window.location.pathname === targetPath) return;
   window.history.replaceState({}, "", targetUrl);

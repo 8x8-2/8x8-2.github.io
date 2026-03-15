@@ -496,19 +496,58 @@ export async function uploadProfileImage(file) {
     throw new Error("로그인 후 프로필 이미지를 올릴 수 있습니다.");
   }
 
-  const extension = String(file?.name || "png").split(".").pop()?.toLowerCase() || "png";
-  const safeExtension = ["png", "jpg", "jpeg", "webp", "gif"].includes(extension) ? extension : "png";
-  const filePath = `${user.id}/avatar-${Date.now()}.${safeExtension}`;
+  const mimeToExtension = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+  const normalizedMimeType = String(file?.type || "").toLowerCase();
+  const extensionFromMime = mimeToExtension[normalizedMimeType] || "";
+  const extensionFromName = String(file?.name || "png").split(".").pop()?.toLowerCase() || "png";
+  const safeExtension = ["png", "jpg", "jpeg", "webp", "gif"].includes(extensionFromMime || extensionFromName)
+    ? (extensionFromMime || extensionFromName)
+    : "";
 
-  const { error: uploadError } = await supabase.storage
+  if (!safeExtension) {
+    throw new Error("프로필 이미지는 PNG, JPG, WEBP, GIF 형식만 올릴 수 있습니다.");
+  }
+
+  const safeContentType = normalizedMimeType || ({
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    webp: "image/webp",
+    gif: "image/gif",
+  }[safeExtension]);
+  const uniqueId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : String(Date.now());
+  const filePath = `${user.id}/avatar-${uniqueId}.${safeExtension}`;
+  const uploadOptions = {
+    cacheControl: "3600",
+    upsert: true,
+    contentType: safeContentType,
+  };
+
+  let uploadError = null;
+
+  const uploadAttempt = await supabase.storage
     .from("profile-images")
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
+    .upload(filePath, file, uploadOptions);
+  uploadError = uploadAttempt.error;
+
+  if (uploadError && typeof file?.arrayBuffer === "function") {
+    const bytes = await file.arrayBuffer();
+    const retryAttempt = await supabase.storage
+      .from("profile-images")
+      .upload(filePath, bytes, uploadOptions);
+    uploadError = retryAttempt.error;
+  }
 
   if (uploadError) {
-    throw new Error("프로필 이미지를 업로드하지 못했습니다.");
+    throw new Error(uploadError.message || "프로필 이미지를 업로드하지 못했습니다.");
   }
 
   const { data } = supabase.storage

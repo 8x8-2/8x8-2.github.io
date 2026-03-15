@@ -22,6 +22,7 @@ import { formatGenderLabel } from "./shared/birth.js";
 import { escapeHtml } from "./shared/html.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { shareLink } from "./shared/share.js";
+import { showToast } from "./shared/ui.js";
 import { applyPrettyProfilePath, buildProfileSettingsUrl, buildPublicProfileUrl, getRequestedStellarId } from "./shared/stellar-id.js";
 import { formatRegionDisplay } from "./shared/regions.js";
 
@@ -109,25 +110,73 @@ function renderMiniList(items) {
 }
 
 function buildGraph(series, label) {
-  const max = 100;
+  const min = 20;
+  const max = 96;
+  const points = series.map((point, index) => {
+    const x = series.length <= 1 ? 50 : (index / (series.length - 1)) * 100;
+    const normalized = (point.score - min) / (max - min);
+    const y = 88 - (Math.max(0, Math.min(1, normalized)) * 72);
+
+    return {
+      ...point,
+      x,
+      y,
+    };
+  });
+  const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const fillPoints = `0,92 ${linePoints} 100,92`;
+  const currentPoint = points.find((point) => point.isCurrent) || points[Math.floor(points.length / 2)];
+  const now = new Date();
+  const currentLabel = `현재 (${now.getFullYear()}. ${now.getMonth() + 1}월)`;
 
   return `
     <div class="profile-graph" aria-label="${escapeHtml(label)}">
-      <div class="profile-graph-bars">
-        ${series.map((point) => `
-          <div class="profile-graph-bar-wrap ${point.isCurrent ? "is-current" : ""}">
-            <div class="profile-graph-bar" style="height:${Math.max(12, point.score / max * 100)}%"></div>
-            ${point.isCurrent ? `<span class="profile-graph-bubble">${point.score}점</span>` : ""}
-          </div>
-        `).join("")}
+      <div class="profile-graph-canvas">
+        <svg class="profile-graph-svg" viewBox="0 0 100 92" preserveAspectRatio="none" aria-hidden="true">
+          <line x1="0" y1="92" x2="100" y2="92" class="profile-graph-baseline" />
+          <polygon points="${fillPoints}" class="profile-graph-area" />
+          <polyline points="${linePoints}" class="profile-graph-line" />
+        </svg>
+        <span class="profile-graph-bubble" style="left:${currentPoint.x}%; bottom:calc(${((92 - currentPoint.y) / 92) * 100}% + 8px);">${currentPoint.score}점</span>
+        <span class="profile-graph-point" style="left:${currentPoint.x}%; bottom:${((92 - currentPoint.y) / 92) * 100}%;" aria-hidden="true"></span>
       </div>
       <div class="profile-graph-labels">
         <span>1년 전</span>
-        <span>현재</span>
+        <span>${escapeHtml(currentLabel)}</span>
         <span>1년 후</span>
       </div>
     </div>
   `;
+}
+
+function buildSignalChips(items, tone = "good") {
+  const chipClass = tone === "warn" ? "impact-chip impact-chip-warn" : "impact-chip impact-chip-good";
+
+  return items.map((item) => `
+    <span class="${chipClass}">${escapeHtml(item)}</span>
+  `).join("");
+}
+
+function buildSignalBlock(title, items, tone = "good") {
+  if (!items?.length) return "";
+
+  return `
+    <div class="profile-signal-block">
+      <div class="profile-signal-title">${escapeHtml(title)}</div>
+      <div class="impact-pills">
+        ${buildSignalChips(items, tone)}
+      </div>
+    </div>
+  `;
+}
+
+function getCollaborationLabel(score) {
+  if (score == null) return "아직 비교할 수 없어요";
+  if (score >= 85) return "매우 잘 맞아요";
+  if (score >= 72) return "잘 맞아요";
+  if (score >= 56) return "그저 그래요";
+  if (score >= 40) return "별로 안 맞아요";
+  return "매우 안 맞아요";
 }
 
 function buildLockCard(label) {
@@ -254,6 +303,7 @@ function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
 function buildHealthTab(snapshot) {
   const series = buildFlowSeries(snapshot, "health");
   const todayScore = getTodayScore(snapshot, "health");
+  const currentYearItem = snapshot?.advanced?.yearLuck?.items?.[0] || null;
 
   return `
     <section class="card">
@@ -268,8 +318,22 @@ function buildHealthTab(snapshot) {
           <div class="profile-score-value">${todayScore}</div>
         </article>
         <article class="box profile-stat-card">
+          <div class="title">이번 시기 포인트</div>
+          <div class="text">${escapeHtml(currentYearItem?.focus || "생활 리듬 관리")}</div>
+        </article>
+        <article class="box profile-stat-card">
           <div class="title">올해 좋은 점</div>
           <div class="text">${escapeHtml(getSnapshotSection(snapshot, 4) || "생활 리듬만 크게 흔들리지 않으면 회복력이 비교적 안정적으로 유지되는 편입니다.")}</div>
+        </article>
+      </div>
+      <div class="profile-detail-grid">
+        <article class="box">
+          <div class="title">이번 시기 좋은 기운</div>
+          ${buildSignalBlock("도움이 되는 흐름", currentYearItem?.boosts || [], "good") || '<div class="text">무리하지 않고 회복 루틴을 지키는 쪽이 유리합니다.</div>'}
+        </article>
+        <article class="box">
+          <div class="title">이번 시기 주의할 점</div>
+          ${buildSignalBlock("미리 챙길 포인트", currentYearItem?.cautions || [], "warn") || '<div class="text">피로 누적과 수면 리듬 붕괴는 먼저 관리하는 편이 좋습니다.</div>'}
         </article>
       </div>
       <div class="profile-detail-grid">
@@ -291,6 +355,7 @@ function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
   const series = buildFlowSeries(snapshot, "love");
   const bestMatches = buildCompatibilityEntries(snapshot, "love", false);
   const worstMatches = buildCompatibilityEntries(snapshot, "love", true);
+  const currentYearItem = snapshot?.advanced?.yearLuck?.items?.[0] || null;
 
   return `
     <section class="card">
@@ -315,6 +380,16 @@ function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
           <div class="text">${escapeHtml(snapshot?.advanced?.diagnosis?.summary || getSnapshotSection(snapshot, 3) || "")}</div>
         </article>
       </div>
+      <div class="profile-detail-grid">
+        <article class="box">
+          <div class="title">이번 시기 설레는 포인트</div>
+          ${buildSignalBlock("좋은 흐름", currentYearItem?.boosts || [], "good") || '<div class="text">감정 표현과 관계의 온도 차이를 자연스럽게 맞춰 가는 흐름이 좋습니다.</div>'}
+        </article>
+        <article class="box">
+          <div class="title">이번 시기 조심할 점</div>
+          ${buildSignalBlock("조율 포인트", currentYearItem?.cautions || [], "warn") || '<div class="text">속도 차이와 애매한 반응은 오해를 만들기 쉬워요.</div>'}
+        </article>
+      </div>
       <section class="profile-rank-section">
         <div class="section-intro">
           <h3>이성적으로 잘 맞는 일주</h3>
@@ -333,8 +408,12 @@ function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
   `;
 }
 
-function buildAbilityTab(snapshot) {
+function buildAbilityTab(profile, snapshot, viewerSnapshot, isSelf) {
   const series = buildFlowSeries(snapshot, "ability");
+  const score = getRelationshipScore(viewerSnapshot, snapshot, "ability");
+  const todayScore = getTodayScore(snapshot, "ability");
+  const wealthCards = snapshot?.advanced?.wealth?.cards || [];
+  const currentYearItem = snapshot?.advanced?.yearLuck?.items?.[0] || null;
 
   return `
     <section class="card">
@@ -342,19 +421,43 @@ function buildAbilityTab(snapshot) {
         <h2>능력</h2>
         <p class="muted">커리어, 재물 흐름, 잘 맞는 환경을 함께 정리했습니다.</p>
       </div>
-      ${buildGraph(series, "재물운 흐름 그래프")}
+      ${!isSelf && viewerSnapshot ? `
+        <div class="box profile-highlight-box">
+          <div class="title">${escapeHtml(profile.full_name)}님과 협업운이 ${escapeHtml(getCollaborationLabel(score))}</div>
+          <div class="text">서로의 일주 결을 바탕으로 일하는 방식, 추진 리듬, 결과물 연결감을 5단계로 가볍게 읽었습니다.</div>
+        </div>
+      ` : ""}
+      ${buildGraph(series, "능력운 흐름 그래프")}
+      <div class="profile-stat-grid">
+        <article class="box profile-stat-card">
+          <div class="title">현재 능력 점수</div>
+          <div class="profile-score-value">${todayScore}</div>
+        </article>
+        <article class="box profile-stat-card">
+          <div class="title">이번 시기 핵심 키워드</div>
+          <div class="text">${escapeHtml(currentYearItem?.focus || "실력과 결과물 연결")}</div>
+        </article>
+      </div>
       <div class="profile-detail-grid">
+        <article class="box">
+          <div class="title">이번 시기 잘 풀리는 포인트</div>
+          ${buildSignalBlock("도움이 되는 기운", currentYearItem?.boosts || [], "good") || '<div class="text">기획, 분석, 정리, 실행이 분명한 환경에서 장점이 잘 드러납니다.</div>'}
+        </article>
+        <article class="box">
+          <div class="title">이번 시기 경계 포인트</div>
+          ${buildSignalBlock("주의할 기운", currentYearItem?.cautions || [], "warn") || '<div class="text">속도는 빠른데 기준이 모호한 환경은 피로가 커질 수 있습니다.</div>'}
+        </article>
+      </div>
+      <div class="profile-detail-grid">
+        ${wealthCards.map((card) => `
+          <article class="box">
+            <div class="title">${escapeHtml(card.title)}</div>
+            <div class="text">${escapeHtml(card.text)}</div>
+          </article>
+        `).join("")}
         <article class="box">
           <div class="title">능력운 요약</div>
           <div class="text">${escapeHtml(getSnapshotSection(snapshot, 1) || snapshot?.advanced?.wealth?.summary || "")}</div>
-        </article>
-        <article class="box">
-          <div class="title">잘 맞는 환경과 직무</div>
-          <div class="text">${escapeHtml(snapshot?.advanced?.wealth?.cards?.[1]?.text || "기획, 분석, 정리, 실행이 분명한 환경에서 장점이 드러납니다.")}</div>
-        </article>
-        <article class="box">
-          <div class="title">스트레스 받을 환경과 직무</div>
-          <div class="text">${escapeHtml(snapshot?.advanced?.yearLuck?.items?.[0]?.cautions?.join(" · ") || "속도는 빠른데 기준이 모호하고 역할이 계속 바뀌는 환경은 피로가 커질 수 있습니다.")}</div>
         </article>
       </div>
     </section>
@@ -368,10 +471,17 @@ function renderLuckList(items, type) {
         <article class="box profile-luck-card ${item.isCurrent ? "is-current" : ""}">
           <div class="profile-luck-head">
             <div class="title">${escapeHtml(type === "major" ? `${item.index}대운 ${item.pillarString}` : `${item.year}년 ${item.pillarString}`)}</div>
-            <span class="luck-pill ${item.isCurrent ? "is-active" : ""}">${escapeHtml(item.focus || "흐름")}</span>
+            <div class="profile-luck-pills">
+              <span class="luck-pill ${item.isCurrent ? "is-active" : ""}">${escapeHtml(item.focus || "흐름")}</span>
+              ${item.alignmentText ? `<span class="luck-pill">${escapeHtml(item.alignmentText)}</span>` : ""}
+            </div>
           </div>
-          <div class="text">${escapeHtml(item.background || "")}</div>
+          <div class="profile-luck-period">${escapeHtml(type === "major" ? `${item.startYear} - ${item.endYear} · 약 ${item.ageStart}세 - ${item.ageEnd}세` : `${item.focus || "흐름"} 중심 해석`)}</div>
+          <div class="text">${escapeHtml(item.background || item.note || "")}</div>
           <div class="mini-note">${escapeHtml(item.result || item.note || "")}</div>
+          ${buildSignalBlock("좋은 기운", item.boosts || [], "good")}
+          ${buildSignalBlock("주의 기운", item.cautions || [], "warn")}
+          ${item.interactionNote ? `<div class="profile-luck-note">${escapeHtml(item.interactionNote)}</div>` : ""}
         </article>
       `).join("")}
     </div>
@@ -397,7 +507,7 @@ function buildMajorLuckTab(snapshot) {
           <h3>세운</h3>
           <p class="muted">${escapeHtml(snapshot?.advanced?.yearLuck?.summary || "")}</p>
         </div>
-        ${renderLuckList(snapshot?.advanced?.yearLuck?.items?.slice(0, 6) || [], "year")}
+        ${renderLuckList(snapshot?.advanced?.yearLuck?.items || [], "year")}
       </section>
     </section>
   `;
@@ -437,6 +547,7 @@ function renderHero(profile, meta, relationship) {
         <div class="profile-tag-row">
           <span class="impact-chip impact-chip-neutral">${escapeHtml(formatGenderLabel(profile.gender))}</span>
           <span class="impact-chip impact-chip-good">${escapeHtml(meta.dayPillarKey)} 일주</span>
+          ${profile.mbti ? `<span class="impact-chip impact-chip-neutral">${escapeHtml(profile.mbti)}</span>` : ""}
         </div>
         <div class="profile-follow-stats">
           <span>팔로워 ${profile.follower_count}</span>
@@ -463,7 +574,7 @@ function renderProfileContent(profile, snapshot, viewerSnapshot, relationship, a
     personality: visibility.personality ? buildPersonalityTab(profile, snapshot, viewerSnapshot, relationship.isSelf) : buildLockCard("성격"),
     health: visibility.health ? buildHealthTab(snapshot) : buildLockCard("건강"),
     love: visibility.love ? buildLoveTab(profile, snapshot, viewerSnapshot, relationship.isSelf) : buildLockCard("연애"),
-    ability: visibility.ability ? buildAbilityTab(snapshot) : buildLockCard("능력"),
+    ability: visibility.ability ? buildAbilityTab(profile, snapshot, viewerSnapshot, relationship.isSelf) : buildLockCard("능력"),
     majorLuck: visibility.majorLuck ? buildMajorLuckTab(snapshot) : buildLockCard("대세운"),
   };
 
@@ -530,6 +641,15 @@ async function init() {
 
   document.title = `${publicProfile.full_name} / ${publicProfile.stellar_id} | 스텔라 ID`;
   applyPrettyProfilePath(publicProfile.stellar_id);
+
+  const profileSaved = new URLSearchParams(window.location.search).get("saved");
+  if (profileSaved === "1") {
+    showToast("프로필이 저장되었습니다.");
+    const params = new URLSearchParams(window.location.search);
+    params.delete("saved");
+    const nextQuery = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash || ""}`);
+  }
 
   $("profileLoading").classList.add("hidden");
   $("profileHero").classList.remove("hidden");
