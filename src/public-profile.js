@@ -22,7 +22,6 @@ import { formatGenderLabel } from "./shared/birth.js";
 import { escapeHtml } from "./shared/html.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { shareLink } from "./shared/share.js";
-import symbolStellarIdUrl from "./img/bi/symbol-stellarid.png";
 import { applyPrettyProfilePath, buildProfileSettingsUrl, buildPublicProfileUrl, getRequestedStellarId } from "./shared/stellar-id.js";
 import { formatRegionDisplay } from "./shared/regions.js";
 
@@ -57,33 +56,13 @@ function getTabIcon(name) {
 }
 
 function renderGuestNav() {
-  const slot = document.querySelector("[data-social-nav]");
-  const homeUrl = escapeHtml(new URL(document.body.dataset.linkHome || "../", window.location.href).toString());
-  const signinUrl = escapeHtml(new URL(document.body.dataset.linkSignin || "../signin/", window.location.href).toString());
-  const requestedStellarId = escapeHtml(String(getRequestedStellarId() || ""));
-
-  slot.innerHTML = `
-    <div class="social-topbar">
-      <div class="social-topbar-left">
-        <div class="social-brand">
-          <a class="social-brand-logo-link" href="${homeUrl}" aria-label="스텔라 ID 홈">
-            <span class="social-brand-logo"><img src="${symbolStellarIdUrl}" alt="" /></span>
-          </a>
-          <span class="social-brand-copy">
-            <a class="social-brand-name social-brand-home-link" href="${homeUrl}">스텔라 프로필</a>
-            <span class="social-brand-meta">
-              <span class="social-brand-label">STELLAR-ID</span>
-              <span class="social-brand-slash">/</span>
-              ${requestedStellarId ? `<span class="social-brand-id">${requestedStellarId}</span>` : ""}
-            </span>
-          </span>
-        </div>
-      </div>
-      <div class="social-topbar-right">
-        <a class="text-link-button" href="${signinUrl}">로그인</a>
-      </div>
-    </div>
-  `;
+  renderSocialNav(document.querySelector("[data-social-nav]"), {
+    session: null,
+    viewerProfile: null,
+    pageTitle: "스텔라 프로필",
+    currentStellarId: getRequestedStellarId(),
+    showProfileIdentity: true,
+  });
 }
 
 function renderAvatar(profile) {

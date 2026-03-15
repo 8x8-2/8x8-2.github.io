@@ -74,31 +74,11 @@ function buildHead({ title, description, canonicalPath, jsonLd }) {
   `.trim();
 }
 
-function buildTopbar(activeKey, { homeHref, listHref }) {
-  const homeActive = activeKey === "home" ? " is-active" : "";
-  const listActive = activeKey === "soulday_list" ? " is-active" : "";
-  const homeCurrent = activeKey === "home" ? ' aria-current="page"' : "";
-  const listCurrent = activeKey === "soulday_list" ? ' aria-current="page"' : "";
-
+function buildTopbar() {
   return `
-    <header class="topbar">
-      <div class="topbar-inner">
-        <a class="brand" href="${homeHref}" aria-label="Stellar ID 홈">
-          <span class="brand-logo-slot" aria-hidden="true">
-            <img class="brand-logo-image" src="/src/img/bi/symbol-stellarid.png" alt="" />
-          </span>
-          <span class="brand-copy">
-            <span class="brand-name">스텔라 ID</span>
-            <span class="brand-subtitle">STELLAR PROFILE</span>
-          </span>
-        </a>
-        <div class="topbar-actions">
-          <nav class="topbar-menu" aria-label="상단 메뉴">
-            <a class="topbar-menu-link${homeActive}" href="${homeHref}" data-nav-target="home"${homeCurrent}>사주 보기</a>
-            <a class="topbar-menu-link${listActive}" href="${listHref}" data-nav-target="soulday_list"${listCurrent}>일주별 보기</a>
-          </nav>
-          <div class="topbar-auth" data-auth-slot></div>
-        </div>
+    <header class="social-header-shell">
+      <div class="container">
+        <div data-social-nav></div>
       </div>
     </header>
   `.trim();
@@ -235,10 +215,7 @@ function buildListPage(entries) {
     data-link-signup="../signup/"
     data-link-saved="../saved/"
   >
-    ${buildTopbar("soulday_list", {
-      homeHref: "../",
-      listHref: "./",
-    })}
+    ${buildTopbar()}
     <main class="container">
       <section class="card hero-card" aria-labelledby="soulday-list-heading">
         <p class="eyebrow">일주별 보기 · 60일주 아카이브 · 물상 해석</p>
@@ -306,10 +283,7 @@ function buildDetailPage(entry) {
     data-link-signup="../../signup/"
     data-link-saved="../../saved/"
   >
-    ${buildTopbar("soulday_list", {
-      homeHref: "../../",
-      listHref: "../",
-    })}
+    ${buildTopbar()}
     <main class="container">
       <section class="card hero-card soulday-hero-card" data-element="${entry.elementClass}" aria-labelledby="soulday-detail-heading">
         <p class="eyebrow">일주별 특징 · 물상 해석</p>

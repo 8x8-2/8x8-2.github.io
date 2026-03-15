@@ -2097,6 +2097,18 @@ summary:focus-visible {
   gap: 12px;
 }
 
+.social-topbar .topbar-auth-link {
+  border: 1px solid rgba(244, 247, 250, 0.96);
+  background: rgba(244, 247, 250, 0.98);
+  color: #111314;
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.social-topbar .topbar-auth-link:hover {
+  background: #ffffff;
+}
+
 .social-brand {
   display: inline-flex;
   align-items: center;

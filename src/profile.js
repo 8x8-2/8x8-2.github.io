@@ -18,7 +18,6 @@ import {
 import { escapeHtml } from "./shared/html.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { showToast } from "./shared/ui.js";
-import symbolStellarIdUrl from "./img/bi/symbol-stellarid.png";
 
 function $(id) {
   return document.getElementById(id);
@@ -52,31 +51,11 @@ function setGuestLinks() {
 }
 
 function renderGuestNav() {
-  const slot = document.querySelector("[data-social-nav]");
-  if (!slot) return;
-
-  const homeUrl = escapeHtml(new URL(document.body.dataset.linkHome || "../", window.location.href).toString());
-  const signinUrl = escapeHtml(new URL(document.body.dataset.linkSignin || "../signin/", window.location.href).toString());
-
-  slot.innerHTML = `
-    <div class="social-topbar">
-      <div class="social-topbar-left">
-        <div class="social-brand">
-          <a class="social-brand-logo-link" href="${homeUrl}" aria-label="스텔라 ID 홈">
-            <span class="social-brand-logo" aria-hidden="true">
-              <img src="${symbolStellarIdUrl}" alt="" />
-            </span>
-          </a>
-          <span class="social-brand-copy">
-            <a class="social-brand-name social-brand-home-link" href="${homeUrl}">계정 정보</a>
-          </span>
-        </div>
-      </div>
-      <div class="social-topbar-right">
-        <a class="text-link-button" href="${signinUrl}">로그인</a>
-      </div>
-    </div>
-  `;
+  renderSocialNav(document.querySelector("[data-social-nav]"), {
+    session: null,
+    viewerProfile: null,
+    pageTitle: "계정 정보",
+  });
 }
 
 function updateCalendarState() {

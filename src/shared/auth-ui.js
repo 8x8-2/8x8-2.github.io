@@ -1,216 +1,99 @@
-import { trackEvent } from "./analytics.js";
 import {
   fetchProfile,
-  getDisplayName,
-  getProfileInitial,
   isSupabaseConfigured,
-  signOut,
   subscribeAuthState,
 } from "./auth.js";
-import { escapeHtml } from "./html.js";
-import { getBellIcon, setupNotificationCenter } from "./notifications.js";
-import { buildAccountUrl, buildFollowingUrl, buildPublicProfileUrl, buildSearchUrl } from "./stellar-id.js";
+import { renderSocialNav } from "./social-nav.js";
+import { buildAccountUrl, buildPublicProfileUrl } from "./stellar-id.js";
 
 function getPageMeta() {
   const body = document.body;
-  const homeLink = body.dataset.linkHome || "./";
-  const homeUrl = new URL(homeLink, window.location.href);
 
   return {
     pageName: body.dataset.pageName || "",
-    links: {
-      home: homeLink,
-      soulday: body.dataset.linkSoulday || "./soulday/",
-      signin: body.dataset.linkSignin || "./signin/",
-      signup: body.dataset.linkSignup || "./signup/",
-      profile: body.dataset.linkProfile || new URL("p/", homeUrl).toString(),
-      saved: body.dataset.linkSaved || new URL("saved/", homeUrl).toString(),
-    },
-    authMode: body.dataset.authMode || "default",
+    navTitle: body.dataset.navTitle || "",
   };
 }
 
-function buildUrl(path, withNext = false) {
-  const url = new URL(path, window.location.href);
-  if (withNext) {
-    url.searchParams.set("next", `${window.location.pathname}${window.location.search}${window.location.hash}`);
+function resolvePageTitle(meta) {
+  if (meta.navTitle) {
+    return meta.navTitle;
   }
-  return url.toString();
+
+  switch (meta.pageName) {
+    case "home":
+      return "무료 사주";
+    case "signin":
+      return "로그인";
+    case "signup":
+      return "회원가입";
+    case "privacy":
+      return "개인정보처리방침";
+    case "soulday_list":
+      return "일주별 보기";
+    case "soulday_detail":
+      return document.body.dataset.souldayName || "일주 정보";
+    case "reading":
+      return "저장된 사주 정보";
+    case "my_saju":
+      return "내 사주";
+    case "password":
+      return "암호 변경";
+    default:
+      return "스텔라 ID";
+  }
 }
 
-function buildProfileUrl(path, userId) {
-  const url = new URL(path, window.location.href);
-  if (userId) {
-    url.searchParams.set("user_id", userId);
-  }
-  return url.toString();
-}
-
-function syncBrand(profile = null) {
-  const brandLink = document.querySelector(".brand");
-  const brandSubtitle = document.querySelector(".brand-subtitle");
-
-  if (!brandLink) return;
-
+function buildLoggedInHomeUrl(session, profile) {
   if (profile?.stellar_id) {
-    brandLink.href = buildPublicProfileUrl(profile.stellar_id);
-    if (brandSubtitle) {
-      brandSubtitle.textContent = `/ ${profile.stellar_id}`;
-    }
-    document.body.classList.add("is-authenticated");
-    return;
+    return buildPublicProfileUrl(profile.stellar_id);
   }
 
-  brandLink.href = buildUrl(document.body.dataset.linkHome || "./");
-  if (brandSubtitle) {
-    brandSubtitle.textContent = "STELLAR PROFILE";
-  }
-  document.body.classList.remove("is-authenticated");
+  return buildAccountUrl(session?.user?.id || null);
 }
 
-function closeMenu(menu) {
-  if (!menu) return;
-  menu.classList.remove("is-open");
-}
+function buildSessionProfileStub(session) {
+  if (!session?.user) return null;
 
-function renderPending(slot) {
-  slot.innerHTML = `
-    <div class="topbar-auth-pending" aria-hidden="true">
-      <span class="topbar-auth-pending-link"></span>
-      <span class="topbar-auth-pending-avatar"></span>
-    </div>
-  `;
-}
-
-function renderLoggedOut(slot, meta) {
-  syncBrand(null);
-
-  if (meta.authMode === "hidden") {
-    slot.innerHTML = "";
-    return;
-  }
-
-  slot.innerHTML = `
-    <a class="topbar-auth-link" href="${buildUrl(meta.links.signin, true)}" data-auth-action="signin">로그인</a>
-  `;
-
-  slot.querySelector("[data-auth-action='signin']")?.addEventListener("click", () => {
-    trackEvent("signin_click", {
-      source: "top_nav",
-      page_name: meta.pageName,
-    });
-  });
-}
-
-function renderLoggedIn(slot, meta, session, profile) {
-  const displayName = getDisplayName(session.user, profile);
-  const initial = getProfileInitial(session.user, profile);
-  const profileActive = ["profile", "password"].includes(meta.pageName) ? " is-active" : "";
-  const savedActive = ["saved"].includes(meta.pageName) ? " is-active" : "";
-  const publicProfileUrl = profile?.stellar_id ? buildPublicProfileUrl(profile.stellar_id) : buildUrl(meta.links.home);
-  const accountUrl = buildAccountUrl(session.user.id);
-  const followingUrl = buildFollowingUrl();
-  const searchUrl = buildSearchUrl();
-
-  syncBrand(profile);
-
-  slot.innerHTML = `
-    <div class="topbar-auth-loggedin">
-      <a class="topbar-icon-link" href="${searchUrl}" aria-label="스텔라 프로필 검색" data-nav-target="search_profiles">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M10.75 2a8.75 8.75 0 1 0 5.366 15.66l3.75 3.75a1.25 1.25 0 1 0 1.768-1.767l-3.75-3.75A8.75 8.75 0 0 0 10.75 2Zm0 2.5a6.25 6.25 0 1 1 0 12.5 6.25 6.25 0 0 1 0-12.5Z" fill="currentColor"/>
-        </svg>
-      </a>
-      <button class="topbar-icon-link notification-button" type="button" aria-label="알림센터 열기" aria-haspopup="dialog" aria-expanded="false" data-notification-toggle>
-        ${getBellIcon()}
-        <span class="notification-dot" data-notification-dot aria-hidden="true"></span>
-      </button>
-      <div class="profile-menu" data-profile-menu>
-        <button class="profile-button" type="button" aria-haspopup="menu" aria-expanded="false" data-profile-toggle>
-          <span>${escapeHtml(initial)}</span>
-        </button>
-        <div class="profile-panel" role="menu" data-profile-panel>
-          <div class="profile-panel-name">${escapeHtml(displayName)}</div>
-          <div class="profile-panel-email">${escapeHtml(session.user.email || "")}</div>
-          <div class="profile-panel-links">
-            <a class="profile-panel-link${profileActive}" href="${publicProfileUrl}" data-nav-target="public_profile">내 스텔라 프로필</a>
-            <a class="profile-panel-link${savedActive}" href="${followingUrl}" data-nav-target="following_profiles">팔로잉 프로필</a>
-            <span class="profile-panel-divider" aria-hidden="true"></span>
-            <a class="profile-panel-link" href="${accountUrl}" data-nav-target="account_profile">계정 정보</a>
-          </div>
-          <button class="profile-signout-button" type="button" data-profile-signout>로그아웃</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  const menu = slot.querySelector("[data-profile-menu]");
-  const toggle = slot.querySelector("[data-profile-toggle]");
-  const signoutButton = slot.querySelector("[data-profile-signout]");
-  const notificationButton = slot.querySelector("[data-notification-toggle]");
-  const notificationCleanup = setupNotificationCenter(notificationButton);
-  const handleDocumentClick = (event) => {
-    if (!menu?.contains(event.target)) {
-      closeMenu(menu);
-      toggle?.setAttribute("aria-expanded", "false");
-    }
+  return {
+    full_name: session.user.user_metadata?.full_name || session.user.email || "스텔라 ID",
+    profile_image_url: session.user.user_metadata?.profile_image_url || "",
   };
+}
 
-  toggle?.addEventListener("click", () => {
-    const opened = menu.classList.toggle("is-open");
-    toggle.setAttribute("aria-expanded", opened ? "true" : "false");
+function renderPageNav(container, meta, session, profile = null) {
+  return renderSocialNav(container, {
+    session,
+    viewerProfile: profile || buildSessionProfileStub(session),
+    pageTitle: resolvePageTitle(meta),
+    homeUrlOverride: session ? buildLoggedInHomeUrl(session, profile) : null,
   });
-
-  document.addEventListener("click", handleDocumentClick);
-
-  signoutButton?.addEventListener("click", async () => {
-    try {
-      await signOut();
-      trackEvent("signout_click", {
-        page_name: meta.pageName,
-      });
-
-      if (["saved", "profile", "password", "reading", "my_saju"].includes(meta.pageName)) {
-        window.location.href = buildUrl(meta.links.home);
-      }
-    } catch (error) {
-      window.alert(error.message || "로그아웃에 실패했습니다.");
-    }
-  });
-
-  return () => {
-    notificationCleanup?.();
-    document.removeEventListener("click", handleDocumentClick);
-  };
 }
 
 export function setupAuthUi() {
-  const slot = document.querySelector("[data-auth-slot]");
-  if (!slot) return () => {};
+  const container = document.querySelector("[data-social-nav]");
+  if (!container) return () => {};
 
   const meta = getPageMeta();
 
   if (!isSupabaseConfigured()) {
-    syncBrand(null);
-    renderLoggedOut(slot, meta);
-    return () => {};
+    return renderPageNav(container, meta, null, null);
   }
 
   let activeCleanup = null;
   let renderVersion = 0;
 
-  renderPending(slot);
-
   const unsubscribe = subscribeAuthState((session) => {
     renderVersion += 1;
     const version = renderVersion;
 
+    if (activeCleanup) {
+      activeCleanup();
+      activeCleanup = null;
+    }
+
     if (!session) {
-      if (activeCleanup) {
-        activeCleanup();
-        activeCleanup = null;
-      }
-      renderLoggedOut(slot, meta);
+      activeCleanup = renderPageNav(container, meta, null, null);
       return;
     }
 
@@ -218,10 +101,7 @@ export function setupAuthUi() {
       fetchProfile(session.user.id)
         .then((profile) => {
           if (version !== renderVersion) return;
-          const redirectUrl = profile?.stellar_id
-            ? buildPublicProfileUrl(profile.stellar_id)
-            : buildAccountUrl(session.user.id);
-          window.location.replace(redirectUrl);
+          window.location.replace(buildLoggedInHomeUrl(session, profile));
         })
         .catch(() => {
           if (version !== renderVersion) return;
@@ -230,30 +110,26 @@ export function setupAuthUi() {
       return;
     }
 
-    if (activeCleanup) {
-      activeCleanup();
-      activeCleanup = null;
-    }
-
-    // Render immediately from the auth session so the top-nav does not look blank.
-    activeCleanup = renderLoggedIn(slot, meta, session, null);
+    activeCleanup = renderPageNav(container, meta, session, null);
 
     fetchProfile(session.user.id)
       .then((profile) => {
-        if (!profile || version !== renderVersion) return;
+        if (version !== renderVersion) return;
         if (activeCleanup) {
           activeCleanup();
           activeCleanup = null;
         }
-        activeCleanup = renderLoggedIn(slot, meta, session, profile);
+        activeCleanup = renderPageNav(container, meta, session, profile);
       })
       .catch(() => {
-        // Keep the session-based UI if the profile query is slow or fails.
+        // Keep the session-based nav if the profile request is slow or fails.
       });
   });
 
   return () => {
-    if (activeCleanup) activeCleanup();
+    if (activeCleanup) {
+      activeCleanup();
+    }
     unsubscribe();
   };
 }

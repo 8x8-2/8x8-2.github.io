@@ -59,6 +59,28 @@ function getAvatarMarkup(profile) {
   return `<span>${escapeHtml(String(profile?.full_name || "스").charAt(0))}</span>`;
 }
 
+function buildHomeUrl(session, viewerProfile, homeUrlOverride) {
+  if (homeUrlOverride) {
+    return homeUrlOverride;
+  }
+
+  if (session?.user?.id) {
+    if (viewerProfile?.stellar_id) {
+      return buildPublicProfileUrl(viewerProfile.stellar_id);
+    }
+
+    return buildAccountUrl(session.user.id);
+  }
+
+  return new URL(document.body.dataset.linkHome || "/", window.location.href).toString();
+}
+
+function buildSigninUrl() {
+  const url = new URL(document.body.dataset.linkSignin || "./signin/", window.location.href);
+  url.searchParams.set("next", `${window.location.pathname}${window.location.search}${window.location.hash}`);
+  return url.toString();
+}
+
 export function renderSocialNav(container, {
   variant = "profile",
   session,
@@ -67,10 +89,12 @@ export function renderSocialNav(container, {
   pageTitle = "스텔라 ID",
   searchTitle = "스텔라 프로필 검색",
   showProfileIdentity = false,
+  homeUrlOverride = null,
 }) {
   if (!container) return () => {};
 
-  const homeUrl = buildPublicProfileUrl(viewerProfile?.stellar_id);
+  const homeUrl = buildHomeUrl(session, viewerProfile, homeUrlOverride);
+  const signinUrl = buildSigninUrl();
   const searchUrl = buildSearchUrl();
   const followingUrl = buildFollowingUrl();
   const accountUrl = buildAccountUrl(session?.user?.id || null);
@@ -88,25 +112,30 @@ export function renderSocialNav(container, {
           : getBrandMarkup(currentStellarId || viewerProfile?.stellar_id, pageTitle, showProfileIdentity)}
       </div>
       <div class="social-topbar-right">
-        <a class="social-icon-button" href="${escapeHtml(searchUrl)}" aria-label="스텔라 프로필 검색">
-          ${getSearchIcon()}
-        </a>
-        <button class="social-icon-button notification-button" type="button" aria-label="알림센터 열기" aria-haspopup="dialog" aria-expanded="false" data-notification-toggle>
-          ${getBellIcon()}
-          <span class="notification-dot" data-notification-dot aria-hidden="true"></span>
-        </button>
-        <div class="social-profile-menu" data-social-menu>
-          <button class="social-avatar-button" type="button" data-social-toggle aria-haspopup="menu" aria-expanded="false" aria-label="프로필 메뉴 열기">
-            ${getAvatarMarkup(viewerProfile)}
-          </button>
-          <div class="social-profile-panel" role="menu" data-social-panel>
-            <a class="social-profile-panel-link" href="${escapeHtml(homeUrl)}">내 스텔라 프로필</a>
-            <a class="social-profile-panel-link" href="${escapeHtml(followingUrl)}">팔로잉 프로필</a>
-            <span class="social-profile-divider" aria-hidden="true"></span>
-            <a class="social-profile-panel-link" href="${escapeHtml(accountUrl)}">계정 정보</a>
-            <button class="social-profile-panel-link social-profile-panel-button" type="button" data-social-logout>로그아웃</button>
-          </div>
-        </div>
+        ${session
+          ? `
+            <a class="social-icon-button" href="${escapeHtml(searchUrl)}" aria-label="스텔라 프로필 검색">
+              ${getSearchIcon()}
+            </a>
+            <button class="social-icon-button notification-button" type="button" aria-label="알림센터 열기" aria-haspopup="dialog" aria-expanded="false" data-notification-toggle>
+              ${getBellIcon()}
+              <span class="notification-dot" data-notification-dot aria-hidden="true"></span>
+            </button>
+            <div class="social-profile-menu" data-social-menu>
+              <button class="social-avatar-button" type="button" data-social-toggle aria-haspopup="menu" aria-expanded="false" aria-label="프로필 메뉴 열기">
+                ${getAvatarMarkup(viewerProfile)}
+              </button>
+              <div class="social-profile-panel" role="menu" data-social-panel>
+                <a class="social-profile-panel-link" href="${escapeHtml(homeUrl)}">내 스텔라 프로필</a>
+                <a class="social-profile-panel-link" href="${escapeHtml(followingUrl)}">팔로잉 프로필</a>
+                <span class="social-profile-divider" aria-hidden="true"></span>
+                <a class="social-profile-panel-link" href="${escapeHtml(accountUrl)}">계정 정보</a>
+                <button class="social-profile-panel-link social-profile-panel-button" type="button" data-social-logout>로그아웃</button>
+              </div>
+            </div>
+          `
+          : `<a class="topbar-auth-link" href="${escapeHtml(signinUrl)}" data-auth-action="signin">로그인</a>`
+        }
       </div>
     </div>
   `;
@@ -116,7 +145,8 @@ export function renderSocialNav(container, {
   const backButton = container.querySelector("[data-social-back]");
   const logoutButton = container.querySelector("[data-social-logout]");
   const notificationButton = container.querySelector("[data-notification-toggle]");
-  const notificationCleanup = setupNotificationCenter(notificationButton);
+  const signinLink = container.querySelector("[data-auth-action='signin']");
+  const notificationCleanup = notificationButton ? setupNotificationCenter(notificationButton) : null;
 
   const closeMenu = () => {
     menu?.classList.remove("is-open");
@@ -134,6 +164,13 @@ export function renderSocialNav(container, {
   toggle?.addEventListener("click", () => {
     const opened = menu.classList.toggle("is-open");
     toggle.setAttribute("aria-expanded", opened ? "true" : "false");
+  });
+
+  signinLink?.addEventListener("click", () => {
+    trackEvent("signin_click", {
+      source: "top_nav",
+      page_name: document.body.dataset.pageName || "",
+    });
   });
 
   container.querySelectorAll("[data-social-home]").forEach((link) => {

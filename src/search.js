@@ -96,10 +96,9 @@ async function init() {
 
   const viewerProfile = await fetchProfile(session.user.id);
   renderSocialNav(document.querySelector("[data-social-nav]"), {
-    variant: "search",
     session,
     viewerProfile,
-    searchTitle: "스텔라 프로필 검색",
+    pageTitle: "스텔라 프로필 검색",
   });
 
   $("searchForm").addEventListener("submit", (event) => {
