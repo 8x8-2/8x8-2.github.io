@@ -379,7 +379,26 @@ on public.profile_follows (following_id, created_at desc);
 create index if not exists profile_follows_follower_idx
 on public.profile_follows (follower_id, created_at desc);
 
+create table if not exists public.profile_notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  actor_id uuid references auth.users (id) on delete cascade,
+  event_type text not null check (event_type in ('follow')),
+  actor_stellar_id bigint,
+  actor_full_name text not null,
+  actor_profile_image_url text,
+  read_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists profile_notifications_user_created_idx
+on public.profile_notifications (user_id, created_at desc, id desc);
+
+create index if not exists profile_notifications_user_unread_idx
+on public.profile_notifications (user_id, read_at, created_at desc);
+
 alter table public.profile_follows enable row level security;
+alter table public.profile_notifications enable row level security;
 
 drop policy if exists "profile_follows_select_involved" on public.profile_follows;
 create policy "profile_follows_select_involved"
@@ -398,6 +417,66 @@ create policy "profile_follows_delete_own"
 on public.profile_follows
 for delete
 using (auth.uid() = follower_id);
+
+drop policy if exists "profile_notifications_select_own" on public.profile_notifications;
+create policy "profile_notifications_select_own"
+on public.profile_notifications
+for select
+using (auth.uid() = user_id);
+
+drop policy if exists "profile_notifications_update_own" on public.profile_notifications;
+create policy "profile_notifications_update_own"
+on public.profile_notifications
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create or replace function public.create_follow_notification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  actor_profile public.profiles%rowtype;
+begin
+  select *
+  into actor_profile
+  from public.profiles
+  where id = new.follower_id;
+
+  if actor_profile.id is null then
+    return new;
+  end if;
+
+  insert into public.profile_notifications (
+    user_id,
+    actor_id,
+    event_type,
+    actor_stellar_id,
+    actor_full_name,
+    actor_profile_image_url,
+    created_at
+  )
+  values (
+    new.following_id,
+    new.follower_id,
+    'follow',
+    actor_profile.stellar_id,
+    actor_profile.full_name,
+    actor_profile.profile_image_url,
+    new.created_at
+  );
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_profile_follow_created on public.profile_follows;
+
+create trigger on_profile_follow_created
+after insert on public.profile_follows
+for each row execute procedure public.create_follow_notification();
 
 insert into storage.buckets (id, name, public)
 values ('profile-images', 'profile-images', true)

@@ -8,6 +8,7 @@ import {
   subscribeAuthState,
 } from "./auth.js";
 import { escapeHtml } from "./html.js";
+import { getBellIcon, setupNotificationCenter } from "./notifications.js";
 import { buildAccountUrl, buildFollowingUrl, buildPublicProfileUrl, buildSearchUrl } from "./stellar-id.js";
 
 function getPageMeta() {
@@ -120,6 +121,10 @@ function renderLoggedIn(slot, meta, session, profile) {
           <path d="M10.75 2a8.75 8.75 0 1 0 5.366 15.66l3.75 3.75a1.25 1.25 0 1 0 1.768-1.767l-3.75-3.75A8.75 8.75 0 0 0 10.75 2Zm0 2.5a6.25 6.25 0 1 1 0 12.5 6.25 6.25 0 0 1 0-12.5Z" fill="currentColor"/>
         </svg>
       </a>
+      <button class="topbar-icon-link notification-button" type="button" aria-label="알림센터 열기" aria-haspopup="dialog" aria-expanded="false" data-notification-toggle>
+        ${getBellIcon()}
+        <span class="notification-dot" data-notification-dot aria-hidden="true"></span>
+      </button>
       <div class="profile-menu" data-profile-menu>
         <button class="profile-button" type="button" aria-haspopup="menu" aria-expanded="false" data-profile-toggle>
           <span>${escapeHtml(initial)}</span>
@@ -142,6 +147,8 @@ function renderLoggedIn(slot, meta, session, profile) {
   const menu = slot.querySelector("[data-profile-menu]");
   const toggle = slot.querySelector("[data-profile-toggle]");
   const signoutButton = slot.querySelector("[data-profile-signout]");
+  const notificationButton = slot.querySelector("[data-notification-toggle]");
+  const notificationCleanup = setupNotificationCenter(notificationButton);
   const handleDocumentClick = (event) => {
     if (!menu?.contains(event.target)) {
       closeMenu(menu);
@@ -172,6 +179,7 @@ function renderLoggedIn(slot, meta, session, profile) {
   });
 
   return () => {
+    notificationCleanup?.();
     document.removeEventListener("click", handleDocumentClick);
   };
 }
@@ -203,6 +211,22 @@ export function setupAuthUi() {
         activeCleanup = null;
       }
       renderLoggedOut(slot, meta);
+      return;
+    }
+
+    if (meta.pageName === "home") {
+      fetchProfile(session.user.id)
+        .then((profile) => {
+          if (version !== renderVersion) return;
+          const redirectUrl = profile?.stellar_id
+            ? buildPublicProfileUrl(profile.stellar_id)
+            : buildAccountUrl(session.user.id);
+          window.location.replace(redirectUrl);
+        })
+        .catch(() => {
+          if (version !== renderVersion) return;
+          window.location.replace(buildAccountUrl(session.user.id));
+        });
       return;
     }
 

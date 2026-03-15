@@ -26,6 +26,10 @@ body {
   color: var(--txt);
 }
 
+body.has-notification-center {
+  overflow: hidden;
+}
+
 .topbar {
   position: sticky;
   top: 0;
@@ -1928,6 +1932,7 @@ summary:focus-visible {
 .topbar-icon-link {
   width: 42px;
   height: 42px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1935,6 +1940,8 @@ summary:focus-visible {
   border: 1px solid rgba(56, 62, 75, 0.88);
   background: rgba(40, 45, 48, 0.82);
   color: var(--txt-dim);
+  cursor: pointer;
+  position: relative;
 }
 
 .topbar-icon-link svg,
@@ -2067,6 +2074,7 @@ summary:focus-visible {
 .social-avatar-button {
   width: 40px;
   height: 40px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2074,6 +2082,27 @@ summary:focus-visible {
   border: 1px solid rgba(56, 62, 75, 0.88);
   background: rgba(40, 45, 48, 0.82);
   color: var(--txt-dim);
+  cursor: pointer;
+  position: relative;
+}
+
+.notification-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(17, 19, 20, 0.96);
+  opacity: 0;
+  transform: scale(0.75);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.notification-dot.is-visible {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .social-profile-menu,
@@ -2141,6 +2170,176 @@ summary:focus-visible {
 .social-profile-panel-button {
   border: 0;
   background: transparent;
+}
+
+.notification-center-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(5, 7, 10, 0.52);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.notification-center-layer.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.notification-center-panel {
+  position: absolute;
+  top: 76px;
+  right: 16px;
+  width: min(392px, calc(100vw - 32px));
+  max-height: min(72vh, 720px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px;
+  border: 1px solid rgba(56, 62, 75, 0.9);
+  background: rgba(19, 23, 28, 0.98);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.42);
+  transform: translateY(-8px);
+  transition: transform 0.18s ease;
+  overflow: hidden;
+}
+
+.notification-center-layer.is-open .notification-center-panel {
+  transform: translateY(0);
+}
+
+.notification-center-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid rgba(56, 62, 75, 0.82);
+}
+
+.notification-center-eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.notification-center-title {
+  margin: 6px 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--txt);
+}
+
+.notification-center-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid rgba(56, 62, 75, 0.88);
+  background: rgba(29, 34, 43, 0.92);
+  color: var(--txt-soft);
+  box-shadow: none;
+}
+
+.notification-center-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.notification-center-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.notification-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid rgba(56, 62, 75, 0.72);
+  color: inherit;
+}
+
+.notification-row:first-child {
+  border-top: 0;
+}
+
+.notification-row:hover {
+  background: rgba(73, 250, 160, 0.06);
+}
+
+.notification-row.is-unread {
+  background: rgba(73, 250, 160, 0.08);
+}
+
+.notification-row-avatar {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, rgba(73, 250, 160, 0.14), rgba(40, 45, 48, 0.94));
+  border: 1px solid rgba(73, 250, 160, 0.18);
+}
+
+.notification-row-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.notification-row-avatar span {
+  color: var(--txt);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.notification-row-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.notification-row-title {
+  color: var(--txt);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.notification-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: var(--mut);
+  font-size: 0.82rem;
+}
+
+.notification-row-time {
+  color: var(--txt-soft);
+}
+
+.notification-center-empty {
+  padding: 18px 16px 20px;
+  border-top: 1px solid rgba(56, 62, 75, 0.72);
+}
+
+.notification-center-status {
+  padding: 10px 16px 14px;
+  color: var(--mut);
+  font-size: 0.82rem;
 }
 
 .profile-page-shell {
@@ -2458,6 +2657,17 @@ summary:focus-visible {
 @media (max-width: 640px) {
   .social-topbar {
     min-height: 60px;
+  }
+
+  .notification-center-panel {
+    top: 60px;
+    right: 0;
+    left: 0;
+    width: 100vw;
+    max-width: none;
+    max-height: calc(100dvh - 60px);
+    height: calc(100dvh - 60px);
+    border-radius: 20px 20px 0 0;
   }
 
   .social-brand-slash,

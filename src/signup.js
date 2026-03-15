@@ -1,6 +1,7 @@
 import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
 import {
   checkStellarIdAvailability,
+  fetchProfile,
   getSession,
   isSupabaseConfigured,
   peekNextStellarId,
@@ -9,7 +10,7 @@ import {
 import { buildProfileDerivedFieldsFromInput } from "./shared/profile-derived.js";
 import { setupAuthUi } from "./shared/auth-ui.js";
 import { loadBirthDraft, saveBirthDraft } from "./shared/drafts.js";
-import { buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
+import { buildAccountUrl, buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -128,6 +129,12 @@ function resolveRedirect(fallbackPath) {
   } catch {
     return fallbackUrl.toString();
   }
+}
+
+function buildSignedInHomeUrl(profile, userId) {
+  return profile?.stellar_id
+    ? buildPublicProfileUrl(profile.stellar_id)
+    : buildAccountUrl(userId);
 }
 
 let stellarIdAvailability = {
@@ -254,7 +261,13 @@ $("signupUnknownTime")?.addEventListener("change", () => {
 getSession()
   .then((session) => {
     if (session) {
-      window.location.replace(resolveRedirect(homePath));
+      fetchProfile(session.user.id)
+        .then((profile) => {
+          window.location.replace(resolveRedirect(buildSignedInHomeUrl(profile, session.user.id)));
+        })
+        .catch(() => {
+          window.location.replace(resolveRedirect(buildAccountUrl(session.user.id)));
+        });
     }
   })
   .catch(() => {});

@@ -1,5 +1,6 @@
 import { trackEvent } from "./analytics.js";
 import { escapeHtml } from "./html.js";
+import { getBellIcon, setupNotificationCenter } from "./notifications.js";
 import { buildAccountUrl, buildFollowingUrl, buildPublicProfileUrl, buildSearchUrl } from "./stellar-id.js";
 import { signOut } from "./auth.js";
 
@@ -89,6 +90,10 @@ export function renderSocialNav(container, {
         <a class="social-icon-button" href="${escapeHtml(searchUrl)}" aria-label="스텔라 프로필 검색">
           ${getSearchIcon()}
         </a>
+        <button class="social-icon-button notification-button" type="button" aria-label="알림센터 열기" aria-haspopup="dialog" aria-expanded="false" data-notification-toggle>
+          ${getBellIcon()}
+          <span class="notification-dot" data-notification-dot aria-hidden="true"></span>
+        </button>
         <div class="social-profile-menu" data-social-menu>
           <button class="social-avatar-button" type="button" data-social-toggle aria-haspopup="menu" aria-expanded="false" aria-label="프로필 메뉴 열기">
             ${getAvatarMarkup(viewerProfile)}
@@ -109,6 +114,8 @@ export function renderSocialNav(container, {
   const toggle = container.querySelector("[data-social-toggle]");
   const backButton = container.querySelector("[data-social-back]");
   const logoutButton = container.querySelector("[data-social-logout]");
+  const notificationButton = container.querySelector("[data-notification-toggle]");
+  const notificationCleanup = setupNotificationCenter(notificationButton);
 
   const closeMenu = () => {
     menu?.classList.remove("is-open");
@@ -157,6 +164,7 @@ export function renderSocialNav(container, {
   });
 
   return () => {
+    notificationCleanup?.();
     document.removeEventListener("click", handleDocumentClick);
   };
 }

@@ -373,6 +373,78 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
   return data || [];
 }
 
+export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 알림을 볼 수 있습니다.");
+  }
+
+  const safeOffset = Math.max(0, Number(offset) || 0);
+  const safeLimit = Math.min(100, Math.max(1, Number(limit) || 40));
+
+  const { data, error } = await supabase
+    .from("profile_notifications")
+    .select("id, actor_id, actor_stellar_id, actor_full_name, actor_profile_image_url, event_type, read_at, created_at")
+    .eq("user_id", user.id)
+    .eq("event_type", "follow")
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(safeOffset, safeOffset + safeLimit - 1);
+
+  if (error) {
+    throw new Error("알림을 불러오지 못했습니다.");
+  }
+
+  return data || [];
+}
+
+export async function fetchUnreadFollowNotificationCount() {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    return 0;
+  }
+
+  const { count, error } = await supabase
+    .from("profile_notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("event_type", "follow")
+    .is("read_at", null);
+
+  if (error) {
+    throw new Error("읽지 않은 알림 수를 불러오지 못했습니다.");
+  }
+
+  return Number(count || 0);
+}
+
+export async function markFollowNotificationsRead() {
+  const supabase = ensureSupabase();
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error("로그인 후 알림을 확인할 수 있습니다.");
+  }
+
+  const readAt = new Date().toISOString();
+  const { error } = await supabase
+    .from("profile_notifications")
+    .update({ read_at: readAt })
+    .eq("user_id", user.id)
+    .eq("event_type", "follow")
+    .is("read_at", null);
+
+  if (error) {
+    throw new Error("알림 읽음 상태를 갱신하지 못했습니다.");
+  }
+
+  return readAt;
+}
+
 export async function followProfile(targetProfileId) {
   const supabase = ensureSupabase();
   const user = await getUser();
