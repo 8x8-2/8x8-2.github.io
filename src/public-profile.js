@@ -734,6 +734,29 @@ function renderProfileContent(profile, snapshot, viewerSnapshot, relationship, a
   $("profileContent").innerHTML = sections[activeTab];
 }
 
+function wait(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function fetchPublicProfileWithRetry(stellarId, { attempts = 4, delayMs = 350 } = {}) {
+  let profile = null;
+
+  for (let index = 0; index < attempts; index += 1) {
+    profile = await fetchPublicProfileByStellarId(stellarId);
+    if (profile) {
+      return profile;
+    }
+
+    if (index < attempts - 1) {
+      await wait(delayMs);
+    }
+  }
+
+  return profile;
+}
+
 async function init() {
   initCommonPageTracking();
   trackEvent("public_profile_view", {
@@ -751,7 +774,7 @@ async function init() {
 
   const [session, initialPublicProfile] = await Promise.all([
     getSession(),
-    fetchPublicProfileByStellarId(stellarId),
+    fetchPublicProfileWithRetry(stellarId),
   ]);
 
   if (!initialPublicProfile) {
@@ -763,7 +786,7 @@ async function init() {
   if (shouldRefreshPublicProfile(publicProfile)) {
     try {
       await refreshPublicProfileByStellarId(stellarId);
-      publicProfile = await fetchPublicProfileByStellarId(stellarId) || publicProfile;
+      publicProfile = await fetchPublicProfileWithRetry(stellarId, { attempts: 2, delayMs: 250 }) || publicProfile;
     } catch (error) {
       console.warn("public profile refresh failed", error);
     }

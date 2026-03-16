@@ -443,8 +443,17 @@ $("signupForm")?.addEventListener("submit", async (event) => {
     });
 
     if (data.session) {
-      const profile = data.user ? await fetchProfile(data.user.id) : null;
-      const resolvedStellarId = profile?.stellar_id || stellarId;
+      let resolvedStellarId = stellarId;
+
+      if (data.user) {
+        try {
+          const profile = await fetchProfile(data.user.id);
+          resolvedStellarId = profile?.stellar_id || resolvedStellarId;
+        } catch (profileError) {
+          console.warn("signup profile hydration failed", profileError);
+        }
+      }
+
       window.location.replace(resolveRedirect(buildPublicProfileUrl(resolvedStellarId)));
       return;
     }
