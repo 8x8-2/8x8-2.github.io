@@ -364,7 +364,6 @@ function buildHomeTab(profile, snapshot, visibility) {
 }
 
 function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
-  const score = getRelationshipScore(viewerSnapshot, snapshot, "personality");
   const todayScore = getTodayScore(snapshot, "personality");
   const bestMatches = buildCompatibilityEntries(snapshot, "personality", false);
   const worstMatches = buildCompatibilityEntries(snapshot, "personality", true);
@@ -377,12 +376,6 @@ function buildPersonalityTab(profile, snapshot, viewerSnapshot, isSelf) {
         <h2>성격</h2>
         <p class="muted">타고난 성향과 오늘의 흐름, 잘 맞는 결을 함께 봅니다.</p>
       </div>
-      ${!isSelf && viewerSnapshot ? `
-        <div class="box profile-highlight-box">
-          <div class="title">${escapeHtml(profile.full_name)}님과 성격이 ${escapeHtml(getRelationshipLabel(score))}</div>
-          <div class="text">두 사람의 일주 오행 결을 기준으로 너무 단정적이지 않게 5단계 톤으로 정리했습니다.</div>
-        </div>
-      ` : ""}
       <div class="profile-stat-grid">
         <article class="box profile-stat-card">
           <div class="title">오늘 성격 점수</div>
@@ -487,7 +480,6 @@ function buildHealthTab(snapshot) {
 }
 
 function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
-  const score = getRelationshipScore(viewerSnapshot, snapshot, "love");
   const series = buildFlowSeries(snapshot, "love");
   const bestMatches = buildCompatibilityEntries(snapshot, "love", false);
   const worstMatches = buildCompatibilityEntries(snapshot, "love", true);
@@ -501,12 +493,6 @@ function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
         <h2>연애</h2>
         <p class="muted">연애 성향과 연애운 흐름을 함께 요약합니다.</p>
       </div>
-      ${!isSelf && viewerSnapshot ? `
-        <div class="box profile-highlight-box">
-          <div class="title">${escapeHtml(profile.full_name)}님과 연애운이 ${escapeHtml(getRelationshipLabel(score))}</div>
-          <div class="text">관계성 표현은 일주 결을 바탕으로 부드럽게 해석한 5단계 기준입니다.</div>
-        </div>
-      ` : ""}
       ${buildGraph(series, "연애운 흐름 그래프")}
       <div class="profile-detail-grid">
         <article class="box">
@@ -560,7 +546,6 @@ function buildLoveTab(profile, snapshot, viewerSnapshot, isSelf) {
 
 function buildAbilityTab(profile, snapshot, viewerSnapshot, isSelf) {
   const series = buildFlowSeries(snapshot, "ability");
-  const score = getRelationshipScore(viewerSnapshot, snapshot, "ability");
   const todayScore = getTodayScore(snapshot, "ability");
   const wealthCards = snapshot?.advanced?.wealth?.cards || [];
   const monthlyInsight = snapshot?.insights?.abilityMonthly || {};
@@ -572,12 +557,6 @@ function buildAbilityTab(profile, snapshot, viewerSnapshot, isSelf) {
         <h2>능력</h2>
         <p class="muted">커리어, 재물 흐름, 잘 맞는 환경을 함께 정리했습니다.</p>
       </div>
-      ${!isSelf && viewerSnapshot ? `
-        <div class="box profile-highlight-box">
-          <div class="title">${escapeHtml(profile.full_name)}님과 협업운이 ${escapeHtml(getCollaborationLabel(score))}</div>
-          <div class="text">서로의 일주 결을 바탕으로 일하는 방식, 추진 리듬, 결과물 연결감을 5단계로 가볍게 읽었습니다.</div>
-        </div>
-      ` : ""}
       ${buildGraph(series, "능력운 흐름 그래프")}
       <div class="profile-stat-grid">
         <article class="box profile-stat-card">
