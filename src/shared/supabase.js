@@ -5,23 +5,43 @@ const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.tr
 
 let supabaseClient = null;
 
-async function withSupabaseHeaders(input, init = {}) {
-  const requestUrl = new URL(typeof input === "string" ? input : input.url);
-  const headers = new Headers(init.headers || {});
-
-  if (requestUrl.origin === supabaseUrl) {
-    requestUrl.searchParams.set("apikey", supabasePublishableKey);
-  }
+export function createSupabaseHeaders({ accessToken = null, headers: sourceHeaders = null } = {}) {
+  const headers = new Headers(sourceHeaders || {});
 
   if (!headers.has("apikey")) {
     headers.set("apikey", supabasePublishableKey);
   }
 
   if (!headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${supabasePublishableKey}`);
+    headers.set("Authorization", `Bearer ${accessToken || supabasePublishableKey}`);
   }
 
-  return fetch(requestUrl, {
+  return headers;
+}
+
+function withSupabaseHeaders(input, init = {}) {
+  const sourceHeaders = input instanceof Request
+    ? new Headers(input.headers)
+    : new Headers();
+
+  if (init.headers) {
+    new Headers(init.headers).forEach((value, key) => {
+      sourceHeaders.set(key, value);
+    });
+  }
+
+  const headers = createSupabaseHeaders({
+    headers: sourceHeaders,
+  });
+
+  if (input instanceof Request) {
+    return fetch(new Request(input, {
+      ...init,
+      headers,
+    }));
+  }
+
+  return fetch(input, {
     ...init,
     headers,
   });
@@ -36,6 +56,10 @@ export function getSupabaseConfig() {
     url: supabaseUrl,
     publishableKey: supabasePublishableKey,
   };
+}
+
+export function createSupabaseUrl(path = "/") {
+  return new URL(path, supabaseUrl);
 }
 
 export function getSupabaseClient() {

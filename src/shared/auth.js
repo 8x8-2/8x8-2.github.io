@@ -1,4 +1,9 @@
-import { getSupabaseClient, getSupabaseConfig, isSupabaseConfigured } from "./supabase.js";
+import {
+  createSupabaseHeaders,
+  createSupabaseUrl,
+  getSupabaseClient,
+  isSupabaseConfigured,
+} from "./supabase.js";
 import { buildProfileDerivedFieldsFromInput } from "./profile-derived.js";
 import { normalizeProfileBio } from "./profile-text.js";
 
@@ -120,6 +125,35 @@ function normalizeEnsureProfileError(error) {
   return new Error(message || "프로필을 생성하지 못했습니다.");
 }
 
+async function readSupabaseErrorDetail(response) {
+  try {
+    const errorPayload = await response.json();
+    return errorPayload?.message || errorPayload?.hint || errorPayload?.details || "";
+  } catch {
+    return await response.text().catch(() => "");
+  }
+}
+
+async function fetchProfileRecordById(userId, accessToken = null) {
+  const requestUrl = createSupabaseUrl("/rest/v1/profiles");
+  requestUrl.searchParams.set("select", "*");
+  requestUrl.searchParams.set("id", `eq.${userId}`);
+
+  const response = await fetch(requestUrl, {
+    headers: createSupabaseHeaders({
+      accessToken,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await readSupabaseErrorDetail(response);
+    throw new Error(detail || "프로필을 불러오지 못했습니다.");
+  }
+
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows[0] || null : rows || null;
+}
+
 export async function getSession() {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
@@ -134,51 +168,55 @@ export async function getUser() {
 }
 
 export async function ensureOwnProfile() {
-  const supabase = ensureSupabase();
-  const { error } = await supabase.rpc("ensure_my_profile");
+  const session = await getSession();
+  const currentUser = session?.user || null;
+  if (!currentUser || !session?.access_token) return null;
 
-  if (error) throw normalizeEnsureProfileError(error);
+  const response = await fetch(createSupabaseUrl("/rest/v1/rpc/ensure_my_profile"), {
+    method: "POST",
+    headers: createSupabaseHeaders({
+      accessToken: session.access_token,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/vnd.pgrst.object+json",
+      },
+    }),
+    body: JSON.stringify({}),
+  });
 
-  const currentUser = await getUser();
-  if (!currentUser) return null;
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", currentUser.id)
-    .maybeSingle();
-
-  if (profileError) {
-    throw new Error("프로필을 불러오지 못했습니다.");
+  if (!response.ok) {
+    const detail = await readSupabaseErrorDetail(response);
+    throw normalizeEnsureProfileError({
+      message: detail,
+    });
   }
 
+  const profile = await response.json();
   return normalizeProfileRecord(profile, normalizeStellarId(currentUser.user_metadata?.stellar_id));
 }
 
 export async function fetchProfile(userId = null) {
-  const supabase = getSupabaseClient();
-  if (!supabase) return null;
+  if (!isSupabaseConfigured()) return null;
 
-  const currentUser = await getUser();
+  const session = await getSession();
+  const currentUser = session?.user || null;
   const resolvedUserId = userId || currentUser?.id;
   if (!resolvedUserId) return null;
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", resolvedUserId)
-    .maybeSingle();
 
   const canRepairOwnProfile = currentUser?.id === resolvedUserId;
   const fallbackStellarId = canRepairOwnProfile
     ? normalizeStellarId(currentUser?.user_metadata?.stellar_id)
     : null;
 
-  if (error) {
+  let data = null;
+
+  try {
+    data = await fetchProfileRecordById(resolvedUserId, session?.access_token || null);
+  } catch (error) {
     if (canRepairOwnProfile) {
       return ensureOwnProfile();
     }
-    throw new Error("프로필을 불러오지 못했습니다.");
+    throw new Error(error?.message || "프로필을 불러오지 못했습니다.");
   }
 
   if ((!data || !(fallbackStellarId || data.stellar_id)) && canRepairOwnProfile) {
@@ -437,23 +475,20 @@ export async function checkStellarIdAvailability(stellarId, exceptProfileId = nu
 
 export async function fetchPublicProfileByStellarId(stellarId) {
   const normalizedStellarId = normalizeStellarId(stellarId);
-  const { url, publishableKey } = getSupabaseConfig();
-
-  if (!url || !publishableKey) {
+  if (!isSupabaseConfigured()) {
     throw new Error("Supabase 연결 정보가 아직 설정되지 않았습니다.");
   }
 
-  const requestUrl = new URL(`${url}/rest/v1/rpc/get_public_profile_by_stellar_id`);
-  requestUrl.searchParams.set("apikey", publishableKey);
+  const requestUrl = createSupabaseUrl("/rest/v1/rpc/get_public_profile_by_stellar_id");
 
   const response = await fetch(requestUrl, {
     method: "POST",
-    headers: {
-      apikey: publishableKey,
-      Authorization: `Bearer ${publishableKey}`,
-      "Content-Type": "application/json",
-      Accept: "application/vnd.pgrst.object+json",
-    },
+    headers: createSupabaseHeaders({
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/vnd.pgrst.object+json",
+      },
+    }),
     body: JSON.stringify({
       stellar_id_input: normalizedStellarId,
     }),
@@ -464,14 +499,7 @@ export async function fetchPublicProfileByStellarId(stellarId) {
   }
 
   if (!response.ok) {
-    let detail = "";
-
-    try {
-      const errorPayload = await response.json();
-      detail = errorPayload?.message || errorPayload?.hint || errorPayload?.details || "";
-    } catch {
-      detail = await response.text().catch(() => "");
-    }
+    const detail = await readSupabaseErrorDetail(response);
 
     throw new Error(detail ? `스텔라 프로필을 불러오지 못했습니다. (${detail})` : "스텔라 프로필을 불러오지 못했습니다.");
   }
