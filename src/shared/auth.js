@@ -1,4 +1,4 @@
-import { getSupabaseClient, isSupabaseConfigured } from "./supabase.js";
+import { getSupabaseClient, getSupabaseConfig, isSupabaseConfigured } from "./supabase.js";
 import { buildProfileDerivedFieldsFromInput } from "./profile-derived.js";
 import { normalizeProfileBio } from "./profile-text.js";
 
@@ -436,15 +436,48 @@ export async function checkStellarIdAvailability(stellarId, exceptProfileId = nu
 }
 
 export async function fetchPublicProfileByStellarId(stellarId) {
-  const supabase = ensureSupabase();
-  const { data, error } = await supabase
-    .rpc("get_public_profile_by_stellar_id", {
-      stellar_id_input: normalizeStellarId(stellarId),
-    })
-    .maybeSingle();
+  const normalizedStellarId = normalizeStellarId(stellarId);
+  const { url, publishableKey } = getSupabaseConfig();
 
-  if (error) throw new Error("스텔라 프로필을 불러오지 못했습니다.");
-  return normalizeProfileRecord(data, normalizeStellarId(stellarId));
+  if (!url || !publishableKey) {
+    throw new Error("Supabase 연결 정보가 아직 설정되지 않았습니다.");
+  }
+
+  const requestUrl = new URL(`${url}/rest/v1/rpc/get_public_profile_by_stellar_id`);
+  requestUrl.searchParams.set("apikey", publishableKey);
+
+  const response = await fetch(requestUrl, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      Authorization: `Bearer ${publishableKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/vnd.pgrst.object+json",
+    },
+    body: JSON.stringify({
+      stellar_id_input: normalizedStellarId,
+    }),
+  });
+
+  if (response.status === 406) {
+    return null;
+  }
+
+  if (!response.ok) {
+    let detail = "";
+
+    try {
+      const errorPayload = await response.json();
+      detail = errorPayload?.message || errorPayload?.hint || errorPayload?.details || "";
+    } catch {
+      detail = await response.text().catch(() => "");
+    }
+
+    throw new Error(detail ? `스텔라 프로필을 불러오지 못했습니다. (${detail})` : "스텔라 프로필을 불러오지 못했습니다.");
+  }
+
+  const data = await response.json();
+  return normalizeProfileRecord(data, normalizedStellarId);
 }
 
 export async function refreshPublicProfileByStellarId(stellarId) {
