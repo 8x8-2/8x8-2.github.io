@@ -628,7 +628,7 @@ export async function checkStellarIdAvailability(stellarId, exceptProfileId = nu
   return Boolean(data);
 }
 
-export async function fetchPublicProfileByStellarId(stellarId, { accessToken = null } = {}) {
+export async function fetchPublicProfileByStellarId(stellarId) {
   const normalizedStellarId = normalizeStellarId(stellarId);
   if (!isSupabaseConfigured()) {
     throw new Error("Supabase 연결 정보가 아직 설정되지 않았습니다.");
@@ -639,7 +639,6 @@ export async function fetchPublicProfileByStellarId(stellarId, { accessToken = n
   const response = await fetch(requestUrl, {
     method: "POST",
     headers: createSupabaseHeaders({
-      accessToken,
       headers: {
         "Content-Type": "application/json",
         Accept: "application/vnd.pgrst.object+json",

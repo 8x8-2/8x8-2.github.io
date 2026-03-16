@@ -26,7 +26,13 @@ import { applyProfileSeoToDocument, buildProfileSeoData, getProfileSeoSections }
 import { normalizeProfileBio } from "./shared/profile-text.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { showToast } from "./shared/ui.js";
-import { applyPrettyProfilePath, buildProfileSettingsUrl, buildPublicProfileUrl, getRequestedStellarId } from "./shared/stellar-id.js";
+import {
+  applyPrettyProfilePath,
+  buildProfileSettingsUrl,
+  buildPublicProfileUrl,
+  getRequestedStellarId,
+  resolveOwnStellarId,
+} from "./shared/stellar-id.js";
 import { formatRegionDisplay } from "./shared/regions.js";
 
 const TABS = [
@@ -65,6 +71,32 @@ function renderGuestNav() {
     viewerProfile: null,
     pageTitle: "스텔라 프로필",
     currentStellarId: getRequestedStellarId(),
+    showProfileIdentity: true,
+  });
+}
+
+function buildViewerProfileStub(session) {
+  if (!session?.user) return null;
+
+  return {
+    id: session.user.id,
+    full_name: session.user.user_metadata?.full_name || session.user.email || "회원",
+    profile_image_url: session.user.user_metadata?.profile_image_url || "",
+    stellar_id: resolveOwnStellarId(session, null),
+  };
+}
+
+function renderProfileNav({ session = null, viewerProfile = null, currentStellarId = null } = {}) {
+  if (!session) {
+    renderGuestNav();
+    return;
+  }
+
+  renderSocialNav(document.querySelector("[data-social-nav]"), {
+    session,
+    viewerProfile: viewerProfile || buildViewerProfileStub(session),
+    currentStellarId: currentStellarId || getRequestedStellarId(),
+    pageTitle: "스텔라 프로필",
     showProfileIdentity: true,
   });
 }
@@ -729,12 +761,11 @@ function wait(ms) {
 async function fetchPublicProfileWithRetry(stellarId, {
   attempts = 4,
   delayMs = 350,
-  accessToken = null,
 } = {}) {
   let profile = null;
 
   for (let index = 0; index < attempts; index += 1) {
-    profile = await fetchPublicProfileByStellarId(stellarId, { accessToken });
+    profile = await fetchPublicProfileByStellarId(stellarId);
     if (profile) {
       return profile;
     }
@@ -745,6 +776,21 @@ async function fetchPublicProfileWithRetry(stellarId, {
   }
 
   return profile;
+}
+
+function buildProfileRelationship(publicProfile, session, viewerProfile) {
+  const ownStellarId = resolveOwnStellarId(session, viewerProfile);
+  const ownProfileId = viewerProfile?.id || session?.user?.id || null;
+  const isSelf = Boolean(
+    publicProfile?.is_self
+    || (ownProfileId && publicProfile?.profile_id === ownProfileId)
+    || (ownStellarId && String(publicProfile?.stellar_id || "") === String(ownStellarId))
+  );
+
+  return {
+    isSelf,
+    isFollowing: !isSelf && Boolean(publicProfile?.is_following),
+  };
 }
 
 async function init() {
@@ -762,12 +808,20 @@ async function init() {
     throw new Error("유효한 스텔라 등록번호가 없습니다.");
   }
 
-  renderGuestNav();
-
   const session = await getSession();
-  const initialPublicProfile = await fetchPublicProfileWithRetry(stellarId, {
-    accessToken: session?.access_token || null,
+  renderProfileNav({
+    session,
+    currentStellarId: stellarId,
   });
+
+  const viewerProfilePromise = session
+    ? fetchProfile(session.user.id).catch((error) => {
+      console.warn("viewer profile hydration failed", error);
+      return null;
+    })
+    : Promise.resolve(null);
+
+  const initialPublicProfile = await fetchPublicProfileWithRetry(stellarId);
 
   if (!initialPublicProfile) {
     throw new Error("해당 스텔라 프로필을 찾지 못했습니다.");
@@ -781,37 +835,21 @@ async function init() {
       publicProfile = await fetchPublicProfileWithRetry(stellarId, {
         attempts: 2,
         delayMs: 250,
-        accessToken: session?.access_token || null,
       }) || publicProfile;
     } catch (error) {
       console.warn("public profile refresh failed", error);
     }
   }
 
-  let viewerProfile = null;
-  if (session) {
-    try {
-      viewerProfile = await fetchProfile(session.user.id);
-    } catch (error) {
-      console.warn("viewer profile hydration failed", error);
-    }
-
-    renderSocialNav(document.querySelector("[data-social-nav]"), {
-      session,
-      viewerProfile,
-      currentStellarId: publicProfile.stellar_id,
-      pageTitle: "스텔라 프로필",
-      showProfileIdentity: true,
-    });
-  } else {
-    renderGuestNav();
-  }
+  const viewerProfile = await viewerProfilePromise;
+  renderProfileNav({
+    session,
+    viewerProfile,
+    currentStellarId: publicProfile.stellar_id,
+  });
 
   const meta = getPublicProfileMeta(publicProfile);
-  const relationship = {
-    isSelf: Boolean(publicProfile.is_self),
-    isFollowing: Boolean(publicProfile.is_following),
-  };
+  const relationship = buildProfileRelationship(publicProfile, session, viewerProfile);
   const fallbackOwnSnapshot = relationship.isSelf ? buildLocalSnapshotFromProfile(viewerProfile) : null;
   const snapshot = meta.snapshot || fallbackOwnSnapshot;
 
