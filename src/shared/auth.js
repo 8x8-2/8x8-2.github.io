@@ -154,6 +154,31 @@ async function fetchProfileRecordById(userId, accessToken = null) {
   return Array.isArray(rows) ? rows[0] || null : rows || null;
 }
 
+async function fetchOwnProfileRecord(accessToken) {
+  const response = await fetch(createSupabaseUrl("/rest/v1/rpc/get_my_profile"), {
+    method: "POST",
+    headers: createSupabaseHeaders({
+      accessToken,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/vnd.pgrst.object+json",
+      },
+    }),
+    body: JSON.stringify({}),
+  });
+
+  if (response.status === 406) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const detail = await readSupabaseErrorDetail(response);
+    throw new Error(detail || "내 정보를 불러오지 못했습니다.");
+  }
+
+  return await response.json();
+}
+
 export async function getSession() {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
@@ -211,7 +236,9 @@ export async function fetchProfile(userId = null) {
   let data = null;
 
   try {
-    data = await fetchProfileRecordById(resolvedUserId, session?.access_token || null);
+    data = canRepairOwnProfile
+      ? await fetchOwnProfileRecord(session?.access_token || null)
+      : await fetchProfileRecordById(resolvedUserId, session?.access_token || null);
   } catch (error) {
     if (canRepairOwnProfile) {
       return ensureOwnProfile();

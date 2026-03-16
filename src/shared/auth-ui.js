@@ -4,7 +4,7 @@ import {
   subscribeAuthState,
 } from "./auth.js";
 import { renderSocialNav } from "./social-nav.js";
-import { buildAccountUrl, buildPublicProfileUrl } from "./stellar-id.js";
+import { buildSignedInHomeUrl, resolveOwnStellarId } from "./stellar-id.js";
 
 function getPageMeta() {
   const body = document.body;
@@ -56,11 +56,7 @@ function resolveGuestPageTitle(meta) {
 }
 
 function buildLoggedInHomeUrl(session, profile) {
-  if (profile?.stellar_id) {
-    return buildPublicProfileUrl(profile.stellar_id);
-  }
-
-  return buildAccountUrl(session?.user?.id || null);
+  return buildSignedInHomeUrl(session, profile);
 }
 
 function buildSessionProfileStub(session) {
@@ -69,6 +65,7 @@ function buildSessionProfileStub(session) {
   return {
     full_name: session.user.user_metadata?.full_name || session.user.email || "스텔라 ID",
     profile_image_url: session.user.user_metadata?.profile_image_url || "",
+    stellar_id: resolveOwnStellarId(session, null),
   };
 }
 
@@ -116,7 +113,7 @@ export function setupAuthUi() {
         })
         .catch(() => {
           if (version !== renderVersion) return;
-          window.location.replace(buildAccountUrl(session.user.id));
+          window.location.replace(buildLoggedInHomeUrl(session, null));
         });
       return;
     }

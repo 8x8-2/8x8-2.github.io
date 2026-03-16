@@ -6,7 +6,7 @@ import {
   signInWithPassword,
 } from "./shared/auth.js";
 import { setupAuthUi } from "./shared/auth-ui.js";
-import { buildAccountUrl, buildPublicProfileUrl } from "./shared/stellar-id.js";
+import { buildSignedInHomeUrl } from "./shared/stellar-id.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -25,12 +25,6 @@ function resolveRedirect(fallbackPath) {
   } catch {
     return fallbackUrl.toString();
   }
-}
-
-function buildSignedInHomeUrl(profile, userId) {
-  return profile?.stellar_id
-    ? buildPublicProfileUrl(profile.stellar_id)
-    : buildAccountUrl(userId);
 }
 
 function isValidEmail(value) {
@@ -60,11 +54,11 @@ getSession()
     if (session) {
       fetchProfile(session.user.id)
         .then((profile) => {
-          const fallback = buildSignedInHomeUrl(profile, session.user.id);
+          const fallback = buildSignedInHomeUrl(session, profile);
           window.location.replace(resolveRedirect(fallback));
         })
         .catch(() => {
-          window.location.replace(resolveRedirect(buildAccountUrl(session.user.id)));
+          window.location.replace(resolveRedirect(buildSignedInHomeUrl(session, null)));
         });
     }
   })
@@ -96,7 +90,7 @@ form?.addEventListener("submit", async (event) => {
     statusEl.textContent = "로그인 중...";
     const data = await signInWithPassword({ email, password });
     const profile = data?.user ? await fetchProfile(data.user.id) : null;
-    const fallback = data?.user ? buildSignedInHomeUrl(profile, data.user.id) : homePath;
+    const fallback = data?.session ? buildSignedInHomeUrl(data.session, profile) : homePath;
     window.location.replace(resolveRedirect(fallback));
   } catch (error) {
     errorEl.textContent = error.message || "로그인에 실패했습니다.";

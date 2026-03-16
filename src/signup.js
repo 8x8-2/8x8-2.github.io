@@ -10,7 +10,7 @@ import {
 import { buildProfileDerivedFieldsFromInput } from "./shared/profile-derived.js";
 import { setupAuthUi } from "./shared/auth-ui.js";
 import { loadBirthDraft, saveBirthDraft } from "./shared/drafts.js";
-import { buildAccountUrl, buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
+import { buildSignedInHomeUrl, buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -142,12 +142,6 @@ function resolveRedirect(fallbackPath) {
   }
 }
 
-function buildSignedInHomeUrl(profile, userId) {
-  return profile?.stellar_id
-    ? buildPublicProfileUrl(profile.stellar_id)
-    : buildAccountUrl(userId);
-}
-
 let stellarIdAvailability = {
   value: "",
   available: false,
@@ -274,10 +268,10 @@ getSession()
     if (session) {
       fetchProfile(session.user.id)
         .then((profile) => {
-          window.location.replace(resolveRedirect(buildSignedInHomeUrl(profile, session.user.id)));
+          window.location.replace(resolveRedirect(buildSignedInHomeUrl(session, profile)));
         })
         .catch(() => {
-          window.location.replace(resolveRedirect(buildAccountUrl(session.user.id)));
+          window.location.replace(resolveRedirect(buildSignedInHomeUrl(session, null)));
         });
     }
   })

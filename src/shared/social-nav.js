@@ -1,7 +1,7 @@
 import { trackEvent } from "./analytics.js";
 import { escapeHtml } from "./html.js";
 import { getBellIcon, setupNotificationCenter } from "./notifications.js";
-import { buildAccountUrl, buildFollowingUrl, buildPublicProfileUrl, buildSearchUrl } from "./stellar-id.js";
+import { buildAccountUrl, buildFollowingUrl, buildSearchUrl, buildSignedInHomeUrl } from "./stellar-id.js";
 import { signOut } from "./auth.js";
 import symbolStellarIdUrl from "../img/bi/symbol-stellarid.png";
 
@@ -65,11 +65,7 @@ function buildHomeUrl(session, viewerProfile, homeUrlOverride) {
   }
 
   if (session?.user?.id) {
-    if (viewerProfile?.stellar_id) {
-      return buildPublicProfileUrl(viewerProfile.stellar_id);
-    }
-
-    return buildAccountUrl(session.user.id);
+    return buildSignedInHomeUrl(session, viewerProfile);
   }
 
   return new URL(document.body.dataset.linkHome || "/", window.location.href).toString();

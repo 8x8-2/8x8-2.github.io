@@ -33,6 +33,20 @@ export function buildPublicProfileUrl(stellarId, { absolute = false } = {}) {
   return absolute ? new URL(path, window.location.origin).toString() : path;
 }
 
+export function resolveOwnStellarId(session, profile = null) {
+  const profileStellarId = profile?.stellar_id;
+  if (profileStellarId != null && String(profileStellarId).trim()) {
+    return String(profileStellarId).trim();
+  }
+
+  const sessionStellarId = session?.user?.user_metadata?.stellar_id;
+  if (sessionStellarId != null && String(sessionStellarId).trim()) {
+    return String(sessionStellarId).trim();
+  }
+
+  return null;
+}
+
 export function getRequestedStellarId() {
   const profilePathMatch = window.location.pathname.match(/^\/profile\/(\d{1,16})\/?$/);
   if (profilePathMatch) return profilePathMatch[1];
@@ -68,6 +82,15 @@ export function buildAccountUrl(userId = null) {
     url.searchParams.set("user_id", userId);
   }
   return url.toString();
+}
+
+export function buildSignedInHomeUrl(session, profile = null) {
+  const stellarId = resolveOwnStellarId(session, profile);
+  if (stellarId) {
+    return buildPublicProfileUrl(stellarId);
+  }
+
+  return buildAccountUrl(session?.user?.id || null);
 }
 
 export function buildProfileSettingsUrl() {
