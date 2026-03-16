@@ -14,6 +14,11 @@ export function getSupabaseClient() {
 
   if (!supabaseClient) {
     supabaseClient = createClient(supabaseUrl, supabasePublishableKey, {
+      global: {
+        headers: {
+          apikey: supabasePublishableKey,
+        },
+      },
       auth: {
         autoRefreshToken: true,
         persistSession: true,
