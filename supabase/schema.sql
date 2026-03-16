@@ -685,7 +685,7 @@ security definer
 set search_path = public
 as $$
 declare
-  current_user auth.users%rowtype;
+  auth_user_row auth.users%rowtype;
   requested_stellar_id bigint;
   ensured_profile public.profiles%rowtype;
 begin
@@ -694,19 +694,19 @@ begin
   end if;
 
   select *
-  into current_user
+  into auth_user_row
   from auth.users
   where id = auth.uid()
   limit 1;
 
-  if current_user.id is null then
+  if auth_user_row.id is null then
     raise exception '계정 정보를 찾지 못했습니다.';
   end if;
 
   requested_stellar_id :=
     case
-      when nullif(current_user.raw_user_meta_data ->> 'stellar_id', '') ~ '^\d{1,16}$'
-        then (current_user.raw_user_meta_data ->> 'stellar_id')::bigint
+      when nullif(auth_user_row.raw_user_meta_data ->> 'stellar_id', '') ~ '^\d{1,16}$'
+        then (auth_user_row.raw_user_meta_data ->> 'stellar_id')::bigint
       else null
     end;
 
@@ -745,38 +745,38 @@ begin
     major_luck_visibility
   )
   values (
-    current_user.id,
-    current_user.email,
-    coalesce(current_user.raw_user_meta_data ->> 'full_name', '회원'),
-    coalesce(current_user.raw_user_meta_data ->> 'gender', 'male'),
-    nullif(current_user.raw_user_meta_data ->> 'phone', ''),
-    coalesce(current_user.raw_user_meta_data ->> 'calendar_type', 'solar'),
-    coalesce((current_user.raw_user_meta_data ->> 'is_leap_month')::boolean, false),
-    coalesce((current_user.raw_user_meta_data ->> 'birth_year')::integer, 2000),
-    coalesce((current_user.raw_user_meta_data ->> 'birth_month')::integer, 1),
-    coalesce((current_user.raw_user_meta_data ->> 'birth_day')::integer, 1),
-    nullif(current_user.raw_user_meta_data ->> 'birth_hour', '')::integer,
-    nullif(current_user.raw_user_meta_data ->> 'birth_minute', '')::integer,
-    coalesce((current_user.raw_user_meta_data ->> 'birth_time_known')::boolean, true),
-    coalesce((current_user.raw_user_meta_data ->> 'marketing_opt_in')::boolean, false),
+    auth_user_row.id,
+    auth_user_row.email,
+    coalesce(auth_user_row.raw_user_meta_data ->> 'full_name', '회원'),
+    coalesce(auth_user_row.raw_user_meta_data ->> 'gender', 'male'),
+    nullif(auth_user_row.raw_user_meta_data ->> 'phone', ''),
+    coalesce(auth_user_row.raw_user_meta_data ->> 'calendar_type', 'solar'),
+    coalesce((auth_user_row.raw_user_meta_data ->> 'is_leap_month')::boolean, false),
+    coalesce((auth_user_row.raw_user_meta_data ->> 'birth_year')::integer, 2000),
+    coalesce((auth_user_row.raw_user_meta_data ->> 'birth_month')::integer, 1),
+    coalesce((auth_user_row.raw_user_meta_data ->> 'birth_day')::integer, 1),
+    nullif(auth_user_row.raw_user_meta_data ->> 'birth_hour', '')::integer,
+    nullif(auth_user_row.raw_user_meta_data ->> 'birth_minute', '')::integer,
+    coalesce((auth_user_row.raw_user_meta_data ->> 'birth_time_known')::boolean, true),
+    coalesce((auth_user_row.raw_user_meta_data ->> 'marketing_opt_in')::boolean, false),
     coalesce(requested_stellar_id, nextval('public.stellar_id_seq')),
-    nullif(current_user.raw_user_meta_data ->> 'profile_image_path', ''),
-    nullif(current_user.raw_user_meta_data ->> 'profile_image_url', ''),
-    nullif(current_user.raw_user_meta_data ->> 'mbti', ''),
-    nullif(current_user.raw_user_meta_data ->> 'region_country', ''),
-    nullif(current_user.raw_user_meta_data ->> 'region_name', ''),
-    left(coalesce(current_user.raw_user_meta_data ->> 'bio', ''), 150),
-    nullif(current_user.raw_user_meta_data ->> 'day_pillar_key', ''),
-    nullif(current_user.raw_user_meta_data ->> 'day_pillar_hanja', ''),
-    nullif(current_user.raw_user_meta_data ->> 'day_pillar_metaphor', ''),
-    coalesce(nullif(current_user.raw_user_meta_data ->> 'element_class', ''), 'unknown'),
-    coalesce(current_user.raw_user_meta_data ->> 'preview_summary', ''),
-    coalesce((current_user.raw_user_meta_data -> 'public_snapshot')::jsonb, '{}'::jsonb),
-    coalesce(current_user.raw_user_meta_data ->> 'personality_visibility', 'public'),
-    coalesce(current_user.raw_user_meta_data ->> 'health_visibility', 'public'),
-    coalesce(current_user.raw_user_meta_data ->> 'love_visibility', 'public'),
-    coalesce(current_user.raw_user_meta_data ->> 'ability_visibility', 'public'),
-    coalesce(current_user.raw_user_meta_data ->> 'major_luck_visibility', 'public')
+    nullif(auth_user_row.raw_user_meta_data ->> 'profile_image_path', ''),
+    nullif(auth_user_row.raw_user_meta_data ->> 'profile_image_url', ''),
+    nullif(auth_user_row.raw_user_meta_data ->> 'mbti', ''),
+    nullif(auth_user_row.raw_user_meta_data ->> 'region_country', ''),
+    nullif(auth_user_row.raw_user_meta_data ->> 'region_name', ''),
+    left(coalesce(auth_user_row.raw_user_meta_data ->> 'bio', ''), 150),
+    nullif(auth_user_row.raw_user_meta_data ->> 'day_pillar_key', ''),
+    nullif(auth_user_row.raw_user_meta_data ->> 'day_pillar_hanja', ''),
+    nullif(auth_user_row.raw_user_meta_data ->> 'day_pillar_metaphor', ''),
+    coalesce(nullif(auth_user_row.raw_user_meta_data ->> 'element_class', ''), 'unknown'),
+    coalesce(auth_user_row.raw_user_meta_data ->> 'preview_summary', ''),
+    coalesce((auth_user_row.raw_user_meta_data -> 'public_snapshot')::jsonb, '{}'::jsonb),
+    coalesce(auth_user_row.raw_user_meta_data ->> 'personality_visibility', 'public'),
+    coalesce(auth_user_row.raw_user_meta_data ->> 'health_visibility', 'public'),
+    coalesce(auth_user_row.raw_user_meta_data ->> 'love_visibility', 'public'),
+    coalesce(auth_user_row.raw_user_meta_data ->> 'ability_visibility', 'public'),
+    coalesce(auth_user_row.raw_user_meta_data ->> 'major_luck_visibility', 'public')
   )
   on conflict (id) do update
   set
