@@ -79,6 +79,7 @@ function buildSigninUrl() {
 
 export function renderSocialNav(container, {
   variant = "profile",
+  authStatus = null,
   session,
   viewerProfile,
   currentStellarId = null,
@@ -94,6 +95,7 @@ export function renderSocialNav(container, {
   const searchUrl = buildSearchUrl();
   const followingUrl = buildFollowingUrl();
   const accountUrl = buildAccountUrl(session?.user?.id || null);
+  const showAuthLoadingPlaceholder = !session && ["unknown", "loading"].includes(String(authStatus || ""));
 
   container.innerHTML = `
     <div class="social-topbar">
@@ -130,7 +132,9 @@ export function renderSocialNav(container, {
               </div>
             </div>
           `
-          : `<a class="topbar-auth-link" href="${escapeHtml(signinUrl)}" data-auth-action="signin">로그인</a>`
+          : showAuthLoadingPlaceholder
+            ? `<span class="social-auth-placeholder" aria-hidden="true"></span>`
+            : `<a class="topbar-auth-link" href="${escapeHtml(signinUrl)}" data-auth-action="signin">로그인</a>`
         }
       </div>
     </div>

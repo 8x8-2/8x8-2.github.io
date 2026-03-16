@@ -2118,6 +2118,16 @@ summary:focus-visible {
   background: #ffffff;
 }
 
+.social-auth-placeholder {
+  width: 88px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 62, 75, 0.88);
+  background: linear-gradient(180deg, rgba(31, 36, 45, 0.84), rgba(23, 27, 34, 0.92));
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
 .social-brand {
   display: inline-flex;
   align-items: center;

@@ -1,8 +1,9 @@
 import {
+  AUTH_STATE_STATUS,
   buildSessionProfileStub,
   fetchProfile,
   isSupabaseConfigured,
-  subscribeAuthState,
+  subscribeAuthSnapshot,
 } from "./auth.js";
 import { renderSocialNav } from "./social-nav.js";
 import { buildSignedInHomeUrl } from "./stellar-id.js";
@@ -60,8 +61,9 @@ function buildLoggedInHomeUrl(session, profile) {
   return buildSignedInHomeUrl(session, profile);
 }
 
-function renderPageNav(container, meta, session, profile = null) {
+function renderPageNav(container, meta, session, profile = null, authStatus = AUTH_STATE_STATUS.UNAUTHENTICATED) {
   return renderSocialNav(container, {
+    authStatus,
     session,
     viewerProfile: profile || buildSessionProfileStub(session),
     pageTitle: session ? resolvePageTitle(meta) : resolveGuestPageTitle(meta),
@@ -82,7 +84,12 @@ export function setupAuthUi() {
   let activeCleanup = null;
   let renderVersion = 0;
 
-  const unsubscribe = subscribeAuthState((session) => {
+  activeCleanup = renderPageNav(container, meta, null, null, AUTH_STATE_STATUS.LOADING);
+
+  const unsubscribe = subscribeAuthSnapshot((snapshot) => {
+    const session = snapshot.session || null;
+    const authStatus = snapshot.status || AUTH_STATE_STATUS.UNKNOWN;
+
     renderVersion += 1;
     const version = renderVersion;
 
@@ -92,7 +99,13 @@ export function setupAuthUi() {
     }
 
     if (!session) {
-      activeCleanup = renderPageNav(container, meta, null, null);
+      activeCleanup = renderPageNav(
+        container,
+        meta,
+        null,
+        null,
+        authStatus === AUTH_STATE_STATUS.UNAUTHENTICATED ? AUTH_STATE_STATUS.UNAUTHENTICATED : AUTH_STATE_STATUS.LOADING
+      );
       return;
     }
 
@@ -109,7 +122,7 @@ export function setupAuthUi() {
       return;
     }
 
-    activeCleanup = renderPageNav(container, meta, session, null);
+    activeCleanup = renderPageNav(container, meta, session, null, AUTH_STATE_STATUS.AUTHENTICATED);
 
     fetchProfile(session.user.id)
       .then((profile) => {
@@ -118,7 +131,7 @@ export function setupAuthUi() {
           activeCleanup();
           activeCleanup = null;
         }
-        activeCleanup = renderPageNav(container, meta, session, profile);
+        activeCleanup = renderPageNav(container, meta, session, profile, AUTH_STATE_STATUS.AUTHENTICATED);
       })
       .catch(() => {
         // Keep the session-based nav if the profile request is slow or fails.

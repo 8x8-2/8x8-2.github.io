@@ -15,6 +15,388 @@ let profileImageFunctionUnavailable = false;
 let profileImageStorageUnavailable = false;
 let accessTokenRefreshPromise = null;
 
+export const AUTH_STATE_STATUS = Object.freeze({
+  UNKNOWN: "unknown",
+  LOADING: "loading",
+  AUTHENTICATED: "authenticated",
+  UNAUTHENTICATED: "unauthenticated",
+});
+
+const authStore = {
+  initialized: false,
+  status: isSupabaseConfigured() ? AUTH_STATE_STATUS.UNKNOWN : AUTH_STATE_STATUS.UNAUTHENTICATED,
+  session: null,
+  subscribers: new Set(),
+  bootstrapPromise: null,
+  refreshTimerId: null,
+  authSubscription: null,
+  manualSignOut: false,
+  lifecycleInstalled: false,
+};
+
+function getSessionExpiresAt(session) {
+  const expiresAtSeconds = Number(session?.expires_at || 0);
+  if (!Number.isFinite(expiresAtSeconds) || expiresAtSeconds <= 0) {
+    return 0;
+  }
+
+  return expiresAtSeconds * 1000;
+}
+
+function buildAuthSnapshot() {
+  return {
+    status: authStore.status,
+    session: authStore.session,
+    user: authStore.session?.user || null,
+  };
+}
+
+function emitAuthSnapshot() {
+  const snapshot = buildAuthSnapshot();
+  authStore.subscribers.forEach((callback) => {
+    callback(snapshot);
+  });
+}
+
+function clearAuthRefreshTimer() {
+  if (authStore.refreshTimerId && typeof window !== "undefined") {
+    window.clearTimeout(authStore.refreshTimerId);
+  }
+  authStore.refreshTimerId = null;
+}
+
+function scheduleAuthRefreshTimer(session) {
+  clearAuthRefreshTimer();
+
+  if (typeof window === "undefined" || !session?.refresh_token) {
+    return;
+  }
+
+  const expiresAtMs = getSessionExpiresAt(session);
+  if (!expiresAtMs) {
+    return;
+  }
+
+  const remainingMs = expiresAtMs - Date.now();
+  const delayMs = remainingMs > 90_000 ? remainingMs - 60_000 : 60_000;
+
+  authStore.refreshTimerId = window.setTimeout(() => {
+    void refreshAuthSession({
+      reason: "timer",
+      markUnauthenticatedOnFailure: false,
+    });
+  }, Math.max(15_000, delayMs));
+}
+
+function updateAuthStore({ status = authStore.status, session = authStore.session } = {}) {
+  const previousStatus = authStore.status;
+  const previousSession = authStore.session;
+  const previousToken = String(previousSession?.access_token || "");
+  const nextToken = String(session?.access_token || "");
+  const previousUserId = String(previousSession?.user?.id || "");
+  const nextUserId = String(session?.user?.id || "");
+  const previousExpiry = Number(previousSession?.expires_at || 0);
+  const nextExpiry = Number(session?.expires_at || 0);
+
+  authStore.status = status;
+  authStore.session = session || null;
+  scheduleAuthRefreshTimer(authStore.session);
+
+  if (
+    previousStatus === authStore.status &&
+    previousToken === nextToken &&
+    previousUserId === nextUserId &&
+    previousExpiry === nextExpiry
+  ) {
+    return;
+  }
+
+  emitAuthSnapshot();
+}
+
+function markAuthenticated(session, reason = "auth") {
+  if (!session?.user) return;
+  updateAuthStore({
+    status: AUTH_STATE_STATUS.AUTHENTICATED,
+    session,
+  });
+}
+
+function markUnauthenticated(reason = "auth") {
+  updateAuthStore({
+    status: AUTH_STATE_STATUS.UNAUTHENTICATED,
+    session: null,
+  });
+}
+
+async function refreshAuthSession({
+  reason = "refresh",
+  markUnauthenticatedOnFailure = false,
+} = {}) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  if (!accessTokenRefreshPromise) {
+    const previousSession = authStore.session;
+
+    accessTokenRefreshPromise = (async () => {
+      const { data: currentData, error: currentError } = await supabase.auth.getSession();
+      if (currentError) {
+        if (previousSession && !authStore.manualSignOut) {
+          markAuthenticated(previousSession, `${reason}:preserve`);
+          return previousSession;
+        }
+
+        if (markUnauthenticatedOnFailure || authStore.manualSignOut) {
+          markUnauthenticated(`${reason}:get-session-failed`);
+        }
+        return null;
+      }
+
+      const currentSession = currentData?.session || previousSession || null;
+      if (!currentSession?.refresh_token) {
+        if (currentSession?.user) {
+          markAuthenticated(currentSession, `${reason}:current-session`);
+          return currentSession;
+        }
+
+        if (previousSession && !authStore.manualSignOut) {
+          markAuthenticated(previousSession, `${reason}:preserve-no-refresh-token`);
+          return previousSession;
+        }
+
+        if (markUnauthenticatedOnFailure || authStore.manualSignOut) {
+          markUnauthenticated(`${reason}:no-refresh-token`);
+        }
+        return null;
+      }
+
+      const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession({
+        refresh_token: currentSession.refresh_token,
+      });
+
+      const refreshedSession = refreshedData?.session || null;
+      if (refreshError || !refreshedSession?.user) {
+        if (currentSession?.user && !authStore.manualSignOut) {
+          markAuthenticated(currentSession, `${reason}:refresh-failed`);
+          return currentSession;
+        }
+
+        if (markUnauthenticatedOnFailure || authStore.manualSignOut) {
+          markUnauthenticated(`${reason}:refresh-failed`);
+        }
+        return null;
+      }
+
+      authStore.manualSignOut = false;
+      markAuthenticated(refreshedSession, reason);
+      return refreshedSession;
+    })().finally(() => {
+      accessTokenRefreshPromise = null;
+    });
+  }
+
+  return accessTokenRefreshPromise;
+}
+
+async function hydrateAuthStore({
+  reason = "bootstrap",
+  allowUnauthenticatedFallback = true,
+} = {}) {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    markUnauthenticated(`${reason}:unconfigured`);
+    return null;
+  }
+
+  if (!authStore.bootstrapPromise) {
+    const previousSession = authStore.session;
+
+    if (!previousSession) {
+      updateAuthStore({
+        status: AUTH_STATE_STATUS.LOADING,
+        session: null,
+      });
+    } else {
+      markAuthenticated(previousSession, `${reason}:preserve`);
+    }
+
+    authStore.bootstrapPromise = (async () => {
+      const { data, error } = await supabase.auth.getSession();
+      const directSession = !error ? data?.session || null : null;
+
+      if (directSession?.user) {
+        authStore.manualSignOut = false;
+        markAuthenticated(directSession, reason);
+        return directSession;
+      }
+
+      if (previousSession && !authStore.manualSignOut) {
+        const refreshedSession = await refreshAuthSession({
+          reason: `${reason}:recovery`,
+          markUnauthenticatedOnFailure: false,
+        }).catch(() => previousSession);
+
+        if (refreshedSession?.user) {
+          markAuthenticated(refreshedSession, `${reason}:recovered`);
+          return refreshedSession;
+        }
+
+        markAuthenticated(previousSession, `${reason}:preserve`);
+        return previousSession;
+      }
+
+      if (allowUnauthenticatedFallback || authStore.manualSignOut) {
+        markUnauthenticated(reason);
+      }
+
+      return null;
+    })().finally(() => {
+      authStore.bootstrapPromise = null;
+    });
+  }
+
+  return authStore.bootstrapPromise;
+}
+
+function handleSupabaseAuthStateChange(event, session) {
+  if (session?.user) {
+    authStore.manualSignOut = false;
+    markAuthenticated(session, `event:${event}`);
+    return;
+  }
+
+  if (event === "SIGNED_OUT") {
+    if (authStore.manualSignOut) {
+      authStore.manualSignOut = false;
+      markUnauthenticated(`event:${event}`);
+      return;
+    }
+
+    if (authStore.session?.user) {
+      markAuthenticated(authStore.session, `event:${event}:preserve`);
+      void hydrateAuthStore({
+        reason: `event:${event}`,
+        allowUnauthenticatedFallback: false,
+      });
+      return;
+    }
+
+    void hydrateAuthStore({
+      reason: `event:${event}`,
+      allowUnauthenticatedFallback: true,
+    });
+    return;
+  }
+
+  if (authStore.session?.user && !authStore.manualSignOut) {
+    markAuthenticated(authStore.session, `event:${event}:preserve`);
+    void hydrateAuthStore({
+      reason: `event:${event}`,
+      allowUnauthenticatedFallback: false,
+    });
+    return;
+  }
+
+  if ([AUTH_STATE_STATUS.UNKNOWN, AUTH_STATE_STATUS.LOADING].includes(authStore.status)) {
+    void hydrateAuthStore({
+      reason: `event:${event}`,
+      allowUnauthenticatedFallback: true,
+    });
+    return;
+  }
+
+  markUnauthenticated(`event:${event}`);
+}
+
+function installAuthLifecycleObservers() {
+  if (authStore.lifecycleInstalled || typeof window === "undefined") {
+    return;
+  }
+
+  const handleSessionResume = () => {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      return;
+    }
+
+    if (authStore.session?.user) {
+      void refreshAuthSession({
+        reason: "resume",
+        markUnauthenticatedOnFailure: false,
+      });
+      return;
+    }
+
+    void hydrateAuthStore({
+      reason: "resume",
+      allowUnauthenticatedFallback: true,
+    });
+  };
+
+  window.addEventListener("focus", handleSessionResume);
+  document.addEventListener("visibilitychange", handleSessionResume);
+  authStore.lifecycleInstalled = true;
+}
+
+function ensureAuthStoreInitialized() {
+  if (authStore.initialized) {
+    return;
+  }
+
+  authStore.initialized = true;
+
+  if (!isSupabaseConfigured()) {
+    markUnauthenticated("bootstrap:unconfigured");
+    return;
+  }
+
+  installAuthLifecycleObservers();
+
+  const supabase = ensureSupabase();
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((event, session) => {
+    handleSupabaseAuthStateChange(event, session || null);
+  });
+
+  authStore.authSubscription = subscription;
+  void hydrateAuthStore({
+    reason: "bootstrap",
+    allowUnauthenticatedFallback: true,
+  });
+}
+
+export function getAuthSnapshot() {
+  ensureAuthStoreInitialized();
+  return buildAuthSnapshot();
+}
+
+export async function waitForAuthBootstrap() {
+  ensureAuthStoreInitialized();
+
+  if (!authStore.session && [AUTH_STATE_STATUS.UNKNOWN, AUTH_STATE_STATUS.LOADING].includes(authStore.status)) {
+    await hydrateAuthStore({
+      reason: "wait",
+      allowUnauthenticatedFallback: true,
+    });
+  }
+
+  return buildAuthSnapshot();
+}
+
+export function subscribeAuthSnapshot(callback) {
+  ensureAuthStoreInitialized();
+
+  authStore.subscribers.add(callback);
+  queueMicrotask(() => {
+    callback(buildAuthSnapshot());
+  });
+
+  return () => {
+    authStore.subscribers.delete(callback);
+  };
+}
+
 function ensureSupabase() {
   const supabase = getSupabaseClient();
   if (!supabase) {
@@ -356,29 +738,12 @@ async function readSupabaseErrorDetail(response) {
 }
 
 async function refreshAccessTokenOnce() {
-  const supabase = getSupabaseClient();
-  if (!supabase) return null;
+  const session = await refreshAuthSession({
+    reason: "request-refresh",
+    markUnauthenticatedOnFailure: false,
+  }).catch(() => null);
 
-  if (!accessTokenRefreshPromise) {
-    accessTokenRefreshPromise = (async () => {
-      const { data: currentData, error: currentError } = await supabase.auth.getSession();
-      if (currentError) return null;
-
-      const currentSession = currentData?.session || null;
-      if (!currentSession?.refresh_token) return null;
-
-      const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession({
-        refresh_token: currentSession.refresh_token,
-      });
-      if (refreshError) return null;
-
-      return String(refreshedData?.session?.access_token || "").trim() || null;
-    })().finally(() => {
-      accessTokenRefreshPromise = null;
-    });
-  }
-
-  return accessTokenRefreshPromise;
+  return String(session?.access_token || "").trim() || null;
 }
 
 async function fetchSupabaseRestResponse(path, {
@@ -536,12 +901,18 @@ async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
 }
 
 export async function getSession(options = {}) {
-  const supabase = getSupabaseClient();
-  if (!supabase) return null;
+  ensureAuthStoreInitialized();
 
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw normalizeAuthError(error);
-  return data.session || null;
+  if (authStore.session?.user) {
+    return authStore.session;
+  }
+
+  if (authStore.status === AUTH_STATE_STATUS.UNAUTHENTICATED) {
+    return null;
+  }
+
+  const snapshot = await waitForAuthBootstrap();
+  return snapshot.session || null;
 }
 
 export async function getUser(options = {}) {
@@ -811,24 +1182,16 @@ export async function updateProfile(updates) {
 }
 
 export function subscribeAuthState(callback) {
-  const supabase = getSupabaseClient();
+  return subscribeAuthSnapshot((snapshot) => {
+    if (snapshot.session?.user) {
+      callback(snapshot.session);
+      return;
+    }
 
-  if (!supabase) {
-    queueMicrotask(() => callback(null));
-    return () => {};
-  }
-
-  getSession()
-    .then((session) => callback(session))
-    .catch(() => callback(null));
-
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange((_event, session) => {
-    callback(session || null);
+    if (snapshot.status === AUTH_STATE_STATUS.UNAUTHENTICATED) {
+      callback(null);
+    }
   });
-
-  return () => subscription.unsubscribe();
 }
 
 export async function signInWithPassword({ email, password }) {
@@ -840,6 +1203,10 @@ export async function signInWithPassword({ email, password }) {
   });
 
   if (error) throw normalizeAuthError(error, "signin");
+  if (data?.session?.user) {
+    authStore.manualSignOut = false;
+    markAuthenticated(data.session, "signin");
+  }
   return data;
 }
 
@@ -861,13 +1228,22 @@ export async function signUpWithPassword({
   });
 
   if (error) throw normalizeAuthError(error, "signup");
+  if (data?.session?.user) {
+    authStore.manualSignOut = false;
+    markAuthenticated(data.session, "signup");
+  }
   return data;
 }
 
 export async function signOut() {
   const supabase = ensureSupabase();
+  authStore.manualSignOut = true;
   const { error } = await supabase.auth.signOut();
-  if (error) throw new Error("로그아웃 중 오류가 발생했습니다.");
+  if (error) {
+    authStore.manualSignOut = false;
+    throw new Error("로그아웃 중 오류가 발생했습니다.");
+  }
+  markUnauthenticated("signout");
 }
 
 export async function changePassword({ currentPassword, newPassword }) {

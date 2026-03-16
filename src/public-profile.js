@@ -1,15 +1,16 @@
 import { getAllDayPillarEntries, getDayPillarElement } from "../data/daypillars.js";
 import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
 import {
+  AUTH_STATE_STATUS,
   fetchOwnFollowCounts,
   fetchProfile,
   fetchPublicProfileByStellarId,
   followProfile,
-  getSession,
+  subscribeAuthSnapshot,
   isSupabaseConfigured,
   refreshPublicProfileByStellarId,
-  subscribeAuthState,
   unfollowProfile,
+  waitForAuthBootstrap,
 } from "./shared/auth.js";
 import {
   buildFlowSeries,
@@ -70,6 +71,7 @@ function getTabIcon(name) {
 
 function renderGuestNav() {
   renderSocialNav(document.querySelector("[data-social-nav]"), {
+    authStatus: AUTH_STATE_STATUS.UNAUTHENTICATED,
     session: null,
     viewerProfile: null,
     pageTitle: "스텔라 프로필",
@@ -136,13 +138,19 @@ function applySelfFollowCounts(profile, counts) {
   };
 }
 
-function renderProfileNav({ session = null, viewerProfile = null, currentStellarId = null } = {}) {
-  if (!session) {
+function renderProfileNav({
+  authStatus = AUTH_STATE_STATUS.UNAUTHENTICATED,
+  session = null,
+  viewerProfile = null,
+  currentStellarId = null,
+} = {}) {
+  if (!session && authStatus === AUTH_STATE_STATUS.UNAUTHENTICATED) {
     renderGuestNav();
     return;
   }
 
   renderSocialNav(document.querySelector("[data-social-nav]"), {
+    authStatus,
     session,
     viewerProfile: viewerProfile || buildViewerProfileStub(session),
     currentStellarId: currentStellarId || getRequestedStellarId(),
@@ -862,21 +870,25 @@ async function init() {
     throw new Error("유효한 스텔라 등록번호가 없습니다.");
   }
 
-  let session = await getSession();
+  const initialAuthSnapshot = await waitForAuthBootstrap();
+  let authStatus = initialAuthSnapshot.status || AUTH_STATE_STATUS.UNKNOWN;
+  let session = initialAuthSnapshot.session || null;
   let viewerProfile = null;
   let currentPublicProfile = null;
   let isSelfProfileMode = false;
 
   const syncNav = () => {
     renderProfileNav({
+      authStatus,
       session,
       viewerProfile,
       currentStellarId: currentPublicProfile?.stellar_id || stellarId,
     });
   };
 
-  const unsubscribeAuth = subscribeAuthState((nextSession) => {
-    session = nextSession;
+  const unsubscribeAuth = subscribeAuthSnapshot((snapshot) => {
+    authStatus = snapshot.status || AUTH_STATE_STATUS.UNKNOWN;
+    session = snapshot.session || null;
     syncNav();
   });
 
