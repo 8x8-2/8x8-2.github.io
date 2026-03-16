@@ -13,6 +13,7 @@ let ensureOwnProfileRpcUnavailable = false;
 let notificationQueryMode = "full";
 let profileImageFunctionUnavailable = false;
 let profileImageStorageUnavailable = false;
+let sessionRefreshPromise = null;
 
 function ensureSupabase() {
   const supabase = getSupabaseClient();
@@ -203,6 +204,18 @@ function createRequestError(message, status = 500) {
   return error;
 }
 
+function shouldRetrySupabaseAuthFailure(status, detail = "") {
+  const normalizedDetail = String(detail || "").toLowerCase();
+
+  return Boolean(
+    [400, 401, 403].includes(Number(status || 0))
+    || normalizedDetail.includes("jwt")
+    || normalizedDetail.includes("token")
+    || normalizedDetail.includes("auth")
+    || normalizedDetail.includes("session")
+  );
+}
+
 function isProfileRpcCompatibilityError(error) {
   const message = String(error?.message || "").toLowerCase();
   const status = Number(error?.status || 0);
@@ -330,12 +343,46 @@ async function readSupabaseErrorDetail(response) {
   }
 }
 
+async function refreshSessionOrThrow() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  if (!sessionRefreshPromise) {
+    sessionRefreshPromise = (async () => {
+      const currentSessionResult = await supabase.auth.getSession();
+      if (currentSessionResult.error) {
+        throw normalizeAuthError(currentSessionResult.error);
+      }
+
+      const currentSession = currentSessionResult.data.session || null;
+      if (!currentSession?.refresh_token) {
+        return currentSession;
+      }
+
+      const refreshResult = await supabase.auth.refreshSession({
+        refresh_token: currentSession.refresh_token,
+      });
+
+      if (refreshResult.error) {
+        throw normalizeAuthError(refreshResult.error);
+      }
+
+      return refreshResult.data.session || currentSession;
+    })().finally(() => {
+      sessionRefreshPromise = null;
+    });
+  }
+
+  return sessionRefreshPromise;
+}
+
 async function fetchSupabaseRestResponse(path, {
   accessToken = null,
   method = "GET",
   headers = null,
   body = undefined,
   searchParams = null,
+  retryOnAuthFailure = true,
 } = {}) {
   const requestUrl = createSupabaseUrl(path);
 
@@ -357,6 +404,22 @@ async function fetchSupabaseRestResponse(path, {
 
   if (!response.ok) {
     const detail = await readSupabaseErrorDetail(response);
+    if (retryOnAuthFailure && accessToken && shouldRetrySupabaseAuthFailure(response.status, detail)) {
+      const refreshedSession = await refreshSessionOrThrow().catch(() => null);
+      const refreshedAccessToken = String(refreshedSession?.access_token || "").trim();
+
+      if (refreshedAccessToken && refreshedAccessToken !== String(accessToken || "").trim()) {
+        return fetchSupabaseRestResponse(path, {
+          accessToken: refreshedAccessToken,
+          method,
+          headers,
+          body,
+          searchParams,
+          retryOnAuthFailure: false,
+        });
+      }
+    }
+
     throw createRequestError(detail || "Supabase 요청을 처리하지 못했습니다.", response.status);
   }
 
@@ -411,45 +474,35 @@ async function markNotificationRowsReadViaRest({ accessToken, userId, readAt }) 
 }
 
 async function fetchProfileRecordById(userId, accessToken = null) {
-  const requestUrl = createSupabaseUrl("/rest/v1/profiles");
-  requestUrl.searchParams.set("select", "*");
-  requestUrl.searchParams.set("id", `eq.${userId}`);
-
-  const response = await fetch(requestUrl, {
-    headers: createSupabaseHeaders({
-      accessToken,
-    }),
+  const response = await fetchSupabaseRestResponse("/rest/v1/profiles", {
+    accessToken,
+    searchParams: {
+      select: "*",
+      id: `eq.${userId}`,
+    },
   });
-
-  if (!response.ok) {
-    const detail = await readSupabaseErrorDetail(response);
-    throw createRequestError(detail || "프로필을 불러오지 못했습니다.", response.status);
-  }
-
   const rows = await response.json();
   return Array.isArray(rows) ? rows[0] || null : rows || null;
 }
 
 async function fetchOwnProfileRecord(accessToken) {
-  const response = await fetch(createSupabaseUrl("/rest/v1/rpc/get_my_profile"), {
+  const response = await fetchSupabaseRestResponse("/rest/v1/rpc/get_my_profile", {
+    accessToken,
     method: "POST",
-    headers: createSupabaseHeaders({
-      accessToken,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/vnd.pgrst.object+json",
-      },
-    }),
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/vnd.pgrst.object+json",
+    },
     body: JSON.stringify({}),
+  }).catch((error) => {
+    if (Number(error?.status || 0) === 406) {
+      return null;
+    }
+    throw error;
   });
 
-  if (response.status === 406) {
+  if (!response) {
     return null;
-  }
-
-  if (!response.ok) {
-    const detail = await readSupabaseErrorDetail(response);
-    throw createRequestError(detail || "내 정보를 불러오지 못했습니다.", response.status);
   }
 
   return await response.json();
@@ -476,21 +529,25 @@ async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
   return null;
 }
 
-export async function getSession() {
+export async function getSession(options = {}) {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
+
+  if (options?.refresh) {
+    return await refreshSessionOrThrow();
+  }
 
   const { data, error } = await supabase.auth.getSession();
   if (error) throw normalizeAuthError(error);
   return data.session || null;
 }
 
-export async function getUser() {
-  return (await getSession())?.user || null;
+export async function getUser(options = {}) {
+  return (await getSession(options))?.user || null;
 }
 
 export async function ensureOwnProfile() {
-  const session = await getSession();
+  const session = await getSession({ refresh: true });
   const currentUser = session?.user || null;
   if (!currentUser || !session?.access_token) return null;
   const fallbackStellarId = normalizeStellarId(currentUser.user_metadata?.stellar_id);
@@ -508,21 +565,19 @@ export async function ensureOwnProfile() {
     throw normalizeEnsureProfileError(createRequestError("", 400));
   }
 
-  const response = await fetch(createSupabaseUrl("/rest/v1/rpc/ensure_my_profile"), {
-    method: "POST",
-    headers: createSupabaseHeaders({
+  try {
+    const response = await fetchSupabaseRestResponse("/rest/v1/rpc/ensure_my_profile", {
       accessToken: session.access_token,
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/vnd.pgrst.object+json",
       },
-    }),
-    body: JSON.stringify({}),
-  });
-
-  if (!response.ok) {
-    const detail = await readSupabaseErrorDetail(response);
-    const requestError = createRequestError(detail, response.status);
+      body: JSON.stringify({}),
+    });
+    const profile = await response.json();
+    return normalizeProfileRecord(profile, fallbackStellarId);
+  } catch (requestError) {
 
     if (isProfileRpcCompatibilityError(requestError)) {
       ensureOwnProfileRpcUnavailable = true;
@@ -534,9 +589,6 @@ export async function ensureOwnProfile() {
 
     throw normalizeEnsureProfileError(requestError);
   }
-
-  const profile = await response.json();
-  return normalizeProfileRecord(profile, fallbackStellarId);
 }
 
 export async function fetchProfile(userId = null, options = {}) {
@@ -547,14 +599,17 @@ export async function fetchProfile(userId = null, options = {}) {
     allowSessionFallback = true,
   } = options || {};
 
-  const session = await getSession();
+  let session = await getSession();
   const currentUser = session?.user || null;
   const resolvedUserId = userId || currentUser?.id;
   if (!resolvedUserId) return null;
 
   const canRepairOwnProfile = currentUser?.id === resolvedUserId;
+  if (canRepairOwnProfile && session?.refresh_token) {
+    session = await getSession({ refresh: true }).catch(() => session);
+  }
   const fallbackStellarId = canRepairOwnProfile
-    ? normalizeStellarId(currentUser?.user_metadata?.stellar_id)
+    ? normalizeStellarId((session?.user || currentUser)?.user_metadata?.stellar_id)
     : null;
   const sessionProfileStub = canRepairOwnProfile && allowSessionFallback
     ? buildSessionProfileStub(session)
@@ -605,7 +660,8 @@ export async function fetchProfile(userId = null, options = {}) {
 
 export async function updateProfile(updates) {
   const supabase = ensureSupabase();
-  const user = await getUser();
+  const session = await getSession({ refresh: true });
+  const user = session?.user || null;
 
   if (!user) {
     throw new Error("로그인 후 내 정보를 수정할 수 있습니다.");
@@ -665,16 +721,27 @@ export async function updateProfile(updates) {
     Object.assign(payload, fields);
   }
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .update(payload)
-    .eq("id", user.id)
-    .select("*")
-    .single();
+  let data = null;
+  try {
+    const response = await fetchSupabaseRestResponse("/rest/v1/profiles", {
+      accessToken: session.access_token,
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      searchParams: {
+        id: `eq.${user.id}`,
+        select: "*",
+      },
+      body: JSON.stringify(payload),
+    });
 
-  if (error) {
-    if (isUniqueViolation(error)) {
-      throw new Error("이미 사용 중인 스텔라 등록번호입니다.");
+    const rows = await response.json().catch(() => []);
+    data = Array.isArray(rows) ? rows[0] || null : rows || null;
+  } catch (error) {
+    if (isUniqueViolation(error) || String(error?.message || "").toLowerCase().includes("duplicate")) {
+      throw new Error("이미 사용 중인 스텔라 ID입니다.");
     }
     throw new Error("내 정보를 저장하지 못했습니다.");
   }
@@ -959,7 +1026,7 @@ async function fetchLegacyNotificationRows({ accessToken, userId, offset, limit 
 
 export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) {
   ensureSupabase();
-  const session = await getSession();
+  const session = await getSession({ refresh: true });
   const user = session?.user || null;
 
   if (!user) {
@@ -1025,7 +1092,7 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
 
 export async function fetchUnreadFollowNotificationCount() {
   ensureSupabase();
-  const session = await getSession();
+  const session = await getSession({ refresh: true });
   const user = session?.user || null;
 
   if (!user) {
@@ -1065,7 +1132,7 @@ export async function fetchUnreadFollowNotificationCount() {
 
 export async function markFollowNotificationsRead() {
   ensureSupabase();
-  const session = await getSession();
+  const session = await getSession({ refresh: true });
   const user = session?.user || null;
 
   if (!user) {
@@ -1306,7 +1373,7 @@ async function uploadProfileImageStandard(supabase, { filePath, uploadFile, safe
 
 export async function uploadProfileImage(file) {
   const supabase = ensureSupabase();
-  const session = await getSession();
+  const session = await getSession({ refresh: true });
   const user = session?.user || null;
 
   if (!user || !session?.access_token) {
@@ -1351,6 +1418,12 @@ export async function uploadProfileImage(file) {
     safeContentType || normalizedMimeType || "application/octet-stream"
   );
   const uploadErrors = [];
+
+  try {
+    return await createInlineProfileImageFallback(uploadFile);
+  } catch (error) {
+    uploadErrors.push(error);
+  }
 
   if (!profileImageFunctionUnavailable) {
     try {
