@@ -74,6 +74,10 @@ function normalizeStorageUploadError(error, context = {}) {
     return new Error("이미지 형식이 Storage 설정과 맞지 않습니다. PNG, JPG, WEBP, GIF 파일로 다시 시도해 주세요.");
   }
 
+  if (normalizedMessage.includes("object not found")) {
+    return new Error("Supabase Storage가 업로드 경로를 찾지 못했습니다. 현재 버킷/정책 또는 업로드 API 설정을 확인해 주세요.");
+  }
+
   if (statusCode === "400") {
     return new Error(rawMessage
       ? `Supabase Storage가 업로드 요청을 거절했습니다. 버킷과 정책 설정을 확인해 주세요. (${rawMessage})`
@@ -313,7 +317,12 @@ function normalizeEnsureProfileError(error) {
 async function readSupabaseErrorDetail(response) {
   try {
     const errorPayload = await response.json();
-    return errorPayload?.message || errorPayload?.hint || errorPayload?.details || "";
+    return errorPayload?.message
+      || errorPayload?.detail
+      || errorPayload?.error
+      || errorPayload?.hint
+      || errorPayload?.details
+      || "";
   } catch {
     return await response.text().catch(() => "");
   }
@@ -1036,6 +1045,96 @@ export async function unfollowProfile(targetProfileId) {
   }
 }
 
+function buildUploadFile(file, extension, contentType) {
+  if (typeof File !== "undefined" && file instanceof File) {
+    return file;
+  }
+
+  return new File([file], `avatar.${extension}`, {
+    type: contentType || "application/octet-stream",
+  });
+}
+
+async function uploadProfileImageViaFunction({ session, uploadFile, filePath }) {
+  const formData = new FormData();
+  formData.append("file", uploadFile, uploadFile.name || filePath.split("/").pop() || "avatar");
+  formData.append("path", filePath);
+
+  const response = await fetch(createSupabaseUrl("/functions/v1/upload-profile-image"), {
+    method: "POST",
+    headers: createSupabaseHeaders({
+      accessToken: session.access_token,
+    }),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const detail = await readSupabaseErrorDetail(response);
+    throw createRequestError(detail || "프로필 이미지를 업로드하지 못했습니다.", response.status);
+  }
+
+  const data = await response.json().catch(() => null);
+  if (!data?.path || !data?.publicUrl) {
+    throw createRequestError("프로필 이미지를 업로드하지 못했습니다.", 500);
+  }
+
+  return data;
+}
+
+async function uploadProfileImageWithSignedUrl(supabase, { filePath, uploadFile, safeContentType }) {
+  const signedAttempt = await supabase.storage
+    .from("profile-images")
+    .createSignedUploadUrl(filePath);
+
+  if (signedAttempt.error) {
+    throw signedAttempt.error;
+  }
+
+  const uploadAttempt = await supabase.storage
+    .from("profile-images")
+    .uploadToSignedUrl(filePath, signedAttempt.data.token, uploadFile, {
+      cacheControl: "3600",
+      contentType: safeContentType,
+      upsert: false,
+    });
+
+  if (uploadAttempt.error) {
+    throw uploadAttempt.error;
+  }
+
+  const { data } = supabase.storage
+    .from("profile-images")
+    .getPublicUrl(filePath);
+
+  return {
+    path: filePath,
+    publicUrl: data.publicUrl,
+  };
+}
+
+async function uploadProfileImageStandard(supabase, { filePath, uploadFile, safeContentType }) {
+  const uploadAttempt = await supabase.storage
+    .from("profile-images")
+    .upload(filePath, uploadFile, {
+      cacheControl: "3600",
+      contentType: safeContentType,
+      upsert: false,
+    });
+
+  if (uploadAttempt.error) {
+    throw uploadAttempt.error;
+  }
+
+  const { data } = supabase.storage
+    .from("profile-images")
+    .getPublicUrl(filePath);
+
+  return {
+    path: filePath,
+    publicUrl: data.publicUrl,
+  };
+}
+
 export async function uploadProfileImage(file) {
   const supabase = ensureSupabase();
   const session = await getSession();
@@ -1077,43 +1176,50 @@ export async function uploadProfileImage(file) {
     ? crypto.randomUUID()
     : String(Date.now());
   const filePath = `${user.id}/avatar-${uniqueId}.${safeExtension}`;
-  const requestUrl = createSupabaseUrl(`/storage/v1/object/profile-images/${filePath}`);
-  const uploadFile = (typeof File !== "undefined" && file instanceof File)
-    ? file
-    : new File([file], `avatar.${safeExtension}`, {
-      type: safeContentType || normalizedMimeType || "application/octet-stream",
-    });
-  const formData = new FormData();
-  formData.append("cacheControl", "3600");
-  formData.append("", uploadFile, uploadFile.name || `avatar.${safeExtension}`);
+  const uploadFile = buildUploadFile(
+    file,
+    safeExtension,
+    safeContentType || normalizedMimeType || "application/octet-stream"
+  );
+  const uploadErrors = [];
 
-  const response = await fetch(requestUrl, {
-    method: "POST",
-    headers: createSupabaseHeaders({
-      accessToken: session.access_token,
-      headers: {
-        "x-upsert": "false",
-      },
-    }),
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const detail = await readSupabaseErrorDetail(response);
-    throw normalizeStorageUploadError(createRequestError(detail || response.statusText, response.status), {
-      originalMimeType: normalizedMimeType,
-      safeContentType,
+  try {
+    return await uploadProfileImageViaFunction({
+      session,
+      uploadFile,
+      filePath,
     });
+  } catch (error) {
+    uploadErrors.push(error);
+    console.warn("profile image upload via function failed", error);
   }
 
-  const { data } = supabase.storage
-    .from("profile-images")
-    .getPublicUrl(filePath);
+  try {
+    return await uploadProfileImageWithSignedUrl(supabase, {
+      filePath,
+      uploadFile,
+      safeContentType,
+    });
+  } catch (error) {
+    uploadErrors.push(error);
+    console.warn("profile image signed upload failed", error);
+  }
 
-  return {
-    path: filePath,
-    publicUrl: data.publicUrl,
-  };
+  try {
+    return await uploadProfileImageStandard(supabase, {
+      filePath,
+      uploadFile,
+      safeContentType,
+    });
+  } catch (error) {
+    uploadErrors.push(error);
+  }
+
+  const finalError = uploadErrors[uploadErrors.length - 1] || createRequestError("프로필 이미지를 업로드하지 못했습니다.", 500);
+  throw normalizeStorageUploadError(finalError, {
+    originalMimeType: normalizedMimeType,
+    safeContentType,
+  });
 }
 
 export async function removeProfileImage(filePath) {

@@ -41,6 +41,39 @@ function renderPillarsTable(pillars) {
     .join("");
 }
 
+export function renderPillarsTableCard(pillars, {
+  title = "4주 8자",
+  eyebrow = "",
+  className = "",
+} = {}) {
+  if (!pillars) return "";
+
+  return `
+    <section class="card profile-pillars-section ${escapeHtml(className)}">
+      <div class="section-intro">
+        ${eyebrow ? `<p class="eyebrow">${escapeHtml(eyebrow)}</p>` : ""}
+        <h2>${escapeHtml(title)}</h2>
+      </div>
+      <div class="pillars-wrap">
+        <table class="saju-table" aria-label="${escapeHtml(title)}">
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col">시</th>
+              <th scope="col">일</th>
+              <th scope="col">월</th>
+              <th scope="col">년</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${renderPillarsTable(pillars)}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
 function renderSummaryBox(element, summary, note = "") {
   element.innerHTML = `
     <div class="text">${escapeHtml(summary)}</div>

@@ -24,6 +24,7 @@ import { escapeHtml, escapeHtmlWithBreaks } from "./shared/html.js";
 import { getKstDateParts, needsPublicProfileRefresh } from "./shared/profile-insights.js";
 import { applyProfileSeoToDocument, buildProfileSeoData, getProfileSeoSections } from "./shared/profile-seo.js";
 import { normalizeProfileBio } from "./shared/profile-text.js";
+import { renderPillarsTableCard } from "./shared/reading-renderer.js";
 import { renderSocialNav } from "./shared/social-nav.js";
 import { showToast } from "./shared/ui.js";
 import {
@@ -386,6 +387,10 @@ function buildHomeTab(profile, snapshot, visibility) {
   }
 
   return `
+    ${renderPillarsTableCard(snapshot?.pillars, {
+      title: "4주 8자",
+      className: "profile-home-pillars-card",
+    })}
     <section class="card">
       <div class="section-intro">
         <h2>빠른 홈</h2>

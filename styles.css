@@ -1339,6 +1339,14 @@ body.has-modal {
   margin-bottom: 12px;
 }
 
+.profile-pillars-section .pillars-wrap {
+  margin-top: 0;
+}
+
+.profile-home-pillars-card {
+  margin-bottom: 0;
+}
+
 .info-card,
 .keyword-card {
   border: 1px solid var(--bd);

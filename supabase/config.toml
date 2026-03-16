@@ -1,2 +1,5 @@
 [functions.refresh-public-profile]
 verify_jwt = false
+
+[functions.upload-profile-image]
+verify_jwt = true
