@@ -1085,12 +1085,40 @@ export async function getSession(options = {}) {
     return authStore.session;
   }
 
+  const persistedSession = readPersistedSupabaseSession();
+  if (persistedSession?.user && !authStore.manualSignOut) {
+    markAuthenticated(persistedSession, "get-session:persisted");
+    void hydrateAuthStore({
+      reason: "get-session:persisted",
+      allowUnauthenticatedFallback: false,
+    });
+    return persistedSession;
+  }
+
   if (authStore.status === AUTH_STATE_STATUS.UNAUTHENTICATED) {
+    const recoveredSession = await refreshAuthSession({
+      reason: "get-session:recover",
+      markUnauthenticatedOnFailure: false,
+    }).catch(() => null);
+
+    if (recoveredSession?.user) {
+      return recoveredSession;
+    }
+
     return null;
   }
 
   const snapshot = await waitForAuthBootstrap();
-  return snapshot.session || null;
+  if (snapshot.session?.user) {
+    return snapshot.session;
+  }
+
+  const recoveredSession = await refreshAuthSession({
+    reason: "get-session:post-bootstrap",
+    markUnauthenticatedOnFailure: false,
+  }).catch(() => null);
+
+  return recoveredSession?.user ? recoveredSession : null;
 }
 
 export async function getUser(options = {}) {
