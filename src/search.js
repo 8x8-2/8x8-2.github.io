@@ -1,7 +1,6 @@
 import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
 import {
   buildSessionProfileStub,
-  fetchProfile,
   getSession,
   isSupabaseConfigured,
   searchPublicProfiles,
@@ -101,21 +100,9 @@ async function init() {
   }
 
   const navContainer = document.querySelector("[data-social-nav]");
-  let navCleanup = renderSocialNav(navContainer, {
+  renderSocialNav(navContainer, {
     session,
     viewerProfile: buildSessionProfileStub(session),
-    pageTitle: "스텔라 프로필 검색",
-  });
-
-  const viewerProfile = await fetchProfile(session.user.id, {
-    allowRepair: false,
-    allowSessionFallback: true,
-  }).catch(() => buildSessionProfileStub(session));
-
-  navCleanup?.();
-  navCleanup = renderSocialNav(navContainer, {
-    session,
-    viewerProfile,
     pageTitle: "스텔라 프로필 검색",
   });
 

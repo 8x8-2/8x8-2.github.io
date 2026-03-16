@@ -15,6 +15,7 @@ let notificationQueryMode = "full";
 let profileImageFunctionUnavailable = false;
 let profileImageStorageUnavailable = false;
 let accessTokenRefreshPromise = null;
+let seoProfilesCachePromise = null;
 
 export const AUTH_STATE_STATUS = Object.freeze({
   UNKNOWN: "unknown",
@@ -700,6 +701,77 @@ function normalizeNotificationRecord(notification) {
     read_at: notification.read_at || null,
     created_at: notification.created_at || null,
   };
+}
+
+function normalizeSeoProfileRecord(profile) {
+  if (!profile) return null;
+
+  return {
+    profile_id: null,
+    stellar_id: normalizeStellarId(profile.stellar_id),
+    full_name: profile.full_name || "회원",
+    gender: profile.gender || "male",
+    profile_image_url: profile.profile_image_url || "",
+    day_pillar_key: profile.day_pillar_key || "",
+    day_pillar_hanja: profile.day_pillar_hanja || "",
+    day_pillar_metaphor: profile.day_pillar_metaphor || "",
+    element_class: profile.element_class || "unknown",
+    mbti: profile.mbti || "",
+    follower_count: Number(profile.follower_count || 0),
+    is_following: Boolean(profile.is_following),
+  };
+}
+
+function scoreSeoSearchRow(row, normalizedQuery, numericQuery) {
+  const stellarText = String(row?.stellar_id || "");
+  const lowerName = String(row?.full_name || "").toLowerCase();
+  const lowerDayPillar = String(row?.day_pillar_key || "").toLowerCase();
+  const lowerMbti = String(row?.mbti || "").toLowerCase();
+  const numericPosition = numericQuery ? stellarText.indexOf(numericQuery) : -1;
+
+  let rank = 5;
+  if (numericQuery && stellarText === numericQuery) {
+    rank = 0;
+  } else if (numericQuery && numericPosition >= 0) {
+    rank = 1;
+  } else if (!numericQuery && lowerName === normalizedQuery) {
+    rank = 0;
+  } else if (lowerName.includes(normalizedQuery)) {
+    rank = 2;
+  } else if (lowerDayPillar.includes(normalizedQuery) || lowerMbti.includes(normalizedQuery)) {
+    rank = 3;
+  }
+
+  return {
+    rank,
+    numericPosition,
+    stellarLength: stellarText.length || Number.MAX_SAFE_INTEGER,
+    followerCount: Number(row?.follower_count || 0),
+    stellarNumeric: Number(stellarText || Number.MAX_SAFE_INTEGER),
+  };
+}
+
+async function fetchProfilesForSeoData() {
+  if (!seoProfilesCachePromise) {
+    seoProfilesCachePromise = (async () => {
+      const response = await fetchSupabaseRestResponse("/rest/v1/rpc/get_profiles_for_seo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+
+      const data = await response.json().catch(() => []);
+      return Array.isArray(data) ? data : [];
+    })().catch((error) => {
+      seoProfilesCachePromise = null;
+      throw error;
+    });
+  }
+
+  return seoProfilesCachePromise;
 }
 
 async function warmSupabaseAuthSession(supabase) {
@@ -1477,47 +1549,63 @@ export async function refreshPublicProfileByStellarId(stellarId) {
 }
 
 export async function searchPublicProfiles(query, limit = 20) {
-  if (!String(query || "").trim()) {
+  const normalizedQuery = String(query || "").trim();
+  if (!normalizedQuery) {
     return [];
   }
 
-  const supabase = ensureSupabase();
-  await warmSupabaseAuthSession(supabase);
-
   try {
-    const { data, error } = await supabase.rpc("search_stellar_profiles", {
-      search_query: query || "",
-      limit_count: limit,
-    });
-
-    if (error) {
-      throw error;
-    }
-
-    return Array.isArray(data) ? data : [];
-  } catch {
-    const session = await getSession().catch(() => null);
     const response = await fetchSupabaseRestResponse("/rest/v1/rpc/search_stellar_profiles", {
-      accessToken: session?.access_token || null,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      allowAnonFallback: true,
       body: JSON.stringify({
-        search_query: query || "",
+        search_query: normalizedQuery,
         limit_count: limit,
       }),
     });
 
     const data = await response.json().catch(() => []);
-    if (!Array.isArray(data)) {
-      throw new Error("스텔라 프로필 검색에 실패했습니다.");
+    if (Array.isArray(data)) {
+      return data;
     }
+  } catch {
+    const seoRows = (await fetchProfilesForSeoData()).map((row) => normalizeSeoProfileRecord(row)).filter(Boolean);
+    const lowerQuery = normalizedQuery.toLowerCase();
+    const numericQuery = normalizedQuery.replace(/\D/g, "");
+    const matchedRows = seoRows
+      .filter((row) => {
+        const searchableValues = [
+          String(row.full_name || "").toLowerCase(),
+          String(row.day_pillar_key || "").toLowerCase(),
+          String(row.mbti || "").toLowerCase(),
+          String(row.stellar_id || ""),
+        ];
 
-    return data;
+        return searchableValues.some((value) => value.includes(numericQuery || lowerQuery));
+      })
+      .map((row) => ({
+        ...row,
+        _score: scoreSeoSearchRow(row, lowerQuery, numericQuery),
+      }))
+      .sort((left, right) => {
+        const a = left._score;
+        const b = right._score;
+        return a.rank - b.rank
+          || (a.numericPosition < 0 ? Number.MAX_SAFE_INTEGER : a.numericPosition) - (b.numericPosition < 0 ? Number.MAX_SAFE_INTEGER : b.numericPosition)
+          || a.stellarLength - b.stellarLength
+          || b.followerCount - a.followerCount
+          || a.stellarNumeric - b.stellarNumeric;
+      })
+      .slice(0, Math.max(1, Math.min(Number(limit) || 20, 50)))
+      .map(({ _score, ...row }) => row);
+
+    return matchedRows;
   }
+
+  throw new Error("스텔라 프로필 검색에 실패했습니다.");
 }
 
 export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {}) {
@@ -1565,13 +1653,21 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
   });
 
   const fetchViaRpc = async () => {
-    const { data, error } = await supabase.rpc("get_following_profiles", {
-      sort_key: normalizedSort,
-      search_query: query,
+    const response = await fetchSupabaseRestResponse("/rest/v1/rpc/get_following_profiles", {
+      accessToken: session?.access_token || null,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        sort_key: normalizedSort,
+        search_query: query,
+      }),
     });
 
-    if (error) throw error;
-    return data || [];
+    const data = await response.json().catch(() => []);
+    return Array.isArray(data) ? data : [];
   };
 
   try {
@@ -1713,7 +1809,8 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
   }
 
   try {
-    const data = await fetchNotificationRowsViaClient({
+    const data = await fetchNotificationRowsViaRest({
+      accessToken: session.access_token,
       userId: user.id,
       select: "id,actor_id,actor_stellar_id,actor_full_name,actor_profile_image_url,event_type,read_at,created_at",
       offset: safeOffset,
@@ -1763,7 +1860,8 @@ export async function fetchUnreadFollowNotificationCount() {
   }
 
   try {
-    const rows = await fetchNotificationRowsViaClient({
+    const rows = await fetchNotificationRowsViaRest({
+      accessToken: session.access_token,
       userId: user.id,
       select: "id",
       offset: 0,
@@ -1799,7 +1897,8 @@ export async function markFollowNotificationsRead() {
   }
 
   try {
-    await markNotificationRowsReadViaClient({
+    await markNotificationRowsReadViaRest({
+      accessToken: session.access_token,
       userId: user.id,
       readAt,
     });

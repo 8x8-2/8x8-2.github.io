@@ -67,17 +67,25 @@ export function getSupabaseClient() {
   if (!isSupabaseConfigured()) return null;
 
   if (!supabaseClient) {
+    const projectRef = (() => {
+      try {
+        return new URL(supabaseUrl).host.split(".")[0] || "supabase";
+      } catch {
+        return "supabase";
+      }
+    })();
+
     supabaseClient = createClient(supabaseUrl, supabasePublishableKey, {
       global: {
         headers: {
           apikey: supabasePublishableKey,
         },
-        fetch: withSupabaseHeaders,
       },
       auth: {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: true,
+        storageKey: `sb-${projectRef}-auth-token`,
       },
     });
   }

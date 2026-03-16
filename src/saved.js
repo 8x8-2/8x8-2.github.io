@@ -2,7 +2,6 @@ import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
 import {
   buildSessionProfileStub,
   fetchFollowingProfiles,
-  fetchProfile,
   getSession,
   isSupabaseConfigured,
 } from "./shared/auth.js";
@@ -73,23 +72,10 @@ async function init() {
 
   const sessionProfileStub = buildSessionProfileStub(session);
   const navContainer = document.querySelector("[data-social-nav]");
-  let navCleanup = renderSocialNav(navContainer, {
+  renderSocialNav(navContainer, {
     session,
     viewerProfile: sessionProfileStub,
     currentStellarId: sessionProfileStub?.stellar_id,
-    pageTitle: "팔로잉 프로필",
-  });
-
-  const profile = await fetchProfile(session.user.id, {
-    allowRepair: false,
-    allowSessionFallback: true,
-  }).catch(() => sessionProfileStub);
-
-  navCleanup?.();
-  navCleanup = renderSocialNav(navContainer, {
-    session,
-    viewerProfile: profile,
-    currentStellarId: profile?.stellar_id,
     pageTitle: "팔로잉 프로필",
   });
 
