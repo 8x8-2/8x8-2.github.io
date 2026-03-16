@@ -655,25 +655,45 @@ begin
 end;
 $$;
 
-create or replace function public.peek_next_stellar_id()
+create or replace function public.parse_stellar_id_text(stellar_id_input text)
 returns bigint
+language sql
+immutable
+as $$
+  select case
+    when trim(coalesce(stellar_id_input, '')) ~ '^[1-9]\d{0,15}$'
+      then trim(stellar_id_input)::bigint
+    else null
+  end;
+$$;
+
+drop function if exists public.peek_next_stellar_id();
+
+create function public.peek_next_stellar_id()
+returns text
 language sql
 security definer
 set search_path = public
 as $$
-  select coalesce((select max(stellar_id) + 1 from public.profiles), 1::bigint);
+  select coalesce((select (max(stellar_id) + 1)::text from public.profiles), '1');
 $$;
 
-create or replace function public.is_stellar_id_available(stellar_id_input bigint, except_profile_id uuid default null)
+drop function if exists public.is_stellar_id_available(bigint, uuid);
+drop function if exists public.is_stellar_id_available(text, uuid);
+
+create function public.is_stellar_id_available(stellar_id_input text, except_profile_id uuid default null)
 returns boolean
 language sql
 security definer
 set search_path = public
 as $$
-  select not exists (
+  with normalized as (
+    select public.parse_stellar_id_text(stellar_id_input) as stellar_id
+  )
+  select (select stellar_id from normalized) is not null and not exists (
     select 1
     from public.profiles
-    where stellar_id = stellar_id_input
+    where stellar_id = (select stellar_id from normalized)
       and (except_profile_id is null or id <> except_profile_id)
   );
 $$;
@@ -831,10 +851,94 @@ begin
 end;
 $$;
 
-create or replace function public.get_public_profile_by_stellar_id(stellar_id_input bigint)
+create or replace function public.get_my_profile()
+returns table (
+  id uuid,
+  email text,
+  full_name text,
+  gender text,
+  phone text,
+  calendar_type text,
+  is_leap_month boolean,
+  birth_year integer,
+  birth_month integer,
+  birth_day integer,
+  birth_hour integer,
+  birth_minute integer,
+  birth_time_known boolean,
+  marketing_opt_in boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  stellar_id text,
+  profile_image_path text,
+  profile_image_url text,
+  mbti text,
+  region_country text,
+  region_name text,
+  bio text,
+  day_pillar_key text,
+  day_pillar_hanja text,
+  day_pillar_metaphor text,
+  element_class text,
+  preview_summary text,
+  public_snapshot jsonb,
+  personality_visibility text,
+  health_visibility text,
+  love_visibility text,
+  ability_visibility text,
+  major_luck_visibility text
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    profiles.id,
+    profiles.email,
+    profiles.full_name,
+    profiles.gender,
+    profiles.phone,
+    profiles.calendar_type,
+    profiles.is_leap_month,
+    profiles.birth_year,
+    profiles.birth_month,
+    profiles.birth_day,
+    profiles.birth_hour,
+    profiles.birth_minute,
+    profiles.birth_time_known,
+    profiles.marketing_opt_in,
+    profiles.created_at,
+    profiles.updated_at,
+    profiles.stellar_id::text,
+    profiles.profile_image_path,
+    profiles.profile_image_url,
+    profiles.mbti,
+    profiles.region_country,
+    profiles.region_name,
+    profiles.bio,
+    profiles.day_pillar_key,
+    profiles.day_pillar_hanja,
+    profiles.day_pillar_metaphor,
+    profiles.element_class,
+    profiles.preview_summary,
+    profiles.public_snapshot,
+    profiles.personality_visibility,
+    profiles.health_visibility,
+    profiles.love_visibility,
+    profiles.ability_visibility,
+    profiles.major_luck_visibility
+  from public.profiles as profiles
+  where profiles.id = auth.uid()
+  limit 1;
+$$;
+
+drop function if exists public.get_public_profile_by_stellar_id(bigint);
+drop function if exists public.get_public_profile_by_stellar_id(text);
+
+create function public.get_public_profile_by_stellar_id(stellar_id_input text)
 returns table (
   profile_id uuid,
-  stellar_id bigint,
+  stellar_id text,
   full_name text,
   gender text,
   profile_image_url text,
@@ -865,7 +969,7 @@ as $$
   with target as (
     select *
     from public.profiles
-    where public.profiles.stellar_id = stellar_id_input
+    where public.profiles.stellar_id = public.parse_stellar_id_text(stellar_id_input)
     limit 1
   ),
   follower_counts as (
@@ -880,7 +984,7 @@ as $$
   )
   select
     target.id as profile_id,
-    target.stellar_id,
+    target.stellar_id::text,
     target.full_name,
     target.gender,
     target.profile_image_url,
@@ -913,10 +1017,12 @@ as $$
   left join following_counts on following_counts.follower_id = target.id;
 $$;
 
-create or replace function public.search_stellar_profiles(search_query text, limit_count integer default 20)
+drop function if exists public.search_stellar_profiles(text, integer);
+
+create function public.search_stellar_profiles(search_query text, limit_count integer default 20)
 returns table (
   profile_id uuid,
-  stellar_id bigint,
+  stellar_id text,
   full_name text,
   gender text,
   profile_image_url text,
@@ -980,7 +1086,7 @@ as $$
   )
   select
     source.profile_id,
-    source.stellar_id,
+    source.stellar_id::text,
     source.full_name,
     source.gender,
     source.profile_image_url,
@@ -1016,10 +1122,12 @@ as $$
   limit (select safe_limit from normalized);
 $$;
 
-create or replace function public.get_following_profiles(sort_key text default 'recent', search_query text default '')
+drop function if exists public.get_following_profiles(text, text);
+
+create function public.get_following_profiles(sort_key text default 'recent', search_query text default '')
 returns table (
   profile_id uuid,
-  stellar_id bigint,
+  stellar_id text,
   full_name text,
   gender text,
   profile_image_url text,
@@ -1080,7 +1188,7 @@ as $$
   )
   select
     source.profile_id,
-    source.stellar_id,
+    source.stellar_id::text,
     source.full_name,
     source.gender,
     source.profile_image_url,
@@ -1097,12 +1205,14 @@ as $$
     case when normalized.requested_sort = 'name' then lower(source.full_name) end asc nulls last,
     case when normalized.requested_sort = 'id' then source.stellar_id end asc nulls last,
     case when normalized.requested_sort not in ('name', 'id') then source.followed_at end desc nulls last,
-    source.stellar_id asc;
+    source.stellar_id::bigint asc;
 $$;
 
-create or replace function public.get_profiles_for_seo()
+drop function if exists public.get_profiles_for_seo();
+
+create function public.get_profiles_for_seo()
 returns table (
-  stellar_id bigint,
+  stellar_id text,
   full_name text,
   profile_image_url text,
   bio text,
@@ -1129,7 +1239,7 @@ security definer
 set search_path = public
 as $$
   select
-    profiles.stellar_id,
+    profiles.stellar_id::text,
     profiles.full_name,
     profiles.profile_image_url,
     profiles.bio,
@@ -1201,9 +1311,11 @@ as $$
 $$;
 
 grant execute on function public.peek_next_stellar_id() to authenticated, anon;
-grant execute on function public.is_stellar_id_available(bigint, uuid) to authenticated, anon;
+grant execute on function public.parse_stellar_id_text(text) to authenticated, anon;
+grant execute on function public.is_stellar_id_available(text, uuid) to authenticated, anon;
 grant execute on function public.ensure_my_profile() to authenticated;
-grant execute on function public.get_public_profile_by_stellar_id(bigint) to authenticated, anon;
+grant execute on function public.get_my_profile() to authenticated;
+grant execute on function public.get_public_profile_by_stellar_id(text) to authenticated, anon;
 grant execute on function public.search_stellar_profiles(text, integer) to authenticated, anon;
 grant execute on function public.get_following_profiles(text, text) to authenticated;
 grant execute on function public.get_profiles_for_seo() to authenticated, anon;

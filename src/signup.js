@@ -448,7 +448,9 @@ $("signupForm")?.addEventListener("submit", async (event) => {
       if (data.user) {
         try {
           const profile = await fetchProfile(data.user.id);
-          resolvedStellarId = profile?.stellar_id || resolvedStellarId;
+          if (profile?.stellar_id && (!resolvedStellarId || profile.stellar_id === resolvedStellarId)) {
+            resolvedStellarId = profile.stellar_id;
+          }
         } catch (profileError) {
           console.warn("signup profile hydration failed", profileError);
         }

@@ -82,6 +82,20 @@ function needsDerivedProfileFields(profile) {
   );
 }
 
+function normalizeStellarId(value) {
+  if (value == null || value === "") return null;
+  return String(value).trim() || null;
+}
+
+function normalizeProfileRecord(profile, fallbackStellarId = null) {
+  if (!profile) return profile;
+
+  return {
+    ...profile,
+    stellar_id: fallbackStellarId || normalizeStellarId(profile.stellar_id),
+  };
+}
+
 export function getDisplayName(user, profile = null) {
   const preferred = profile?.full_name || user?.user_metadata?.full_name || user?.email || "회원";
   return String(preferred).trim() || "회원";
@@ -121,10 +135,24 @@ export async function getUser() {
 
 export async function ensureOwnProfile() {
   const supabase = ensureSupabase();
-  const { data, error } = await supabase.rpc("ensure_my_profile");
+  const { error } = await supabase.rpc("ensure_my_profile");
 
   if (error) throw normalizeEnsureProfileError(error);
-  return data || null;
+
+  const currentUser = await getUser();
+  if (!currentUser) return null;
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  if (profileError) {
+    throw new Error("프로필을 불러오지 못했습니다.");
+  }
+
+  return normalizeProfileRecord(profile, normalizeStellarId(currentUser.user_metadata?.stellar_id));
 }
 
 export async function fetchProfile(userId = null) {
@@ -142,6 +170,9 @@ export async function fetchProfile(userId = null) {
     .maybeSingle();
 
   const canRepairOwnProfile = currentUser?.id === resolvedUserId;
+  const fallbackStellarId = canRepairOwnProfile
+    ? normalizeStellarId(currentUser?.user_metadata?.stellar_id)
+    : null;
 
   if (error) {
     if (canRepairOwnProfile) {
@@ -150,11 +181,11 @@ export async function fetchProfile(userId = null) {
     throw new Error("프로필을 불러오지 못했습니다.");
   }
 
-  if ((!data || !data.stellar_id) && canRepairOwnProfile) {
+  if ((!data || !(fallbackStellarId || data.stellar_id)) && canRepairOwnProfile) {
     return ensureOwnProfile();
   }
 
-  return data;
+  return normalizeProfileRecord(data, fallbackStellarId);
 }
 
 export async function updateProfile(updates) {
@@ -188,7 +219,7 @@ export async function updateProfile(updates) {
     birth_minute: mergedProfile.birth_time_known ? mergedProfile.birth_minute : null,
     birth_time_known: Boolean(mergedProfile.birth_time_known),
     marketing_opt_in: Boolean(mergedProfile.marketing_opt_in),
-    stellar_id: mergedProfile.stellar_id ? Number(mergedProfile.stellar_id) : null,
+    stellar_id: mergedProfile.stellar_id || null,
     profile_image_path: mergedProfile.profile_image_path || null,
     profile_image_url: mergedProfile.profile_image_url || null,
     mbti: mergedProfile.mbti || null,
@@ -233,46 +264,51 @@ export async function updateProfile(updates) {
     throw new Error("내 정보를 저장하지 못했습니다.");
   }
 
+  const resolvedData = normalizeProfileRecord(
+    data,
+    normalizeStellarId(mergedProfile.stellar_id) || normalizeStellarId(user.user_metadata?.stellar_id)
+  );
+
   try {
     await supabase.auth.updateUser({
       data: {
-        full_name: data.full_name,
-        gender: data.gender,
-        phone: data.phone || "",
-        calendar_type: data.calendar_type,
-        is_leap_month: data.is_leap_month,
-        birth_year: data.birth_year,
-        birth_month: data.birth_month,
-        birth_day: data.birth_day,
-        birth_hour: data.birth_time_known ? data.birth_hour : "",
-        birth_minute: data.birth_time_known ? data.birth_minute : "",
-        birth_time_known: data.birth_time_known,
-        marketing_opt_in: data.marketing_opt_in,
-        stellar_id: data.stellar_id,
-        profile_image_path: data.profile_image_path || "",
-        profile_image_url: data.profile_image_url || "",
-        mbti: data.mbti || "",
-        region_country: data.region_country || "",
-        region_name: data.region_name || "",
-        bio: data.bio || "",
-        day_pillar_key: data.day_pillar_key || "",
-        day_pillar_hanja: data.day_pillar_hanja || "",
-        day_pillar_metaphor: data.day_pillar_metaphor || "",
-        element_class: data.element_class || "unknown",
-        preview_summary: data.preview_summary || "",
-        public_snapshot: data.public_snapshot || {},
-        personality_visibility: data.personality_visibility || "public",
-        health_visibility: data.health_visibility || "public",
-        love_visibility: data.love_visibility || "public",
-        ability_visibility: data.ability_visibility || "public",
-        major_luck_visibility: data.major_luck_visibility || "public",
+        full_name: resolvedData.full_name,
+        gender: resolvedData.gender,
+        phone: resolvedData.phone || "",
+        calendar_type: resolvedData.calendar_type,
+        is_leap_month: resolvedData.is_leap_month,
+        birth_year: resolvedData.birth_year,
+        birth_month: resolvedData.birth_month,
+        birth_day: resolvedData.birth_day,
+        birth_hour: resolvedData.birth_time_known ? resolvedData.birth_hour : "",
+        birth_minute: resolvedData.birth_time_known ? resolvedData.birth_minute : "",
+        birth_time_known: resolvedData.birth_time_known,
+        marketing_opt_in: resolvedData.marketing_opt_in,
+        stellar_id: resolvedData.stellar_id || "",
+        profile_image_path: resolvedData.profile_image_path || "",
+        profile_image_url: resolvedData.profile_image_url || "",
+        mbti: resolvedData.mbti || "",
+        region_country: resolvedData.region_country || "",
+        region_name: resolvedData.region_name || "",
+        bio: resolvedData.bio || "",
+        day_pillar_key: resolvedData.day_pillar_key || "",
+        day_pillar_hanja: resolvedData.day_pillar_hanja || "",
+        day_pillar_metaphor: resolvedData.day_pillar_metaphor || "",
+        element_class: resolvedData.element_class || "unknown",
+        preview_summary: resolvedData.preview_summary || "",
+        public_snapshot: resolvedData.public_snapshot || {},
+        personality_visibility: resolvedData.personality_visibility || "public",
+        health_visibility: resolvedData.health_visibility || "public",
+        love_visibility: resolvedData.love_visibility || "public",
+        ability_visibility: resolvedData.ability_visibility || "public",
+        major_luck_visibility: resolvedData.major_luck_visibility || "public",
       },
     });
   } catch {
     // profiles 테이블이 실제 표시용 데이터 소스라서, 메타데이터 동기화 실패는 저장 실패로 보지 않습니다.
   }
 
-  return data;
+  return resolvedData;
 }
 
 export function subscribeAuthState(callback) {
@@ -385,13 +421,13 @@ export async function peekNextStellarId() {
   const { data, error } = await supabase.rpc("peek_next_stellar_id");
 
   if (error) throw new Error("다음 스텔라 등록번호를 불러오지 못했습니다.");
-  return data;
+  return normalizeStellarId(data);
 }
 
 export async function checkStellarIdAvailability(stellarId, exceptProfileId = null) {
   const supabase = ensureSupabase();
   const { data, error } = await supabase.rpc("is_stellar_id_available", {
-    stellar_id_input: Number(stellarId),
+    stellar_id_input: normalizeStellarId(stellarId),
     except_profile_id: exceptProfileId,
   });
 
@@ -403,19 +439,19 @@ export async function fetchPublicProfileByStellarId(stellarId) {
   const supabase = ensureSupabase();
   const { data, error } = await supabase
     .rpc("get_public_profile_by_stellar_id", {
-      stellar_id_input: Number(stellarId),
+      stellar_id_input: normalizeStellarId(stellarId),
     })
     .maybeSingle();
 
   if (error) throw new Error("스텔라 프로필을 불러오지 못했습니다.");
-  return data;
+  return normalizeProfileRecord(data, normalizeStellarId(stellarId));
 }
 
 export async function refreshPublicProfileByStellarId(stellarId) {
   const supabase = ensureSupabase();
   const { data, error } = await supabase.functions.invoke("refresh-public-profile", {
     body: {
-      stellarId: Number(stellarId),
+      stellarId: normalizeStellarId(stellarId),
     },
   });
 

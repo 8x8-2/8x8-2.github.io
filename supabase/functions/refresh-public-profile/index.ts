@@ -48,8 +48,8 @@ Deno.serve(async (request) => {
     return json({ error: "invalid_json" }, 400);
   }
 
-  const stellarId = Number(payload?.stellarId);
-  if (!Number.isInteger(stellarId) || stellarId <= 0) {
+  const stellarId = String(payload?.stellarId || "").trim();
+  if (!/^[1-9]\d{0,15}$/.test(stellarId)) {
     return json({ error: "invalid_stellar_id" }, 400);
   }
 

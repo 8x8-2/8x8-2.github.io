@@ -260,7 +260,7 @@ async function init() {
 
       currentProfile = await updateProfile({
         full_name: fullName,
-        stellar_id: Number(stellarId),
+        stellar_id: stellarId,
         profile_image_path: nextImagePath,
         profile_image_url: nextImageUrl,
         mbti,
