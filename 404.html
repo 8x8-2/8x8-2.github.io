@@ -22,10 +22,20 @@
     <script>
       (function redirectPrettyProfilePath() {
         var cleanPath = window.location.pathname.replace(/\/+$/, "");
+        var prettyProfileMatch = cleanPath.match(/^\/profile\/(\d{1,16})$/);
+
+        if (prettyProfileMatch) {
+          var dynamicTarget = new URL("/profile/", window.location.origin);
+          dynamicTarget.searchParams.set("sid", prettyProfileMatch[1]);
+          if (window.location.hash) dynamicTarget.hash = window.location.hash;
+          window.location.replace(dynamicTarget.toString());
+          return;
+        }
 
         if (/^\/\d{1,16}$/.test(cleanPath)) {
           var stellarId = cleanPath.slice(1);
-          var target = new URL("/profile/" + stellarId, window.location.origin);
+          var target = new URL("/profile/", window.location.origin);
+          target.searchParams.set("sid", stellarId);
           if (window.location.hash) target.hash = window.location.hash;
           window.location.replace(target.toString());
           return;
