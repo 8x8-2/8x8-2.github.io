@@ -1078,21 +1078,24 @@ export async function uploadProfileImage(file) {
     : String(Date.now());
   const filePath = `${user.id}/avatar-${uniqueId}.${safeExtension}`;
   const requestUrl = createSupabaseUrl(`/storage/v1/object/profile-images/${filePath}`);
-  const uploadBody = typeof file?.arrayBuffer === "function"
-    ? await file.arrayBuffer()
-    : file;
+  const uploadFile = (typeof File !== "undefined" && file instanceof File)
+    ? file
+    : new File([file], `avatar.${safeExtension}`, {
+      type: safeContentType || normalizedMimeType || "application/octet-stream",
+    });
+  const formData = new FormData();
+  formData.append("cacheControl", "3600");
+  formData.append("", uploadFile, uploadFile.name || `avatar.${safeExtension}`);
 
   const response = await fetch(requestUrl, {
     method: "POST",
     headers: createSupabaseHeaders({
       accessToken: session.access_token,
       headers: {
-        "Content-Type": safeContentType || normalizedMimeType || "application/octet-stream",
-        "cache-control": "max-age=3600",
         "x-upsert": "false",
       },
     }),
-    body: uploadBody,
+    body: formData,
   });
 
   if (!response.ok) {
