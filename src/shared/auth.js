@@ -8,6 +8,10 @@ import { hasKnownBirthTime } from "./birth.js";
 import { buildProfileDerivedFieldsFromInput } from "./profile-derived.js";
 import { normalizeProfileBio } from "./profile-text.js";
 
+let ownProfileRpcUnavailable = false;
+let ensureOwnProfileRpcUnavailable = false;
+let notificationQueryMode = "full";
+
 function ensureSupabase() {
   const supabase = getSupabaseClient();
   if (!supabase) {
@@ -120,6 +124,58 @@ function normalizeProfileRecord(profile, fallbackStellarId = null) {
   };
 }
 
+function createRequestError(message, status = 500) {
+  const safeMessage = typeof message === "string" ? message : "";
+  const error = new Error(safeMessage);
+  error.status = status;
+  return error;
+}
+
+function isProfileRpcCompatibilityError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const status = Number(error?.status || 0);
+
+  return Boolean(
+    message.includes("get_my_profile")
+    || message.includes("ensure_my_profile")
+    || message.includes("could not find the function")
+    || message.includes("structure of query does not match function result type")
+    || message.includes("return type mismatch")
+    || message.includes("returned type")
+    || (status === 400 && !message)
+  );
+}
+
+function isNotificationSchemaCompatibilityError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const status = Number(error?.status || 0);
+
+  return Boolean(
+    message.includes("profile_notifications")
+    || message.includes("actor_profile_image_url")
+    || message.includes("actor_stellar_id")
+    || message.includes("read_at")
+    || message.includes("schema cache")
+    || message.includes("could not find the table")
+    || message.includes("does not exist")
+    || (status === 400 && !message)
+  );
+}
+
+function normalizeNotificationRecord(notification) {
+  if (!notification) return null;
+
+  return {
+    ...notification,
+    actor_stellar_id: normalizeStellarId(notification.actor_stellar_id),
+    actor_full_name: notification.actor_full_name || "누군가",
+    actor_profile_image_url: notification.actor_profile_image_url || "",
+    event_type: notification.event_type || "follow",
+    read_at: notification.read_at || null,
+    created_at: notification.created_at || null,
+  };
+}
+
 export function getDisplayName(user, profile = null) {
   const preferred = profile?.full_name || user?.user_metadata?.full_name || user?.email || "회원";
   return String(preferred).trim() || "회원";
@@ -133,7 +189,7 @@ function normalizeEnsureProfileError(error) {
   const message = String(error?.message || "");
   const normalized = message.toLowerCase();
 
-  if (normalized.includes("ensure_my_profile")) {
+  if (isProfileRpcCompatibilityError(error) || normalized.includes("ensure_my_profile")) {
     return new Error("Supabase 프로필 복구 함수가 아직 적용되지 않았습니다. SQL Editor에서 최신 schema.sql을 다시 실행해 주세요.");
   }
 
@@ -166,7 +222,7 @@ async function fetchProfileRecordById(userId, accessToken = null) {
 
   if (!response.ok) {
     const detail = await readSupabaseErrorDetail(response);
-    throw new Error(detail || "프로필을 불러오지 못했습니다.");
+    throw createRequestError(detail || "프로필을 불러오지 못했습니다.", response.status);
   }
 
   const rows = await response.json();
@@ -192,10 +248,31 @@ async function fetchOwnProfileRecord(accessToken) {
 
   if (!response.ok) {
     const detail = await readSupabaseErrorDetail(response);
-    throw new Error(detail || "내 정보를 불러오지 못했습니다.");
+    throw createRequestError(detail || "내 정보를 불러오지 못했습니다.", response.status);
   }
 
   return await response.json();
+}
+
+async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
+  const directProfile = await fetchProfileRecordById(userId, accessToken).catch(() => null);
+  if (directProfile) {
+    return directProfile;
+  }
+
+  if (!ownProfileRpcUnavailable) {
+    try {
+      return await fetchOwnProfileRecord(accessToken);
+    } catch (error) {
+      if (isProfileRpcCompatibilityError(error)) {
+        ownProfileRpcUnavailable = true;
+      }
+
+      throw error;
+    }
+  }
+
+  return null;
 }
 
 export async function getSession() {
@@ -215,6 +292,20 @@ export async function ensureOwnProfile() {
   const session = await getSession();
   const currentUser = session?.user || null;
   if (!currentUser || !session?.access_token) return null;
+  const fallbackStellarId = normalizeStellarId(currentUser.user_metadata?.stellar_id);
+  const fetchExistingProfile = async () => {
+    const existingProfile = await fetchProfileRecordById(currentUser.id, session.access_token).catch(() => null);
+    return normalizeProfileRecord(existingProfile, fallbackStellarId);
+  };
+
+  if (ensureOwnProfileRpcUnavailable) {
+    const existingProfile = await fetchExistingProfile();
+    if (existingProfile) {
+      return existingProfile;
+    }
+
+    throw normalizeEnsureProfileError(createRequestError("", 400));
+  }
 
   const response = await fetch(createSupabaseUrl("/rest/v1/rpc/ensure_my_profile"), {
     method: "POST",
@@ -230,13 +321,21 @@ export async function ensureOwnProfile() {
 
   if (!response.ok) {
     const detail = await readSupabaseErrorDetail(response);
-    throw normalizeEnsureProfileError({
-      message: detail,
-    });
+    const requestError = createRequestError(detail, response.status);
+
+    if (isProfileRpcCompatibilityError(requestError)) {
+      ensureOwnProfileRpcUnavailable = true;
+      const existingProfile = await fetchExistingProfile();
+      if (existingProfile) {
+        return existingProfile;
+      }
+    }
+
+    throw normalizeEnsureProfileError(requestError);
   }
 
   const profile = await response.json();
-  return normalizeProfileRecord(profile, normalizeStellarId(currentUser.user_metadata?.stellar_id));
+  return normalizeProfileRecord(profile, fallbackStellarId);
 }
 
 export async function fetchProfile(userId = null) {
@@ -256,7 +355,7 @@ export async function fetchProfile(userId = null) {
 
   try {
     data = canRepairOwnProfile
-      ? await fetchOwnProfileRecord(session?.access_token || null)
+      ? await fetchOwnProfileRecordWithFallback(resolvedUserId, session?.access_token || null)
       : await fetchProfileRecordById(resolvedUserId, session?.access_token || null);
   } catch (error) {
     if (canRepairOwnProfile) {
@@ -529,7 +628,7 @@ export async function checkStellarIdAvailability(stellarId, exceptProfileId = nu
   return Boolean(data);
 }
 
-export async function fetchPublicProfileByStellarId(stellarId) {
+export async function fetchPublicProfileByStellarId(stellarId, { accessToken = null } = {}) {
   const normalizedStellarId = normalizeStellarId(stellarId);
   if (!isSupabaseConfigured()) {
     throw new Error("Supabase 연결 정보가 아직 설정되지 않았습니다.");
@@ -540,6 +639,7 @@ export async function fetchPublicProfileByStellarId(stellarId) {
   const response = await fetch(requestUrl, {
     method: "POST",
     headers: createSupabaseHeaders({
+      accessToken,
       headers: {
         "Content-Type": "application/json",
         Accept: "application/vnd.pgrst.object+json",
@@ -611,6 +711,22 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
   return data || [];
 }
 
+async function fetchLegacyNotificationRows(supabase, userId, safeOffset, safeLimit) {
+  const { data, error } = await supabase
+    .from("profile_notifications")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .range(safeOffset, safeOffset + safeLimit - 1);
+
+  if (error) throw error;
+
+  return (data || [])
+    .filter((row) => !row?.event_type || row.event_type === "follow")
+    .map((row) => normalizeNotificationRecord(row))
+    .filter(Boolean);
+}
+
 export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) {
   const supabase = ensureSupabase();
   const user = await getUser();
@@ -622,6 +738,22 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
   const safeOffset = Math.max(0, Number(offset) || 0);
   const safeLimit = Math.min(100, Math.max(1, Number(limit) || 40));
 
+  if (notificationQueryMode === "unavailable") {
+    return [];
+  }
+
+  if (notificationQueryMode === "legacy") {
+    try {
+      return await fetchLegacyNotificationRows(supabase, user.id, safeOffset, safeLimit);
+    } catch (error) {
+      if (isNotificationSchemaCompatibilityError(error)) {
+        notificationQueryMode = "unavailable";
+        return [];
+      }
+      throw new Error("알림을 불러오지 못했습니다.");
+    }
+  }
+
   const { data, error } = await supabase
     .from("profile_notifications")
     .select("id, actor_id, actor_stellar_id, actor_full_name, actor_profile_image_url, event_type, read_at, created_at")
@@ -632,10 +764,23 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
     .range(safeOffset, safeOffset + safeLimit - 1);
 
   if (error) {
+    if (isNotificationSchemaCompatibilityError(error)) {
+      notificationQueryMode = "legacy";
+
+      try {
+        return await fetchLegacyNotificationRows(supabase, user.id, safeOffset, safeLimit);
+      } catch (legacyError) {
+        if (isNotificationSchemaCompatibilityError(legacyError)) {
+          notificationQueryMode = "unavailable";
+          return [];
+        }
+      }
+    }
+
     throw new Error("알림을 불러오지 못했습니다.");
   }
 
-  return data || [];
+  return (data || []).map((row) => normalizeNotificationRecord(row)).filter(Boolean);
 }
 
 export async function fetchUnreadFollowNotificationCount() {
@@ -646,6 +791,15 @@ export async function fetchUnreadFollowNotificationCount() {
     return 0;
   }
 
+  if (notificationQueryMode === "unavailable") {
+    return 0;
+  }
+
+  if (notificationQueryMode === "legacy") {
+    const rows = await fetchFollowNotifications({ offset: 0, limit: 100 });
+    return rows.filter((row) => !row?.read_at).length;
+  }
+
   const { count, error } = await supabase
     .from("profile_notifications")
     .select("id", { count: "exact", head: true })
@@ -654,6 +808,12 @@ export async function fetchUnreadFollowNotificationCount() {
     .is("read_at", null);
 
   if (error) {
+    if (isNotificationSchemaCompatibilityError(error)) {
+      notificationQueryMode = "legacy";
+      const rows = await fetchFollowNotifications({ offset: 0, limit: 100 });
+      return rows.filter((row) => !row?.read_at).length;
+    }
+
     throw new Error("읽지 않은 알림 수를 불러오지 못했습니다.");
   }
 
@@ -669,6 +829,11 @@ export async function markFollowNotificationsRead() {
   }
 
   const readAt = new Date().toISOString();
+
+  if (notificationQueryMode === "unavailable" || notificationQueryMode === "legacy") {
+    return readAt;
+  }
+
   const { error } = await supabase
     .from("profile_notifications")
     .update({ read_at: readAt })
@@ -677,6 +842,11 @@ export async function markFollowNotificationsRead() {
     .is("read_at", null);
 
   if (error) {
+    if (isNotificationSchemaCompatibilityError(error)) {
+      notificationQueryMode = "legacy";
+      return readAt;
+    }
+
     throw new Error("알림 읽음 상태를 갱신하지 못했습니다.");
   }
 

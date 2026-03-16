@@ -718,11 +718,15 @@ function wait(ms) {
   });
 }
 
-async function fetchPublicProfileWithRetry(stellarId, { attempts = 4, delayMs = 350 } = {}) {
+async function fetchPublicProfileWithRetry(stellarId, {
+  attempts = 4,
+  delayMs = 350,
+  accessToken = null,
+} = {}) {
   let profile = null;
 
   for (let index = 0; index < attempts; index += 1) {
-    profile = await fetchPublicProfileByStellarId(stellarId);
+    profile = await fetchPublicProfileByStellarId(stellarId, { accessToken });
     if (profile) {
       return profile;
     }
@@ -750,10 +754,10 @@ async function init() {
     throw new Error("유효한 스텔라 등록번호가 없습니다.");
   }
 
-  const [session, initialPublicProfile] = await Promise.all([
-    getSession(),
-    fetchPublicProfileWithRetry(stellarId),
-  ]);
+  const session = await getSession();
+  const initialPublicProfile = await fetchPublicProfileWithRetry(stellarId, {
+    accessToken: session?.access_token || null,
+  });
 
   if (!initialPublicProfile) {
     throw new Error("해당 스텔라 프로필을 찾지 못했습니다.");
@@ -764,7 +768,11 @@ async function init() {
   if (shouldRefreshPublicProfile(publicProfile)) {
     try {
       await refreshPublicProfileByStellarId(stellarId);
-      publicProfile = await fetchPublicProfileWithRetry(stellarId, { attempts: 2, delayMs: 250 }) || publicProfile;
+      publicProfile = await fetchPublicProfileWithRetry(stellarId, {
+        attempts: 2,
+        delayMs: 250,
+        accessToken: session?.access_token || null,
+      }) || publicProfile;
     } catch (error) {
       console.warn("public profile refresh failed", error);
     }
