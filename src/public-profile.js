@@ -794,7 +794,12 @@ async function init() {
 
   let viewerProfile = null;
   if (session) {
-    viewerProfile = await fetchProfile(session.user.id);
+    try {
+      viewerProfile = await fetchProfile(session.user.id);
+    } catch (error) {
+      console.warn("viewer profile hydration failed", error);
+    }
+
     renderSocialNav(document.querySelector("[data-social-nav]"), {
       session,
       viewerProfile,
