@@ -11,29 +11,35 @@ function ensureSupabase() {
 }
 
 function normalizeAuthError(error, mode = "signin") {
-  const message = String(error?.message || "").toLowerCase();
+  const rawMessage = String(error?.message || "").trim();
+  const rawHint = String(error?.hint || error?.details || "").trim();
+  const combined = `${rawMessage} ${rawHint}`.toLowerCase();
 
-  if (message.includes("invalid login credentials")) {
+  if (combined.includes("no api key found")) {
+    return new Error("Supabase API 키가 요청에 포함되지 않았습니다. 배포 환경변수 `VITE_SUPABASE_PUBLISHABLE_KEY` 또는 클라이언트 초기화 설정을 확인해 주세요.");
+  }
+
+  if (combined.includes("invalid login credentials")) {
     return new Error("가입된 이메일이 아니거나 비밀번호가 올바르지 않습니다.");
   }
 
-  if (message.includes("email not confirmed")) {
+  if (combined.includes("email not confirmed")) {
     return new Error("이메일 인증을 완료한 뒤 로그인해 주세요.");
   }
 
-  if (message.includes("user already registered") || message.includes("already been registered")) {
+  if (combined.includes("user already registered") || combined.includes("already been registered")) {
     return new Error("이미 가입된 이메일입니다.");
   }
 
-  if (message.includes("password should be at least")) {
+  if (combined.includes("password should be at least")) {
     return new Error("비밀번호는 6자 이상이어야 합니다.");
   }
 
-  if (mode === "signup" && error?.message) {
-    return new Error(error.message);
+  if (mode === "signup" && (rawMessage || rawHint)) {
+    return new Error(rawHint ? `${rawMessage || "회원가입 요청이 거절되었습니다."} (${rawHint})` : rawMessage);
   }
 
-  return new Error(error?.message || "인증 처리 중 오류가 발생했습니다.");
+  return new Error(rawMessage || rawHint || "인증 처리 중 오류가 발생했습니다.");
 }
 
 function isUniqueViolation(error) {
