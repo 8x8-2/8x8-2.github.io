@@ -7,6 +7,7 @@ import {
   getSession,
   isSupabaseConfigured,
   refreshPublicProfileByStellarId,
+  subscribeAuthState,
   unfollowProfile,
 } from "./shared/auth.js";
 import {
@@ -813,11 +814,25 @@ async function init() {
     throw new Error("유효한 스텔라 등록번호가 없습니다.");
   }
 
-  const session = await getSession();
-  renderProfileNav({
-    session,
-    currentStellarId: stellarId,
+  let session = await getSession();
+  let viewerProfile = null;
+  let currentPublicProfile = null;
+
+  const syncNav = () => {
+    renderProfileNav({
+      session,
+      viewerProfile,
+      currentStellarId: currentPublicProfile?.stellar_id || stellarId,
+    });
+  };
+
+  const unsubscribeAuth = subscribeAuthState((nextSession) => {
+    session = nextSession;
+    syncNav();
   });
+
+  window.addEventListener("beforeunload", unsubscribeAuth, { once: true });
+  syncNav();
 
   const viewerProfilePromise = session
     ? fetchProfile(session.user.id).catch((error) => {
@@ -833,6 +848,7 @@ async function init() {
   }
 
   let publicProfile = initialPublicProfile;
+  currentPublicProfile = publicProfile;
 
   if (shouldRefreshPublicProfile(publicProfile)) {
     try {
@@ -846,12 +862,9 @@ async function init() {
     }
   }
 
-  const viewerProfile = await viewerProfilePromise;
-  renderProfileNav({
-    session,
-    viewerProfile,
-    currentStellarId: publicProfile.stellar_id,
-  });
+  viewerProfile = await viewerProfilePromise;
+  currentPublicProfile = publicProfile;
+  syncNav();
 
   const meta = getPublicProfileMeta(publicProfile);
   const relationship = buildProfileRelationship(publicProfile, session, viewerProfile);

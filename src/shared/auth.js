@@ -383,6 +383,7 @@ async function fetchSupabaseRestResponse(path, {
   body = undefined,
   searchParams = null,
   retryOnAuthFailure = true,
+  allowAnonFallback = false,
 } = {}) {
   const requestUrl = createSupabaseUrl(path);
 
@@ -416,6 +417,19 @@ async function fetchSupabaseRestResponse(path, {
           body,
           searchParams,
           retryOnAuthFailure: false,
+          allowAnonFallback,
+        });
+      }
+
+      if (allowAnonFallback) {
+        return fetchSupabaseRestResponse(path, {
+          accessToken: null,
+          method,
+          headers,
+          body,
+          searchParams,
+          retryOnAuthFailure: false,
+          allowAnonFallback: false,
         });
       }
     }
@@ -439,6 +453,7 @@ async function fetchNotificationRowsViaRest({
     headers: {
       Accept: "application/json",
     },
+    allowAnonFallback: true,
     searchParams: {
       select,
       user_id: `eq.${userId}`,
@@ -476,6 +491,7 @@ async function markNotificationRowsReadViaRest({ accessToken, userId, readAt }) 
 async function fetchProfileRecordById(userId, accessToken = null) {
   const response = await fetchSupabaseRestResponse("/rest/v1/profiles", {
     accessToken,
+    allowAnonFallback: true,
     searchParams: {
       select: "*",
       id: `eq.${userId}`,
@@ -512,18 +528,6 @@ async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
   const directProfile = await fetchProfileRecordById(userId, accessToken).catch(() => null);
   if (directProfile) {
     return directProfile;
-  }
-
-  if (!ownProfileRpcUnavailable) {
-    try {
-      return await fetchOwnProfileRecord(accessToken);
-    } catch (error) {
-      if (isProfileRpcCompatibilityError(error)) {
-        ownProfileRpcUnavailable = true;
-      }
-
-      throw error;
-    }
   }
 
   return null;
