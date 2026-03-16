@@ -19,7 +19,7 @@ import {
   getSnapshotSection,
   getTodayScore,
 } from "./shared/profile-derived.js";
-import { formatGenderLabel } from "./shared/birth.js";
+import { formatGenderLabel, hasKnownBirthTime } from "./shared/birth.js";
 import { escapeHtml, escapeHtmlWithBreaks } from "./shared/html.js";
 import { getKstDateParts, needsPublicProfileRefresh } from "./shared/profile-insights.js";
 import { applyProfileSeoToDocument, buildProfileSeoData, getProfileSeoSections } from "./shared/profile-seo.js";
@@ -291,7 +291,7 @@ function buildLocalSnapshotFromProfile(profile) {
     birthDay: profile.birth_day,
     birthHour: profile.birth_hour,
     birthMinute: profile.birth_minute,
-    birthTimeKnown: profile.birth_time_known,
+    birthTimeKnown: hasKnownBirthTime(profile),
     calendarType: profile.calendar_type,
     isLeapMonth: profile.is_leap_month,
     gender: profile.gender,
@@ -349,7 +349,6 @@ function buildHomeTab(profile, snapshot, visibility) {
     <section class="card">
       <div class="section-intro">
         <h2>빠른 홈</h2>
-        <p class="muted">공개된 탭만 빠르게 훑을 수 있게 요약했습니다.</p>
       </div>
       <div class="profile-summary-stack">
         ${cards.map((card) => `

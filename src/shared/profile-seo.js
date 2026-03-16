@@ -2,7 +2,11 @@ import { normalizeProfileBio } from "./profile-text.js";
 
 const SITE_URL = "https://stellar-id.com";
 
-export const PROFILE_OG_IMAGE_URL = `${SITE_URL}/src/img/bi/og-stellarid.png`;
+export const PROFILE_OG_IMAGE_URL = `${SITE_URL}/og-stellarid.png`;
+export const PROFILE_OG_IMAGE_TYPE = "image/png";
+export const PROFILE_OG_IMAGE_WIDTH = "1920";
+export const PROFILE_OG_IMAGE_HEIGHT = "1080";
+export const PROFILE_OG_IMAGE_ALT = "스텔라 프로필 공유 미리보기";
 export const PROFILE_SITE_NAME = "스텔라 ID";
 export const PROFILE_ROBOTS_CONTENT = "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1";
 
@@ -89,7 +93,7 @@ export function buildProfileSeoData(profile) {
     canonicalUrl,
     robots: PROFILE_ROBOTS_CONTENT,
     imageUrl: PROFILE_OG_IMAGE_URL,
-    imageAlt: `${name}님의 스텔라 프로필 미리보기`,
+    imageAlt: PROFILE_OG_IMAGE_ALT,
   };
 }
 
@@ -160,7 +164,7 @@ export function buildProfileStructuredData(profile) {
           name: seo.name,
           identifier: `Stellar ID ${seo.stellarId}`,
           description,
-          image: textOrEmpty(profile?.profile_image_url) || seo.imageUrl,
+          image: seo.imageUrl,
           url: seo.canonicalUrl,
         },
       },
@@ -206,11 +210,16 @@ export function applyProfileSeoToDocument(profile) {
   setMetaTag("property", "og:site_name", PROFILE_SITE_NAME);
   setMetaTag("property", "og:locale", "ko_KR");
   setMetaTag("property", "og:image", seo.imageUrl);
+  setMetaTag("property", "og:image:secure_url", seo.imageUrl);
+  setMetaTag("property", "og:image:type", PROFILE_OG_IMAGE_TYPE);
+  setMetaTag("property", "og:image:width", PROFILE_OG_IMAGE_WIDTH);
+  setMetaTag("property", "og:image:height", PROFILE_OG_IMAGE_HEIGHT);
   setMetaTag("property", "og:image:alt", seo.imageAlt);
   setMetaTag("name", "twitter:card", "summary_large_image");
   setMetaTag("name", "twitter:title", seo.title);
   setMetaTag("name", "twitter:description", seo.twitterDescription);
   setMetaTag("name", "twitter:image", seo.imageUrl);
+  setMetaTag("name", "twitter:image:alt", seo.imageAlt);
 
   let structuredDataNode = document.getElementById("profileStructuredData");
   if (!structuredDataNode) {

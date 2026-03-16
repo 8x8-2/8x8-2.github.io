@@ -10,6 +10,7 @@ import {
   formatBirthDisplay,
   formatGenderLabel,
   formatPhoneForInput,
+  hasKnownBirthTime,
   isValidBirthTime,
   normalizeBirthTimeInput,
   normalizePhone,
@@ -117,6 +118,8 @@ function fillProfileSummary(profile, session) {
 }
 
 function fillEditForm(profile) {
+  const birthTimeKnown = hasKnownBirthTime(profile);
+
   $("profileName").value = profile.full_name || "";
   $("profileGender").value = profile.gender || "male";
   $("profilePhone").value = formatPhoneForInput(profile.phone || "");
@@ -125,8 +128,8 @@ function fillEditForm(profile) {
   $("profileYear").value = String(profile.birth_year || "");
   $("profileMonth").value = String(profile.birth_month || "");
   $("profileDay").value = String(profile.birth_day || "");
-  $("profileUnknownTime").checked = !profile.birth_time_known;
-  $("profileBirthTime").value = profile.birth_time_known
+  $("profileUnknownTime").checked = !birthTimeKnown;
+  $("profileBirthTime").value = birthTimeKnown
     ? `${String(profile.birth_hour ?? 0).padStart(2, "0")}:${String(profile.birth_minute ?? 0).padStart(2, "0")}`
     : "";
   $("profileMarketing").checked = Boolean(profile.marketing_opt_in);

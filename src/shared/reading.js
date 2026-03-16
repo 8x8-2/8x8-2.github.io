@@ -8,6 +8,7 @@ import {
 import { buildAdvancedSajuData } from "../engine/saju-advanced.js";
 import { buildSajuReading } from "../engine/saju-interpretation.js";
 import { getDayPillarArchetype } from "../../data/daypillars.js";
+import { hasKnownBirthTime } from "./birth.js";
 
 export const STEM_TO_ELEMENT = {
   "갑": "목",
@@ -296,12 +297,14 @@ export function buildSharedReadingPayload(snapshot, { sourceType, sourceRecordId
 }
 
 function buildBirthInfoFromRecord(record) {
+  const birthTimeKnown = hasKnownBirthTime(record);
+
   return {
     year: record.birth_year,
     month: record.birth_month,
     day: record.birth_day,
-    hour: record.birth_time_known ? record.birth_hour : null,
-    minute: record.birth_time_known ? record.birth_minute : null,
+    hour: birthTimeKnown ? Number(record.birth_hour) : null,
+    minute: birthTimeKnown ? Number(record.birth_minute) : null,
     isLunar: record.calendar_type === "lunar",
     isLeapMonth: Boolean(record.is_leap_month),
   };
@@ -309,7 +312,7 @@ function buildBirthInfoFromRecord(record) {
 
 function hydrateSnapshotFromRecord(record, snapshotSource) {
   const birthInfo = snapshotSource?.birthInfo || buildBirthInfoFromRecord(record);
-  const unknownTime = typeof snapshotSource?.unknownTime === "boolean" ? snapshotSource.unknownTime : !record.birth_time_known;
+  const unknownTime = typeof snapshotSource?.unknownTime === "boolean" ? snapshotSource.unknownTime : !hasKnownBirthTime(record);
   const pillars = record.pillars_json || snapshotSource?.pillars;
   const sections = snapshotSource?.sections;
   const advanced = snapshotSource?.advanced;
@@ -354,15 +357,17 @@ export function buildSnapshotFromSharedReading(record) {
 }
 
 export function buildSnapshotFromProfile(profile) {
+  const birthTimeKnown = hasKnownBirthTime(profile);
+
   return calculateReadingSnapshot({
     year: profile.birth_year,
     month: profile.birth_month,
     day: profile.birth_day,
-    hour: profile.birth_time_known ? profile.birth_hour : null,
-    minute: profile.birth_time_known ? profile.birth_minute : null,
+    hour: birthTimeKnown ? Number(profile.birth_hour) : null,
+    minute: birthTimeKnown ? Number(profile.birth_minute) : null,
     isLunar: profile.calendar_type === "lunar",
     isLeapMonth: Boolean(profile.is_leap_month),
     gender: profile.gender,
-    unknownTime: !profile.birth_time_known,
+    unknownTime: !birthTimeKnown,
   });
 }

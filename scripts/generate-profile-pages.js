@@ -5,6 +5,10 @@ import { fileURLToPath } from "node:url";
 import { getAllDayPillarEntries } from "../data/daypillars.js";
 import {
   PROFILE_OG_IMAGE_URL,
+  PROFILE_OG_IMAGE_ALT,
+  PROFILE_OG_IMAGE_HEIGHT,
+  PROFILE_OG_IMAGE_TYPE,
+  PROFILE_OG_IMAGE_WIDTH,
   PROFILE_SITE_NAME,
   buildProfileCanonicalPath,
   buildProfileSeoData,
@@ -96,11 +100,16 @@ function buildHead(profile) {
       <meta property="og:site_name" content="${escapeHtml(PROFILE_SITE_NAME)}" />
       <meta property="og:locale" content="ko_KR" />
       <meta property="og:image" content="${escapeHtml(PROFILE_OG_IMAGE_URL)}" />
-      <meta property="og:image:alt" content="${escapeHtml(seo.imageAlt)}" />
+      <meta property="og:image:secure_url" content="${escapeHtml(PROFILE_OG_IMAGE_URL)}" />
+      <meta property="og:image:type" content="${escapeHtml(PROFILE_OG_IMAGE_TYPE)}" />
+      <meta property="og:image:width" content="${escapeHtml(PROFILE_OG_IMAGE_WIDTH)}" />
+      <meta property="og:image:height" content="${escapeHtml(PROFILE_OG_IMAGE_HEIGHT)}" />
+      <meta property="og:image:alt" content="${escapeHtml(PROFILE_OG_IMAGE_ALT)}" />
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content="${escapeHtml(seo.title)}" />
       <meta name="twitter:description" content="${escapeHtml(seo.twitterDescription)}" />
       <meta name="twitter:image" content="${escapeHtml(PROFILE_OG_IMAGE_URL)}" />
+      <meta name="twitter:image:alt" content="${escapeHtml(PROFILE_OG_IMAGE_ALT)}" />
       <link rel="stylesheet" href="/styles.css" />
       ${buildAnalyticsSnippet({ title: seo.title, canonicalPath: seo.canonicalPath })}
       <script type="application/ld+json" id="profileStructuredData">${JSON.stringify(jsonLd)}</script>

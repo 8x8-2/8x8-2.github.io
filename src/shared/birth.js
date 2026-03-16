@@ -107,6 +107,19 @@ export function formatCalendarLabel(calendarType, isLeapMonth = false) {
   return "양력";
 }
 
+export function hasKnownBirthTime(record) {
+  if (record?.birth_time_known === true) return true;
+
+  const hour = record?.birth_hour;
+  const minute = record?.birth_minute;
+
+  if (hour == null || minute == null || hour === "" || minute === "") {
+    return false;
+  }
+
+  return Number.isInteger(Number(hour)) && Number.isInteger(Number(minute));
+}
+
 export function formatBirthDisplay(record, { includeCalendar = false } = {}) {
   const base = `${record.birth_year}.${pad(record.birth_month)}.${pad(record.birth_day)}`;
   const parts = [base];
@@ -115,7 +128,7 @@ export function formatBirthDisplay(record, { includeCalendar = false } = {}) {
     parts.push(formatCalendarLabel(record.calendar_type, record.is_leap_month));
   }
 
-  if (!record.birth_time_known) {
+  if (!hasKnownBirthTime(record)) {
     parts.push("시간 모름");
     return parts.join(" · ");
   }

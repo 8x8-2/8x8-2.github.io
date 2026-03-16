@@ -675,7 +675,23 @@ language sql
 security definer
 set search_path = public
 as $$
-  select coalesce((select (max(stellar_id) + 1)::text from public.profiles), '1');
+  with ordered as (
+    select stellar_id, row_number() over (order by stellar_id) as seq
+    from public.profiles
+    where stellar_id is not null
+  ),
+  first_gap as (
+    select seq as next_stellar_id
+    from ordered
+    where stellar_id <> seq
+    order by seq
+    limit 1
+  )
+  select coalesce(
+    (select next_stellar_id::text from first_gap),
+    (select (count(*) + 1)::text from ordered),
+    '1'
+  );
 $$;
 
 drop function if exists public.is_stellar_id_available(bigint, uuid);

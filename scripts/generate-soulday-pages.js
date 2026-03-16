@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT_DIR, "soulday");
 const SITE_URL = "https://stellar-id.com";
-const OG_IMAGE = `${SITE_URL}/src/img/og-stellarid-url.png`;
+const OG_IMAGE = `${SITE_URL}/og-stellarid.png`;
 
 function escapeHtml(value = "") {
   return String(value)
@@ -59,6 +59,10 @@ function buildHead({ title, description, canonicalPath, jsonLd }) {
       <meta property="og:title" content="${escapeHtml(title)}">
       <meta property="og:description" content="${escapeHtml(description)}">
       <meta property="og:image" content="${OG_IMAGE}">
+      <meta property="og:image:secure_url" content="${OG_IMAGE}">
+      <meta property="og:image:type" content="image/png">
+      <meta property="og:image:width" content="1920">
+      <meta property="og:image:height" content="1080">
       <meta property="og:image:alt" content="스텔라 ID 일주별 페이지">
       <meta property="og:url" content="${canonicalUrl}">
       <meta property="og:type" content="website">
@@ -68,6 +72,7 @@ function buildHead({ title, description, canonicalPath, jsonLd }) {
       <meta name="twitter:title" content="${escapeHtml(title)}">
       <meta name="twitter:description" content="${escapeHtml(description)}">
       <meta name="twitter:image" content="${OG_IMAGE}">
+      <meta name="twitter:image:alt" content="스텔라 ID 일주별 페이지">
       ${buildAnalyticsSnippet({ title, canonicalPath })}
       <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
     </head>

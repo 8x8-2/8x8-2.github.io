@@ -4,6 +4,7 @@ import {
   getSupabaseClient,
   isSupabaseConfigured,
 } from "./supabase.js";
+import { hasKnownBirthTime } from "./birth.js";
 import { buildProfileDerivedFieldsFromInput } from "./profile-derived.js";
 import { normalizeProfileBio } from "./profile-text.js";
 
@@ -92,11 +93,29 @@ function normalizeStellarId(value) {
   return String(value).trim() || null;
 }
 
+function findSmallestAvailableStellarId(stellarIds = []) {
+  const occupied = new Set(
+    stellarIds
+      .map((value) => normalizeStellarId(value))
+      .filter((value) => /^[1-9]\d*$/.test(String(value || "")))
+      .map((value) => Number(value))
+      .filter((value) => Number.isSafeInteger(value) && value > 0)
+  );
+
+  let candidate = 1;
+  while (occupied.has(candidate)) {
+    candidate += 1;
+  }
+
+  return String(candidate);
+}
+
 function normalizeProfileRecord(profile, fallbackStellarId = null) {
   if (!profile) return profile;
 
   return {
     ...profile,
+    birth_time_known: hasKnownBirthTime(profile),
     stellar_id: fallbackStellarId || normalizeStellarId(profile.stellar_id),
   };
 }
@@ -483,6 +502,16 @@ export async function saveReading(record) {
 
 export async function peekNextStellarId() {
   const supabase = ensureSupabase();
+
+  try {
+    const { data, error } = await supabase.rpc("get_profiles_for_seo");
+    if (!error && Array.isArray(data)) {
+      return findSmallestAvailableStellarId(data.map((profile) => profile?.stellar_id));
+    }
+  } catch {
+    // Fall back to the legacy RPC below when the SEO RPC is unavailable.
+  }
+
   const { data, error } = await supabase.rpc("peek_next_stellar_id");
 
   if (error) throw new Error("다음 스텔라 등록번호를 불러오지 못했습니다.");

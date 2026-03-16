@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap");
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 
 :root {
   --bd: #e5e7eb;
@@ -11,13 +11,14 @@
   --earth: #5b5b1c;
   --metal: #626972;
   --water: #333333;
+  --font-ui: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   word-break: keep-all;
   overflow-wrap: break-word;
   background:
@@ -1584,7 +1585,7 @@ html {
 body {
   position: relative;
   min-height: 100vh;
-  font-family: "Space Grotesk", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: var(--font-ui);
   background:
     radial-gradient(circle at 16% 14%, rgba(73, 250, 160, 0.14), transparent 24%),
     radial-gradient(circle at 84% 0%, rgba(98, 117, 255, 0.18), transparent 28%),
@@ -1605,7 +1606,7 @@ input,
 select,
 textarea,
 button {
-  font-family: "Space Grotesk", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: var(--font-ui);
 }
 
 h1,
@@ -2154,7 +2155,7 @@ summary:focus-visible {
 
 .social-brand-name,
 .social-page-title {
-  font-family: "Space Grotesk", "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.98rem;
   font-weight: 700;
   color: var(--txt);
@@ -2593,7 +2594,7 @@ summary:focus-visible {
 }
 
 .profile-score-value {
-  font-family: "Space Grotesk", "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 2rem;
   font-weight: 700;
   color: var(--accent);
@@ -2725,7 +2726,7 @@ summary:focus-visible {
 .profile-mini-card .title,
 .profile-luck-card .title,
 .search-result-id {
-  font-family: "Space Grotesk", "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
 }
 
 .profile-lock-card {
@@ -2900,4 +2901,31 @@ summary:focus-visible {
   .profile-luck-pills {
     justify-content: flex-start;
   }
+}
+
+h1 {
+  font-size: 24px !important;
+  font-weight: 600 !important;
+}
+
+h2 {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+}
+
+h3 {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+}
+
+h4 {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+p,
+a,
+.eyebrow {
+  font-size: 14px !important;
+  font-weight: 400 !important;
 }
