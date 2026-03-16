@@ -4,6 +4,7 @@ import {
   getSupabaseClient,
   isSupabaseConfigured,
 } from "./supabase.js";
+import { rememberOwnStellarId } from "./stellar-id.js";
 import { hasKnownBirthTime } from "./birth.js";
 import { buildProfileDerivedFieldsFromInput } from "./profile-derived.js";
 import { normalizeProfileBio } from "./profile-text.js";
@@ -577,13 +578,16 @@ export async function ensureOwnProfile() {
       body: JSON.stringify({}),
     });
     const profile = await response.json();
-    return normalizeProfileRecord(profile, fallbackStellarId);
+    const normalizedProfile = normalizeProfileRecord(profile, fallbackStellarId);
+    rememberOwnStellarId(normalizedProfile?.stellar_id, currentUser.id);
+    return normalizedProfile;
   } catch (requestError) {
 
     if (isProfileRpcCompatibilityError(requestError)) {
       ensureOwnProfileRpcUnavailable = true;
       const existingProfile = await fetchExistingProfile();
       if (existingProfile) {
+        rememberOwnStellarId(existingProfile?.stellar_id, currentUser.id);
         return existingProfile;
       }
     }
@@ -640,11 +644,16 @@ export async function fetchProfile(userId = null, options = {}) {
   }
 
   if (data) {
-    return normalizeProfileRecord(data, fallbackStellarId);
+    const normalizedProfile = normalizeProfileRecord(data, fallbackStellarId);
+    if (canRepairOwnProfile) {
+      rememberOwnStellarId(normalizedProfile?.stellar_id, currentUser?.id || resolvedUserId);
+    }
+    return normalizedProfile;
   }
 
   if (canRepairOwnProfile) {
     if (sessionProfileStub) {
+      rememberOwnStellarId(sessionProfileStub?.stellar_id, currentUser?.id || resolvedUserId);
       return sessionProfileStub;
     }
 
@@ -757,6 +766,7 @@ export async function updateProfile(updates) {
     data,
     normalizeStellarId(mergedProfile.stellar_id) || normalizeStellarId(user.user_metadata?.stellar_id)
   );
+  rememberOwnStellarId(resolvedData?.stellar_id, user.id);
 
   try {
     await supabase.auth.updateUser({

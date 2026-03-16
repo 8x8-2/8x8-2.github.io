@@ -2,6 +2,45 @@ function getHomeUrl() {
   return new URL(document.body.dataset.linkHome || "/", window.location.href);
 }
 
+const OWN_STELLAR_ROUTE_CACHE_KEY = "stellar-id:own-route-cache";
+
+function parseCachedOwnRoute() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(OWN_STELLAR_ROUTE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const stellarId = String(parsed.stellarId || "").trim();
+    if (!isValidStellarId(stellarId)) return null;
+
+    return {
+      userId: String(parsed.userId || "").trim() || null,
+      stellarId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getCachedOwnStellarId(session) {
+  const cached = parseCachedOwnRoute();
+  if (!cached) return null;
+
+  const sessionUserId = String(session?.user?.id || "").trim();
+  if (!sessionUserId) {
+    return cached.stellarId;
+  }
+
+  if (!cached.userId || cached.userId === sessionUserId) {
+    return cached.stellarId;
+  }
+
+  return null;
+}
+
 export function isLocalDevelopment() {
   return ["localhost", "127.0.0.1"].includes(window.location.hostname);
 }
@@ -44,7 +83,28 @@ export function resolveOwnStellarId(session, profile = null) {
     return String(sessionStellarId).trim();
   }
 
+  const cachedStellarId = getCachedOwnStellarId(session);
+  if (cachedStellarId) {
+    return cachedStellarId;
+  }
+
   return null;
+}
+
+export function rememberOwnStellarId(stellarId, userId = null) {
+  if (typeof window === "undefined") return;
+
+  const normalized = normalizeStellarIdInput(stellarId);
+  if (!isValidStellarId(normalized)) return;
+
+  try {
+    window.localStorage.setItem(OWN_STELLAR_ROUTE_CACHE_KEY, JSON.stringify({
+      userId: String(userId || "").trim() || null,
+      stellarId: normalized,
+    }));
+  } catch {
+    // Ignore storage errors silently.
+  }
 }
 
 export function getRequestedStellarId() {

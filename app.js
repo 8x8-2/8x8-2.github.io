@@ -1,5 +1,6 @@
 import { initCommonPageTracking, trackEvent } from "./src/shared/analytics.js";
 import {
+  fetchProfile,
   isSupabaseConfigured,
   saveReading,
   subscribeAuthState,
@@ -16,6 +17,7 @@ import {
   buildShareUrl,
   shareLink,
 } from "./src/shared/share.js";
+import { buildSignedInHomeUrl } from "./src/shared/stellar-id.js";
 import {
   buildSharedReadingPayload,
   buildStoredReadingPayload,
@@ -71,6 +73,7 @@ const readingElements = getReadingRenderElements(document);
 let currentSession = null;
 let lastRenderedReading = null;
 let shouldAutoRunAfterAuth = consumeHomeAutoRun();
+let signedInHomeRedirectPending = false;
 
 function syncCurrentYear() {
   const currentYear = String(new Date().getFullYear());
@@ -177,6 +180,32 @@ function updateResultAccessState() {
   resultPreviewGateEl?.classList.toggle("hidden", !shouldLock);
   saveReadingButtonEl?.classList.toggle("hidden", !hasReading || !loggedIn || !isSupabaseConfigured());
   shareReadingButtonEl?.classList.toggle("hidden", !hasReading || !loggedIn || !isSupabaseConfigured());
+}
+
+async function redirectSignedInHome(session) {
+  if (!session?.user || signedInHomeRedirectPending) return;
+  signedInHomeRedirectPending = true;
+
+  try {
+    const profile = await fetchProfile(session.user.id, {
+      allowRepair: false,
+      allowSessionFallback: true,
+    }).catch(() => null);
+
+    const targetUrl = new URL(buildSignedInHomeUrl(session, profile), window.location.href);
+    const currentUrl = new URL(window.location.href);
+    const sameRoute = targetUrl.pathname === currentUrl.pathname
+      && targetUrl.search === currentUrl.search;
+
+    if (sameRoute) {
+      signedInHomeRedirectPending = false;
+      return;
+    }
+
+    window.location.replace(targetUrl.toString());
+  } catch {
+    signedInHomeRedirectPending = false;
+  }
 }
 
 function openSaveReadingModal() {
@@ -355,6 +384,10 @@ saveReadingFormEl?.addEventListener("submit", async (event) => {
 subscribeAuthState((session) => {
   currentSession = session;
   updateResultAccessState();
+
+  if (session?.user) {
+    redirectSignedInHome(session);
+  }
 
   if (session && shouldAutoRunAfterAuth) {
     shouldAutoRunAfterAuth = false;
