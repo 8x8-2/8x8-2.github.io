@@ -25,7 +25,6 @@ import { getKstDateParts, needsPublicProfileRefresh } from "./shared/profile-ins
 import { applyProfileSeoToDocument, buildProfileSeoData, getProfileSeoSections } from "./shared/profile-seo.js";
 import { normalizeProfileBio } from "./shared/profile-text.js";
 import { renderSocialNav } from "./shared/social-nav.js";
-import { shareLink } from "./shared/share.js";
 import { showToast } from "./shared/ui.js";
 import { applyPrettyProfilePath, buildProfileSettingsUrl, buildPublicProfileUrl, getRequestedStellarId } from "./shared/stellar-id.js";
 import { formatRegionDisplay } from "./shared/regions.js";
@@ -67,6 +66,15 @@ function renderGuestNav() {
     pageTitle: "스텔라 프로필",
     currentStellarId: getRequestedStellarId(),
     showProfileIdentity: true,
+  });
+}
+
+async function sharePublicProfile(profile) {
+  const { shareLink } = await import("./shared/share.js");
+  return shareLink({
+    title: `${profile.full_name} · ${profile.stellar_id}`,
+    text: `${profile.full_name}님의 스텔라 프로필을 공유합니다.`,
+    url: buildPublicProfileUrl(profile.stellar_id, { absolute: true }),
   });
 }
 
@@ -754,6 +762,8 @@ async function init() {
     throw new Error("유효한 스텔라 등록번호가 없습니다.");
   }
 
+  renderGuestNav();
+
   const session = await getSession();
   const initialPublicProfile = await fetchPublicProfileWithRetry(stellarId, {
     accessToken: session?.access_token || null,
@@ -843,11 +853,7 @@ async function init() {
 
   $("profileShareButton")?.addEventListener("click", async () => {
     try {
-      await shareLink({
-        title: `${publicProfile.full_name} · ${publicProfile.stellar_id}`,
-        text: `${publicProfile.full_name}님의 스텔라 프로필을 공유합니다.`,
-        url: buildPublicProfileUrl(publicProfile.stellar_id, { absolute: true }),
-      });
+      await sharePublicProfile(publicProfile);
     } catch (error) {
       window.alert(error.message || "프로필 공유에 실패했습니다.");
     }
@@ -874,7 +880,25 @@ async function init() {
 }
 
 init().catch((error) => {
+  console.warn("public profile hydration failed", error);
   $("profileLoading").classList.add("hidden");
+
+  const hasSeoFallback = Boolean($("profileSeoFallback")?.textContent?.trim());
+  if (hasSeoFallback) {
+    $("profileSeoFallback")?.classList.remove("hidden");
+    $("profilePageError").classList.add("hidden");
+
+    if (!document.querySelector("[data-social-nav]")?.textContent?.trim()) {
+      try {
+        renderGuestNav();
+      } catch {
+        // Keep the SEO fallback visible even if the nav cannot be re-rendered.
+      }
+    }
+
+    return;
+  }
+
   $("profilePageError").classList.remove("hidden");
   $("profilePageError").textContent = error.message || "스텔라 프로필을 불러오지 못했습니다.";
 });
