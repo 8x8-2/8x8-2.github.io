@@ -1,6 +1,7 @@
 import {
   createSupabaseHeaders,
   createSupabaseUrl,
+  getSupabaseConfig,
   getSupabaseClient,
   isSupabaseConfigured,
 } from "./supabase.js";
@@ -33,6 +34,60 @@ const authStore = {
   manualSignOut: false,
   lifecycleInstalled: false,
 };
+
+function getPersistedSupabaseStorageKey() {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const { url } = getSupabaseConfig();
+    const host = new URL(url).host || "";
+    const projectRef = host.split(".")[0] || "";
+    return projectRef ? `sb-${projectRef}-auth-token` : "";
+  } catch {
+    return "";
+  }
+}
+
+function pickPersistedSessionCandidate(payload) {
+  if (!payload) return null;
+
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const candidate = pickPersistedSessionCandidate(item);
+      if (candidate?.user) return candidate;
+    }
+    return null;
+  }
+
+  if (typeof payload !== "object") {
+    return null;
+  }
+
+  if (payload.access_token && payload.user) {
+    return payload;
+  }
+
+  return pickPersistedSessionCandidate(payload.currentSession || payload.session || null);
+}
+
+function readPersistedSupabaseSession() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
+
+  const storageKey = getPersistedSupabaseStorageKey();
+  if (!storageKey) {
+    return null;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(storageKey);
+    if (!rawValue) return null;
+    return pickPersistedSessionCandidate(JSON.parse(rawValue));
+  } catch {
+    return null;
+  }
+}
 
 function getSessionExpiresAt(session) {
   const expiresAtSeconds = Number(session?.expires_at || 0);
@@ -138,13 +193,15 @@ async function refreshAuthSession({
 
   if (!accessTokenRefreshPromise) {
     const previousSession = authStore.session;
+    const persistedSession = !previousSession ? readPersistedSupabaseSession() : null;
+    const recoverySession = previousSession || persistedSession || null;
 
     accessTokenRefreshPromise = (async () => {
       const { data: currentData, error: currentError } = await supabase.auth.getSession();
       if (currentError) {
-        if (previousSession && !authStore.manualSignOut) {
-          markAuthenticated(previousSession, `${reason}:preserve`);
-          return previousSession;
+        if (recoverySession && !authStore.manualSignOut) {
+          markAuthenticated(recoverySession, `${reason}:preserve`);
+          return recoverySession;
         }
 
         if (markUnauthenticatedOnFailure || authStore.manualSignOut) {
@@ -153,16 +210,16 @@ async function refreshAuthSession({
         return null;
       }
 
-      const currentSession = currentData?.session || previousSession || null;
+      const currentSession = currentData?.session || recoverySession || null;
       if (!currentSession?.refresh_token) {
         if (currentSession?.user) {
           markAuthenticated(currentSession, `${reason}:current-session`);
           return currentSession;
         }
 
-        if (previousSession && !authStore.manualSignOut) {
-          markAuthenticated(previousSession, `${reason}:preserve-no-refresh-token`);
-          return previousSession;
+        if (recoverySession && !authStore.manualSignOut) {
+          markAuthenticated(recoverySession, `${reason}:preserve-no-refresh-token`);
+          return recoverySession;
         }
 
         if (markUnauthenticatedOnFailure || authStore.manualSignOut) {
@@ -210,7 +267,7 @@ async function hydrateAuthStore({
   }
 
   if (!authStore.bootstrapPromise) {
-    const previousSession = authStore.session;
+    const previousSession = authStore.session || readPersistedSupabaseSession() || null;
 
     if (!previousSession) {
       updateAuthStore({
@@ -273,8 +330,9 @@ function handleSupabaseAuthStateChange(event, session) {
       return;
     }
 
-    if (authStore.session?.user) {
-      markAuthenticated(authStore.session, `event:${event}:preserve`);
+    const persistedSession = authStore.session || readPersistedSupabaseSession();
+    if (persistedSession?.user) {
+      markAuthenticated(persistedSession, `event:${event}:preserve`);
       void hydrateAuthStore({
         reason: `event:${event}`,
         allowUnauthenticatedFallback: false,
@@ -289,8 +347,9 @@ function handleSupabaseAuthStateChange(event, session) {
     return;
   }
 
-  if (authStore.session?.user && !authStore.manualSignOut) {
-    markAuthenticated(authStore.session, `event:${event}:preserve`);
+  const persistedSession = authStore.session || readPersistedSupabaseSession();
+  if (persistedSession?.user && !authStore.manualSignOut) {
+    markAuthenticated(persistedSession, `event:${event}:preserve`);
     void hydrateAuthStore({
       reason: `event:${event}`,
       allowUnauthenticatedFallback: false,
@@ -837,6 +896,37 @@ async function fetchNotificationRowsViaRest({
   return Array.isArray(data) ? data : [];
 }
 
+async function fetchNotificationRowsViaClient({
+  userId,
+  select = "*",
+  offset = 0,
+  limit = 40,
+  unreadOnly = false,
+} = {}) {
+  const supabase = ensureSupabase();
+  await warmSupabaseAuthSession(supabase);
+
+  let query = supabase
+    .from("profile_notifications")
+    .select(select)
+    .eq("user_id", userId)
+    .eq("event_type", "follow")
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(offset, Math.max(offset, offset + limit - 1));
+
+  if (unreadOnly) {
+    query = query.is("read_at", null);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
 async function markNotificationRowsReadViaRest({ accessToken, userId, readAt }) {
   await fetchSupabaseRestResponse("/rest/v1/profile_notifications", {
     accessToken,
@@ -854,6 +944,22 @@ async function markNotificationRowsReadViaRest({ accessToken, userId, readAt }) 
       read_at: readAt,
     }),
   });
+}
+
+async function markNotificationRowsReadViaClient({ userId, readAt }) {
+  const supabase = ensureSupabase();
+  await warmSupabaseAuthSession(supabase);
+
+  const { error } = await supabase
+    .from("profile_notifications")
+    .update({ read_at: readAt })
+    .eq("user_id", userId)
+    .eq("event_type", "follow")
+    .is("read_at", null);
+
+  if (error) {
+    throw error;
+  }
 }
 
 async function fetchProfileRecordById(userId, accessToken = null) {
@@ -1375,28 +1481,43 @@ export async function searchPublicProfiles(query, limit = 20) {
     return [];
   }
 
-  ensureSupabase();
-  const session = await getSession().catch(() => null);
+  const supabase = ensureSupabase();
+  await warmSupabaseAuthSession(supabase);
 
-  const response = await fetchSupabaseRestResponse("/rest/v1/rpc/search_stellar_profiles", {
-    accessToken: session?.access_token || null,
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    allowAnonFallback: true,
-    body: JSON.stringify({
+  try {
+    const { data, error } = await supabase.rpc("search_stellar_profiles", {
       search_query: query || "",
       limit_count: limit,
-    }),
-  });
+    });
 
-  const data = await response.json().catch(() => []);
-  if (!Array.isArray(data)) {
-    throw new Error("스텔라 프로필 검색에 실패했습니다.");
+    if (error) {
+      throw error;
+    }
+
+    return Array.isArray(data) ? data : [];
+  } catch {
+    const session = await getSession().catch(() => null);
+    const response = await fetchSupabaseRestResponse("/rest/v1/rpc/search_stellar_profiles", {
+      accessToken: session?.access_token || null,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      allowAnonFallback: true,
+      body: JSON.stringify({
+        search_query: query || "",
+        limit_count: limit,
+      }),
+    });
+
+    const data = await response.json().catch(() => []);
+    if (!Array.isArray(data)) {
+      throw new Error("스텔라 프로필 검색에 실패했습니다.");
+    }
+
+    return data;
   }
-  return data;
 }
 
 export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {}) {
@@ -1411,6 +1532,7 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
   const normalizedSort = ["recent", "name", "id"].includes(String(sort || "").toLowerCase())
     ? String(sort || "").toLowerCase()
     : "recent";
+  const normalizedQuery = String(query || "").trim().toLowerCase();
 
   const sortFollowingProfilesFallback = (rows = [], followedAtByProfileId = new Map()) => {
     const records = rows.map((row) => ({
@@ -1432,6 +1554,15 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
       return rightTime - leftTime || Number(left.stellar_id || 0) - Number(right.stellar_id || 0);
     });
   };
+
+  const normalizeFollowingProfileRow = (row) => ({
+    profile_id: row.id,
+    stellar_id: normalizeStellarId(row.stellar_id),
+    full_name: row.full_name || "회원",
+    gender: row.gender || "male",
+    day_pillar_key: row.day_pillar_key || "",
+    profile_image_url: row.profile_image_url || "",
+  });
 
   const fetchViaRpc = async () => {
     const { data, error } = await supabase.rpc("get_following_profiles", {
@@ -1460,8 +1591,36 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
         (followRows || []).map((row) => [row.following_id, row.created_at || null])
       );
 
-      const fallbackRows = await searchPublicProfiles(query, 50);
-      const filteredRows = (fallbackRows || []).filter((row) => followedAtByProfileId.has(row.profile_id));
+      const followedIds = Array.from(followedAtByProfileId.keys()).filter(Boolean);
+      if (!followedIds.length) {
+        return [];
+      }
+
+      const { data: profileRows, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id,stellar_id,full_name,gender,day_pillar_key,profile_image_url")
+        .in("id", followedIds);
+
+      if (profilesError) {
+        throw profilesError;
+      }
+
+      let filteredRows = (profileRows || [])
+        .map((row) => normalizeFollowingProfileRow(row))
+        .filter((row) => row.profile_id && followedAtByProfileId.has(row.profile_id));
+
+      if (normalizedQuery) {
+        filteredRows = filteredRows.filter((row) => {
+          const haystack = [
+            row.full_name,
+            row.stellar_id,
+            row.day_pillar_key,
+          ].map((value) => String(value || "").toLowerCase());
+
+          return haystack.some((value) => value.includes(normalizedQuery));
+        });
+      }
+
       return sortFollowingProfilesFallback(filteredRows, followedAtByProfileId);
     } catch {
       console.warn("following profiles fallback failed", rpcError);
@@ -1554,8 +1713,7 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
   }
 
   try {
-    const data = await fetchNotificationRowsViaRest({
-      accessToken: session.access_token,
+    const data = await fetchNotificationRowsViaClient({
       userId: user.id,
       select: "id,actor_id,actor_stellar_id,actor_full_name,actor_profile_image_url,event_type,read_at,created_at",
       offset: safeOffset,
@@ -1605,8 +1763,7 @@ export async function fetchUnreadFollowNotificationCount() {
   }
 
   try {
-    const rows = await fetchNotificationRowsViaRest({
-      accessToken: session.access_token,
+    const rows = await fetchNotificationRowsViaClient({
       userId: user.id,
       select: "id",
       offset: 0,
@@ -1642,8 +1799,7 @@ export async function markFollowNotificationsRead() {
   }
 
   try {
-    await markNotificationRowsReadViaRest({
-      accessToken: session.access_token,
+    await markNotificationRowsReadViaClient({
       userId: user.id,
       readAt,
     });
