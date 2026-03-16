@@ -8,11 +8,11 @@ import { hasKnownBirthTime } from "./birth.js";
 import { buildProfileDerivedFieldsFromInput } from "./profile-derived.js";
 import { normalizeProfileBio } from "./profile-text.js";
 
-let ownProfileRpcUnavailable = false;
 let ensureOwnProfileRpcUnavailable = false;
 let notificationQueryMode = "full";
 let profileImageFunctionUnavailable = false;
 let profileImageStorageUnavailable = false;
+let accessTokenRefreshPromise = null;
 
 function ensureSupabase() {
   const supabase = getSupabaseClient();
@@ -354,6 +354,32 @@ async function readSupabaseErrorDetail(response) {
   }
 }
 
+async function refreshAccessTokenOnce() {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
+
+  if (!accessTokenRefreshPromise) {
+    accessTokenRefreshPromise = (async () => {
+      const { data: currentData, error: currentError } = await supabase.auth.getSession();
+      if (currentError) return null;
+
+      const currentSession = currentData?.session || null;
+      if (!currentSession?.refresh_token) return null;
+
+      const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession({
+        refresh_token: currentSession.refresh_token,
+      });
+      if (refreshError) return null;
+
+      return String(refreshedData?.session?.access_token || "").trim() || null;
+    })().finally(() => {
+      accessTokenRefreshPromise = null;
+    });
+  }
+
+  return accessTokenRefreshPromise;
+}
+
 async function fetchSupabaseRestResponse(path, {
   accessToken = null,
   method = "GET",
@@ -384,6 +410,19 @@ async function fetchSupabaseRestResponse(path, {
   if (!response.ok) {
     const detail = await readSupabaseErrorDetail(response);
     if (retryOnAuthFailure && accessToken && shouldRetrySupabaseAuthFailure(response.status, detail)) {
+      const refreshedAccessToken = await refreshAccessTokenOnce().catch(() => null);
+      if (refreshedAccessToken && refreshedAccessToken !== String(accessToken || "").trim()) {
+        return fetchSupabaseRestResponse(path, {
+          accessToken: refreshedAccessToken,
+          method,
+          headers,
+          body,
+          searchParams,
+          retryOnAuthFailure: false,
+          allowAnonFallback,
+        });
+      }
+
       if (allowAnonFallback) {
         return fetchSupabaseRestResponse(path, {
           accessToken: null,
@@ -481,29 +520,6 @@ async function fetchOwnProfileRecordViaClient(userId) {
   return data || null;
 }
 
-async function fetchOwnProfileRecord(accessToken) {
-  const response = await fetchSupabaseRestResponse("/rest/v1/rpc/get_my_profile", {
-    accessToken,
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/vnd.pgrst.object+json",
-    },
-    body: JSON.stringify({}),
-  }).catch((error) => {
-    if (Number(error?.status || 0) === 406) {
-      return null;
-    }
-    throw error;
-  });
-
-  if (!response) {
-    return null;
-  }
-
-  return await response.json();
-}
-
 async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
   const clientProfile = await fetchOwnProfileRecordViaClient(userId).catch(() => null);
   if (clientProfile) {
@@ -513,19 +529,6 @@ async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
   const directProfile = await fetchProfileRecordById(userId, accessToken).catch(() => null);
   if (directProfile) {
     return directProfile;
-  }
-
-  if (!ownProfileRpcUnavailable && accessToken) {
-    try {
-      const rpcProfile = await fetchOwnProfileRecord(accessToken);
-      if (rpcProfile) {
-        return rpcProfile;
-      }
-    } catch (error) {
-      if (isProfileRpcCompatibilityError(error)) {
-        ownProfileRpcUnavailable = true;
-      }
-    }
   }
 
   return null;
@@ -986,14 +989,28 @@ export async function searchPublicProfiles(query, limit = 20) {
     return [];
   }
 
-  const supabase = ensureSupabase();
-  const { data, error } = await supabase.rpc("search_stellar_profiles", {
-    search_query: query || "",
-    limit_count: limit,
+  ensureSupabase();
+  const session = await getSession().catch(() => null);
+
+  const response = await fetchSupabaseRestResponse("/rest/v1/rpc/search_stellar_profiles", {
+    accessToken: session?.access_token || null,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    allowAnonFallback: true,
+    body: JSON.stringify({
+      search_query: query || "",
+      limit_count: limit,
+    }),
   });
 
-  if (error) throw new Error("스텔라 프로필 검색에 실패했습니다.");
-  return data || [];
+  const data = await response.json().catch(() => []);
+  if (!Array.isArray(data)) {
+    throw new Error("스텔라 프로필 검색에 실패했습니다.");
+  }
+  return data;
 }
 
 export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {}) {
@@ -1061,7 +1078,8 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
       const filteredRows = (fallbackRows || []).filter((row) => followedAtByProfileId.has(row.profile_id));
       return sortFollowingProfilesFallback(filteredRows, followedAtByProfileId);
     } catch {
-      throw new Error(rpcError?.message || "팔로잉 프로필을 불러오지 못했습니다.");
+      console.warn("following profiles fallback failed", rpcError);
+      throw new Error("팔로잉 프로필을 불러오지 못했습니다.");
     }
   }
 }
