@@ -13,7 +13,6 @@ let ensureOwnProfileRpcUnavailable = false;
 let notificationQueryMode = "full";
 let profileImageFunctionUnavailable = false;
 let profileImageStorageUnavailable = false;
-let sessionRefreshPromise = null;
 
 function ensureSupabase() {
   const supabase = getSupabaseClient();
@@ -261,6 +260,18 @@ function normalizeNotificationRecord(notification) {
   };
 }
 
+async function warmSupabaseAuthSession(supabase) {
+  if (!supabase) return null;
+
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) return null;
+    return data?.user || null;
+  } catch {
+    return null;
+  }
+}
+
 export function getDisplayName(user, profile = null) {
   const preferred = profile?.full_name || user?.user_metadata?.full_name || user?.email || "회원";
   return String(preferred).trim() || "회원";
@@ -343,39 +354,6 @@ async function readSupabaseErrorDetail(response) {
   }
 }
 
-async function refreshSessionOrThrow() {
-  const supabase = getSupabaseClient();
-  if (!supabase) return null;
-
-  if (!sessionRefreshPromise) {
-    sessionRefreshPromise = (async () => {
-      const currentSessionResult = await supabase.auth.getSession();
-      if (currentSessionResult.error) {
-        throw normalizeAuthError(currentSessionResult.error);
-      }
-
-      const currentSession = currentSessionResult.data.session || null;
-      if (!currentSession?.refresh_token) {
-        return currentSession;
-      }
-
-      const refreshResult = await supabase.auth.refreshSession({
-        refresh_token: currentSession.refresh_token,
-      });
-
-      if (refreshResult.error) {
-        throw normalizeAuthError(refreshResult.error);
-      }
-
-      return refreshResult.data.session || currentSession;
-    })().finally(() => {
-      sessionRefreshPromise = null;
-    });
-  }
-
-  return sessionRefreshPromise;
-}
-
 async function fetchSupabaseRestResponse(path, {
   accessToken = null,
   method = "GET",
@@ -406,21 +384,6 @@ async function fetchSupabaseRestResponse(path, {
   if (!response.ok) {
     const detail = await readSupabaseErrorDetail(response);
     if (retryOnAuthFailure && accessToken && shouldRetrySupabaseAuthFailure(response.status, detail)) {
-      const refreshedSession = await refreshSessionOrThrow().catch(() => null);
-      const refreshedAccessToken = String(refreshedSession?.access_token || "").trim();
-
-      if (refreshedAccessToken && refreshedAccessToken !== String(accessToken || "").trim()) {
-        return fetchSupabaseRestResponse(path, {
-          accessToken: refreshedAccessToken,
-          method,
-          headers,
-          body,
-          searchParams,
-          retryOnAuthFailure: false,
-          allowAnonFallback,
-        });
-      }
-
       if (allowAnonFallback) {
         return fetchSupabaseRestResponse(path, {
           accessToken: null,
@@ -501,6 +464,23 @@ async function fetchProfileRecordById(userId, accessToken = null) {
   return Array.isArray(rows) ? rows[0] || null : rows || null;
 }
 
+async function fetchOwnProfileRecordViaClient(userId) {
+  const supabase = ensureSupabase();
+  await warmSupabaseAuthSession(supabase);
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data || null;
+}
+
 async function fetchOwnProfileRecord(accessToken) {
   const response = await fetchSupabaseRestResponse("/rest/v1/rpc/get_my_profile", {
     accessToken,
@@ -525,9 +505,27 @@ async function fetchOwnProfileRecord(accessToken) {
 }
 
 async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
+  const clientProfile = await fetchOwnProfileRecordViaClient(userId).catch(() => null);
+  if (clientProfile) {
+    return clientProfile;
+  }
+
   const directProfile = await fetchProfileRecordById(userId, accessToken).catch(() => null);
   if (directProfile) {
     return directProfile;
+  }
+
+  if (!ownProfileRpcUnavailable && accessToken) {
+    try {
+      const rpcProfile = await fetchOwnProfileRecord(accessToken);
+      if (rpcProfile) {
+        return rpcProfile;
+      }
+    } catch (error) {
+      if (isProfileRpcCompatibilityError(error)) {
+        ownProfileRpcUnavailable = true;
+      }
+    }
   }
 
   return null;
@@ -536,10 +534,6 @@ async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
 export async function getSession(options = {}) {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
-
-  if (options?.refresh) {
-    return await refreshSessionOrThrow();
-  }
 
   const { data, error } = await supabase.auth.getSession();
   if (error) throw normalizeAuthError(error);
@@ -551,12 +545,12 @@ export async function getUser(options = {}) {
 }
 
 export async function ensureOwnProfile() {
-  const session = await getSession({ refresh: true });
+  const session = await getSession();
   const currentUser = session?.user || null;
   if (!currentUser || !session?.access_token) return null;
   const fallbackStellarId = normalizeStellarId(currentUser.user_metadata?.stellar_id);
   const fetchExistingProfile = async () => {
-    const existingProfile = await fetchProfileRecordById(currentUser.id, session.access_token).catch(() => null);
+    const existingProfile = await fetchOwnProfileRecordWithFallback(currentUser.id, session.access_token).catch(() => null);
     return normalizeProfileRecord(existingProfile, fallbackStellarId);
   };
 
@@ -609,9 +603,6 @@ export async function fetchProfile(userId = null, options = {}) {
   if (!resolvedUserId) return null;
 
   const canRepairOwnProfile = currentUser?.id === resolvedUserId;
-  if (canRepairOwnProfile && session?.refresh_token) {
-    session = await getSession({ refresh: true }).catch(() => session);
-  }
   const fallbackStellarId = canRepairOwnProfile
     ? normalizeStellarId((session?.user || currentUser)?.user_metadata?.stellar_id)
     : null;
@@ -664,8 +655,8 @@ export async function fetchProfile(userId = null, options = {}) {
 
 export async function updateProfile(updates) {
   const supabase = ensureSupabase();
-  const session = await getSession({ refresh: true });
-  const user = session?.user || null;
+  const session = await getSession();
+  const user = (await warmSupabaseAuthSession(supabase)) || session?.user || null;
 
   if (!user) {
     throw new Error("로그인 후 내 정보를 수정할 수 있습니다.");
@@ -727,27 +718,36 @@ export async function updateProfile(updates) {
 
   let data = null;
   try {
-    const response = await fetchSupabaseRestResponse("/rest/v1/profiles", {
-      accessToken: session.access_token,
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      searchParams: {
-        id: `eq.${user.id}`,
-        select: "*",
-      },
-      body: JSON.stringify(payload),
-    });
+    const performUpdate = async () => {
+      const { data: updatedRow, error } = await supabase
+        .from("profiles")
+        .update(payload)
+        .eq("id", user.id)
+        .select("*")
+        .maybeSingle();
 
-    const rows = await response.json().catch(() => []);
-    data = Array.isArray(rows) ? rows[0] || null : rows || null;
+      if (error) {
+        throw error;
+      }
+
+      return updatedRow || null;
+    };
+
+    data = await performUpdate();
+
+    if (!data) {
+      await ensureOwnProfile();
+      data = await performUpdate();
+    }
+
+    if (!data) {
+      throw new Error("내 정보를 저장하지 못했습니다.");
+    }
   } catch (error) {
     if (isUniqueViolation(error) || String(error?.message || "").toLowerCase().includes("duplicate")) {
       throw new Error("이미 사용 중인 스텔라 ID입니다.");
     }
-    throw new Error("내 정보를 저장하지 못했습니다.");
+    throw new Error(error?.message || "내 정보를 저장하지 못했습니다.");
   }
 
   const resolvedData = normalizeProfileRecord(
@@ -998,19 +998,107 @@ export async function searchPublicProfiles(query, limit = 20) {
 
 export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {}) {
   const supabase = ensureSupabase();
-  const user = await getUser();
+  const session = await getSession();
+  const user = (await warmSupabaseAuthSession(supabase)) || session?.user || null;
 
   if (!user) {
     throw new Error("로그인 후 팔로잉 프로필을 볼 수 있습니다.");
   }
 
-  const { data, error } = await supabase.rpc("get_following_profiles", {
-    sort_key: sort,
-    search_query: query,
-  });
+  const normalizedSort = ["recent", "name", "id"].includes(String(sort || "").toLowerCase())
+    ? String(sort || "").toLowerCase()
+    : "recent";
 
-  if (error) throw new Error("팔로잉 프로필을 불러오지 못했습니다.");
-  return data || [];
+  const sortFollowingProfilesFallback = (rows = [], followedAtByProfileId = new Map()) => {
+    const records = rows.map((row) => ({
+      ...row,
+      followed_at: followedAtByProfileId.get(row.profile_id) || null,
+    }));
+
+    if (normalizedSort === "name") {
+      return records.sort((left, right) => String(left.full_name || "").localeCompare(String(right.full_name || ""), "ko"));
+    }
+
+    if (normalizedSort === "id") {
+      return records.sort((left, right) => Number(left.stellar_id || 0) - Number(right.stellar_id || 0));
+    }
+
+    return records.sort((left, right) => {
+      const leftTime = left.followed_at ? Date.parse(left.followed_at) : 0;
+      const rightTime = right.followed_at ? Date.parse(right.followed_at) : 0;
+      return rightTime - leftTime || Number(left.stellar_id || 0) - Number(right.stellar_id || 0);
+    });
+  };
+
+  const fetchViaRpc = async () => {
+    const { data, error } = await supabase.rpc("get_following_profiles", {
+      sort_key: normalizedSort,
+      search_query: query,
+    });
+
+    if (error) throw error;
+    return data || [];
+  };
+
+  try {
+    return await fetchViaRpc();
+  } catch (rpcError) {
+    try {
+      const { data: followRows, error: followError } = await supabase
+        .from("profile_follows")
+        .select("following_id,created_at")
+        .eq("follower_id", user.id);
+
+      if (followError) {
+        throw followError;
+      }
+
+      const followedAtByProfileId = new Map(
+        (followRows || []).map((row) => [row.following_id, row.created_at || null])
+      );
+
+      const fallbackRows = await searchPublicProfiles(query, 50);
+      const filteredRows = (fallbackRows || []).filter((row) => followedAtByProfileId.has(row.profile_id));
+      return sortFollowingProfilesFallback(filteredRows, followedAtByProfileId);
+    } catch {
+      throw new Error(rpcError?.message || "팔로잉 프로필을 불러오지 못했습니다.");
+    }
+  }
+}
+
+export async function fetchOwnFollowCounts(userId = null) {
+  const supabase = ensureSupabase();
+  const session = await getSession();
+  const resolvedUserId = userId || session?.user?.id || null;
+
+  if (!resolvedUserId) {
+    return {
+      followerCount: 0,
+      followingCount: 0,
+    };
+  }
+
+  await warmSupabaseAuthSession(supabase);
+
+  const [followersResult, followingResult] = await Promise.all([
+    supabase
+      .from("profile_follows")
+      .select("follower_id")
+      .eq("following_id", resolvedUserId),
+    supabase
+      .from("profile_follows")
+      .select("following_id")
+      .eq("follower_id", resolvedUserId),
+  ]);
+
+  if (followersResult.error || followingResult.error) {
+    throw new Error("팔로우 수를 불러오지 못했습니다.");
+  }
+
+  return {
+    followerCount: Array.isArray(followersResult.data) ? followersResult.data.length : 0,
+    followingCount: Array.isArray(followingResult.data) ? followingResult.data.length : 0,
+  };
 }
 
 async function fetchLegacyNotificationRows({ accessToken, userId, offset, limit }) {
@@ -1030,7 +1118,7 @@ async function fetchLegacyNotificationRows({ accessToken, userId, offset, limit 
 
 export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) {
   ensureSupabase();
-  const session = await getSession({ refresh: true });
+  const session = await getSession();
   const user = session?.user || null;
 
   if (!user) {
@@ -1096,7 +1184,7 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
 
 export async function fetchUnreadFollowNotificationCount() {
   ensureSupabase();
-  const session = await getSession({ refresh: true });
+  const session = await getSession();
   const user = session?.user || null;
 
   if (!user) {
@@ -1136,7 +1224,7 @@ export async function fetchUnreadFollowNotificationCount() {
 
 export async function markFollowNotificationsRead() {
   ensureSupabase();
-  const session = await getSession({ refresh: true });
+  const session = await getSession();
   const user = session?.user || null;
 
   if (!user) {
@@ -1377,7 +1465,7 @@ async function uploadProfileImageStandard(supabase, { filePath, uploadFile, safe
 
 export async function uploadProfileImage(file) {
   const supabase = ensureSupabase();
-  const session = await getSession({ refresh: true });
+  const session = await getSession();
   const user = session?.user || null;
 
   if (!user || !session?.access_token) {

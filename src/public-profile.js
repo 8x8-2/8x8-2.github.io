@@ -1,6 +1,7 @@
 import { getAllDayPillarEntries, getDayPillarElement } from "../data/daypillars.js";
 import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
 import {
+  fetchOwnFollowCounts,
   fetchProfile,
   fetchPublicProfileByStellarId,
   followProfile,
@@ -85,6 +86,53 @@ function buildViewerProfileStub(session) {
     full_name: session.user.user_metadata?.full_name || session.user.email || "회원",
     profile_image_url: session.user.user_metadata?.profile_image_url || "",
     stellar_id: resolveOwnStellarId(session, null),
+  };
+}
+
+function buildSelfProfileViewModel(profile, session) {
+  const source = profile || buildViewerProfileStub(session);
+  if (!source) return null;
+
+  const fallbackSnapshot = source?.public_snapshot && !needsPublicProfileRefresh(source.public_snapshot)
+    ? source.public_snapshot
+    : buildLocalSnapshotFromProfile(source);
+  const fallbackStellarId = resolveOwnStellarId(session, source);
+
+  return {
+    profile_id: source.id || session?.user?.id || null,
+    stellar_id: String(source.stellar_id || fallbackStellarId || ""),
+    full_name: source.full_name || session?.user?.user_metadata?.full_name || session?.user?.email || "회원",
+    gender: source.gender || session?.user?.user_metadata?.gender || "male",
+    profile_image_url: source.profile_image_url || session?.user?.user_metadata?.profile_image_url || "",
+    mbti: source.mbti || "",
+    region_country: source.region_country || "",
+    region_name: source.region_name || "",
+    bio: source.bio || "",
+    day_pillar_key: source.day_pillar_key || fallbackSnapshot?.dayPillar?.key || "",
+    day_pillar_hanja: source.day_pillar_hanja || fallbackSnapshot?.dayPillar?.hanja || "",
+    day_pillar_metaphor: source.day_pillar_metaphor || fallbackSnapshot?.dayPillar?.metaphor || "",
+    element_class: source.element_class || fallbackSnapshot?.dayPillar?.elementClass || "unknown",
+    preview_summary: source.preview_summary || "",
+    public_snapshot: fallbackSnapshot || null,
+    personality_visibility: source.personality_visibility || "public",
+    health_visibility: source.health_visibility || "public",
+    love_visibility: source.love_visibility || "public",
+    ability_visibility: source.ability_visibility || "public",
+    major_luck_visibility: source.major_luck_visibility || "public",
+    follower_count: Number(source.follower_count || 0),
+    following_count: Number(source.following_count || 0),
+    is_following: false,
+    is_self: true,
+  };
+}
+
+function applySelfFollowCounts(profile, counts) {
+  if (!profile) return profile;
+
+  return {
+    ...profile,
+    follower_count: Number(counts?.followerCount ?? profile.follower_count ?? 0),
+    following_count: Number(counts?.followingCount ?? profile.following_count ?? 0),
   };
 }
 
@@ -817,6 +865,7 @@ async function init() {
   let session = await getSession();
   let viewerProfile = null;
   let currentPublicProfile = null;
+  let isSelfProfileMode = false;
 
   const syncNav = () => {
     renderProfileNav({
@@ -835,13 +884,27 @@ async function init() {
   syncNav();
 
   const viewerProfilePromise = session
-    ? fetchProfile(session.user.id).catch((error) => {
+    ? fetchProfile(session.user.id, {
+      allowRepair: false,
+      allowSessionFallback: true,
+    }).catch((error) => {
       console.warn("viewer profile hydration failed", error);
       return null;
     })
     : Promise.resolve(null);
 
-  const initialPublicProfile = await fetchPublicProfileWithRetry(stellarId);
+  viewerProfile = await viewerProfilePromise;
+  const requestedOwnStellarId = resolveOwnStellarId(session, viewerProfile);
+  isSelfProfileMode = Boolean(session && requestedOwnStellarId && String(requestedOwnStellarId) === String(stellarId));
+
+  let initialPublicProfile = null;
+  if (isSelfProfileMode) {
+    initialPublicProfile = buildSelfProfileViewModel(viewerProfile, session);
+    const ownFollowCounts = await fetchOwnFollowCounts(session?.user?.id).catch(() => null);
+    initialPublicProfile = applySelfFollowCounts(initialPublicProfile, ownFollowCounts);
+  } else {
+    initialPublicProfile = await fetchPublicProfileWithRetry(stellarId);
+  }
 
   if (!initialPublicProfile) {
     throw new Error("해당 스텔라 프로필을 찾지 못했습니다.");
@@ -849,8 +912,9 @@ async function init() {
 
   let publicProfile = initialPublicProfile;
   currentPublicProfile = publicProfile;
+  syncNav();
 
-  if (shouldRefreshPublicProfile(publicProfile)) {
+  if (!isSelfProfileMode && shouldRefreshPublicProfile(publicProfile)) {
     try {
       await refreshPublicProfileByStellarId(stellarId);
       publicProfile = await fetchPublicProfileWithRetry(stellarId, {
@@ -862,7 +926,6 @@ async function init() {
     }
   }
 
-  viewerProfile = await viewerProfilePromise;
   currentPublicProfile = publicProfile;
   syncNav();
 
