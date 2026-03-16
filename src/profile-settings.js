@@ -14,6 +14,7 @@ import { renderSocialNav } from "./shared/social-nav.js";
 import { getVisibilityLabel, PROFILE_VISIBILITY_VALUES } from "./shared/profile-derived.js";
 import { buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
 import { normalizeProfileBio } from "./shared/profile-text.js";
+import { showToast } from "./shared/ui.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -33,6 +34,7 @@ let stellarIdAvailability = {
   value: "",
   available: false,
 };
+let stellarIdEditMode = false;
 
 function setStellarIdHint(message, tone = "muted") {
   const hintEl = $("settingsStellarIdHint");
@@ -77,6 +79,58 @@ function buildProfileRedirectUrl(stellarId) {
   return url.toString();
 }
 
+function getCurrentSavedStellarId() {
+  return normalizeStellarIdInput(String(currentProfile?.stellar_id || ""));
+}
+
+function syncStellarIdActionButtons() {
+  const editButton = $("settingsStellarIdEdit");
+  const checkButton = $("settingsStellarIdCheck");
+  const saveButton = $("settingsStellarIdSave");
+  const currentValue = normalizeStellarIdInput($("settingsStellarId").value);
+  const savedValue = getCurrentSavedStellarId();
+  const hasVerifiedNewValue = stellarIdAvailability.available && stellarIdAvailability.value === currentValue;
+
+  editButton.classList.toggle("hidden", stellarIdEditMode);
+  checkButton.classList.toggle("hidden", !stellarIdEditMode);
+  saveButton.classList.toggle("hidden", !stellarIdEditMode);
+  saveButton.disabled = !currentValue || (currentValue !== savedValue && !hasVerifiedNewValue);
+}
+
+function setStellarIdEditMode(nextMode) {
+  stellarIdEditMode = Boolean(nextMode);
+
+  const input = $("settingsStellarId");
+  const savedValue = getCurrentSavedStellarId();
+  input.disabled = !stellarIdEditMode;
+
+  if (!stellarIdEditMode) {
+    input.value = savedValue;
+    stellarIdAvailability = {
+      value: savedValue,
+      available: true,
+    };
+    setStellarIdHint(
+      savedValue
+        ? "현재 스텔라 ID입니다. 변경할 때만 \"변경\" 버튼을 눌러 주세요."
+        : "스텔라 ID를 입력한 뒤 중복 확인 후 저장해 주세요."
+    );
+  } else {
+    input.value = savedValue;
+    stellarIdAvailability = {
+      value: "",
+      available: false,
+    };
+    setStellarIdHint("변경할 스텔라 ID를 입력한 뒤 중복 확인 후 저장해 주세요.");
+    queueMicrotask(() => {
+      input.focus();
+      input.select();
+    });
+  }
+
+  syncStellarIdActionButtons();
+}
+
 function renderAvatarPreview(profile = currentProfile) {
   const preview = $("settingsAvatarPreview");
 
@@ -100,16 +154,25 @@ async function verifyStellarId() {
 
   if (!isValidStellarId(value)) {
     stellarIdAvailability = { value, available: false };
-    setStellarIdHint("스텔라 등록번호는 1~16자리 숫자로 입력해 주세요.", "error");
+    setStellarIdHint("스텔라 ID는 1~16자리 숫자로 입력해 주세요.", "error");
+    syncStellarIdActionButtons();
     return false;
+  }
+
+  if (value === getCurrentSavedStellarId()) {
+    stellarIdAvailability = { value, available: true };
+    setStellarIdHint(`현재 사용 중인 스텔라 ID입니다. /${value} 주소로 연결됩니다.`);
+    syncStellarIdActionButtons();
+    return true;
   }
 
   const available = await checkStellarIdAvailability(value, currentProfile.id);
   stellarIdAvailability = { value, available };
   setStellarIdHint(
-    available ? `사용 가능한 등록번호입니다. /${value} 주소로 연결됩니다.` : "이미 사용 중인 스텔라 등록번호입니다.",
+    available ? `사용 가능한 스텔라 ID입니다. /${value} 주소로 연결됩니다.` : "이미 사용 중인 스텔라 ID입니다.",
     available ? "muted" : "error"
   );
+  syncStellarIdActionButtons();
   return available;
 }
 
@@ -127,6 +190,7 @@ function fillForm(profile) {
   fillVisibilityOptions($("settingsVisibilityAbility"), profile.ability_visibility);
   fillVisibilityOptions($("settingsVisibilityMajorLuck"), profile.major_luck_visibility);
   renderAvatarPreview(profile);
+  setStellarIdEditMode(!profile.stellar_id);
 }
 
 async function init() {
@@ -147,12 +211,18 @@ async function init() {
 
   const navContainer = document.querySelector("[data-social-nav]");
   const sessionProfileStub = buildSessionProfileStub(session);
-  let navCleanup = renderSocialNav(navContainer, {
-    session,
-    viewerProfile: sessionProfileStub,
-    currentStellarId: sessionProfileStub?.stellar_id,
-    pageTitle: "프로필 설정",
-  });
+  let navCleanup = null;
+  const renderNav = (viewerProfile) => {
+    navCleanup?.();
+    navCleanup = renderSocialNav(navContainer, {
+      session,
+      viewerProfile,
+      currentStellarId: viewerProfile?.stellar_id || sessionProfileStub?.stellar_id,
+      pageTitle: "프로필 설정",
+    });
+  };
+
+  renderNav(sessionProfileStub);
 
   currentProfile = await fetchProfile(session.user.id, {
     allowSessionFallback: true,
@@ -162,13 +232,7 @@ async function init() {
     throw new Error("내 프로필을 불러오지 못했습니다.");
   }
 
-  navCleanup?.();
-  navCleanup = renderSocialNav(navContainer, {
-    session,
-    viewerProfile: currentProfile,
-    currentStellarId: currentProfile.stellar_id,
-    pageTitle: "프로필 설정",
-  });
+  renderNav(currentProfile);
 
   fillMbtiOptions();
   fillForm(currentProfile);
@@ -184,20 +248,77 @@ async function init() {
     syncBioField({ normalize: true });
   });
   $("settingsStellarId").addEventListener("input", (event) => {
+    if (!stellarIdEditMode) return;
     event.target.value = normalizeStellarIdInput(event.target.value);
     stellarIdAvailability = {
       value: event.target.value,
       available: false,
     };
+    setStellarIdHint("변경할 스텔라 ID를 입력한 뒤 중복 확인 후 저장해 주세요.");
+    syncStellarIdActionButtons();
   });
-  $("settingsStellarId").addEventListener("blur", () => {
-    if (!$("settingsStellarId").value) return;
-    verifyStellarId().catch(() => {});
+
+  $("settingsStellarIdEdit").addEventListener("click", () => {
+    setStellarIdEditMode(true);
   });
+
   $("settingsStellarIdCheck").addEventListener("click", () => {
     verifyStellarId().catch((error) => {
-      setStellarIdHint(error.message || "등록번호를 확인하지 못했습니다.", "error");
+      setStellarIdHint(error.message || "스텔라 ID를 확인하지 못했습니다.", "error");
+      syncStellarIdActionButtons();
     });
+  });
+
+  $("settingsStellarIdSave").addEventListener("click", async () => {
+    const errorEl = $("profileSettingsFormError");
+    const statusEl = $("profileSettingsStatus");
+    const stellarId = normalizeStellarIdInput($("settingsStellarId").value);
+    const savedStellarId = getCurrentSavedStellarId();
+
+    errorEl.textContent = "";
+    statusEl.textContent = "";
+
+    if (!stellarId) {
+      setStellarIdHint("스텔라 ID를 입력해 주세요.", "error");
+      return;
+    }
+
+    if (!isValidStellarId(stellarId)) {
+      setStellarIdHint("스텔라 ID는 1~16자리 숫자로 입력해 주세요.", "error");
+      return;
+    }
+
+    if (stellarId === savedStellarId) {
+      setStellarIdEditMode(false);
+      return;
+    }
+
+    if (!stellarIdAvailability.available || stellarIdAvailability.value !== stellarId) {
+      setStellarIdHint("중복 확인을 완료한 뒤 저장해 주세요.", "error");
+      syncStellarIdActionButtons();
+      return;
+    }
+
+    try {
+      statusEl.textContent = "스텔라 ID 저장 중...";
+      const updatedProfile = await updateProfile({
+        stellar_id: stellarId,
+      });
+
+      currentProfile = {
+        ...currentProfile,
+        stellar_id: updatedProfile.stellar_id,
+      };
+      $("settingsStellarId").value = String(updatedProfile.stellar_id || "");
+      setStellarIdEditMode(false);
+      renderNav(currentProfile);
+      statusEl.textContent = "";
+      showToast("스텔라 ID가 변경되었습니다.");
+    } catch (error) {
+      statusEl.textContent = "";
+      setStellarIdHint(error.message || "스텔라 ID를 저장하지 못했습니다.", "error");
+      syncStellarIdActionButtons();
+    }
   });
 
   $("settingsAvatarInput").addEventListener("change", (event) => {
@@ -222,7 +343,8 @@ async function init() {
     errorEl.textContent = "";
     statusEl.textContent = "";
 
-    const stellarId = normalizeStellarIdInput($("settingsStellarId").value);
+    const savedStellarId = getCurrentSavedStellarId();
+    const stellarId = normalizeStellarIdInput($("settingsStellarId").value) || savedStellarId;
     const fullName = $("settingsName").value.trim();
     const mbti = $("settingsMbti").value || null;
     const bio = syncBioField({ normalize: true });
@@ -235,21 +357,13 @@ async function init() {
     }
 
     if (!isValidStellarId(stellarId)) {
-      errorEl.textContent = "스텔라 등록번호는 1~16자리 숫자로 입력해 주세요.";
+      errorEl.textContent = "스텔라 ID는 1~16자리 숫자로 입력해 주세요.";
       return;
     }
 
-    if (!stellarIdAvailability.available || stellarIdAvailability.value !== stellarId) {
-      try {
-        const available = await verifyStellarId();
-        if (!available) {
-          errorEl.textContent = "이미 사용 중인 스텔라 등록번호입니다.";
-          return;
-        }
-      } catch (error) {
-        errorEl.textContent = error.message || "스텔라 등록번호를 확인하지 못했습니다.";
-        return;
-      }
+    if (stellarIdEditMode && stellarId !== savedStellarId) {
+      errorEl.textContent = "스텔라 ID는 옆의 저장 버튼으로 먼저 저장해 주세요.";
+      return;
     }
 
     if (selectedAvatarFile && selectedAvatarFile.size > 3 * 1024 * 1024) {
@@ -296,6 +410,7 @@ async function init() {
       selectedAvatarFile = null;
       removeAvatar = false;
       fillForm(currentProfile);
+      renderNav(currentProfile);
       statusEl.textContent = "저장되었습니다. 프로필로 이동합니다...";
       window.location.href = buildProfileRedirectUrl(currentProfile.stellar_id);
     } catch (error) {

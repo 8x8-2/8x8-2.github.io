@@ -167,7 +167,7 @@ async function checkCurrentStellarId({ silent = false } = {}) {
       available: false,
     };
     if (!silent) {
-      setStellarIdHint("스텔라 등록번호는 1~16자리 숫자로 입력해 주세요.", "error");
+      setStellarIdHint("스텔라 ID는 1~16자리 숫자로 입력해 주세요.", "error");
     }
     return false;
   }
@@ -180,8 +180,8 @@ async function checkCurrentStellarId({ silent = false } = {}) {
 
   setStellarIdHint(
     available
-      ? `사용 가능한 등록번호입니다. /${stellarId} 주소로 프로필이 연결됩니다.`
-      : "이미 사용 중인 스텔라 등록번호입니다.",
+      ? `사용 가능한 스텔라 ID입니다. /${stellarId} 주소로 프로필이 연결됩니다.`
+      : "이미 사용 중인 스텔라 ID입니다.",
     available ? "muted" : "error"
   );
 
@@ -247,7 +247,7 @@ $("signupStellarIdCheck")?.addEventListener("click", async () => {
   try {
     await checkCurrentStellarId();
   } catch (error) {
-    setStellarIdHint(error.message || "등록번호를 확인하지 못했습니다.", "error");
+    setStellarIdHint(error.message || "스텔라 ID를 확인하지 못했습니다.", "error");
   }
 });
 
@@ -323,7 +323,7 @@ $("signupForm")?.addEventListener("submit", async (event) => {
   }
 
   if (!isValidStellarId(stellarId)) {
-    errorEl.textContent = "스텔라 등록번호는 1~16자리 숫자로 입력해 주세요.";
+    errorEl.textContent = "스텔라 ID는 1~16자리 숫자로 입력해 주세요.";
     return;
   }
 
@@ -369,11 +369,11 @@ $("signupForm")?.addEventListener("submit", async (event) => {
     try {
       const available = await checkCurrentStellarId();
       if (!available) {
-        errorEl.textContent = "이미 사용 중인 스텔라 등록번호입니다.";
+        errorEl.textContent = "이미 사용 중인 스텔라 ID입니다.";
         return;
       }
     } catch (error) {
-      errorEl.textContent = error.message || "스텔라 등록번호를 확인하지 못했습니다.";
+      errorEl.textContent = error.message || "스텔라 ID를 확인하지 못했습니다.";
       return;
     }
   }

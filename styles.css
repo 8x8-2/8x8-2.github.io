@@ -2820,10 +2820,15 @@ summary:focus-visible {
 
 .profile-settings-form .inline-field-row {
   align-items: stretch;
+  flex-wrap: wrap;
 }
 
 .profile-settings-form .inline-field-row > * {
   min-width: 0;
+}
+
+.profile-settings-form .inline-field-row input {
+  flex: 1 1 220px;
 }
 
 .profile-settings-form input[type="file"] {
