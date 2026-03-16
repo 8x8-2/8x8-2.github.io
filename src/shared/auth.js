@@ -1038,9 +1038,10 @@ export async function unfollowProfile(targetProfileId) {
 
 export async function uploadProfileImage(file) {
   const supabase = ensureSupabase();
-  const user = await getUser();
+  const session = await getSession();
+  const user = session?.user || null;
 
-  if (!user) {
+  if (!user || !session?.access_token) {
     throw new Error("로그인 후 프로필 이미지를 올릴 수 있습니다.");
   }
 
@@ -1076,35 +1077,27 @@ export async function uploadProfileImage(file) {
     ? crypto.randomUUID()
     : String(Date.now());
   const filePath = `${user.id}/avatar-${uniqueId}.${safeExtension}`;
-  const uploadOptions = {
-    cacheControl: "3600",
-    upsert: false,
-  };
+  const requestUrl = createSupabaseUrl(`/storage/v1/object/profile-images/${filePath}`);
+  const uploadBody = typeof file?.arrayBuffer === "function"
+    ? await file.arrayBuffer()
+    : file;
 
-  if (safeContentType) {
-    uploadOptions.contentType = safeContentType;
-  }
+  const response = await fetch(requestUrl, {
+    method: "POST",
+    headers: createSupabaseHeaders({
+      accessToken: session.access_token,
+      headers: {
+        "Content-Type": safeContentType || normalizedMimeType || "application/octet-stream",
+        "cache-control": "max-age=3600",
+        "x-upsert": "false",
+      },
+    }),
+    body: uploadBody,
+  });
 
-  let uploadError = null;
-
-  const uploadAttempt = await supabase.storage
-    .from("profile-images")
-    .upload(filePath, file, uploadOptions);
-  uploadError = uploadAttempt.error;
-
-  if (uploadError && typeof file?.arrayBuffer === "function") {
-    const bytes = await file.arrayBuffer();
-    const retryBody = new Blob([bytes], {
-      type: safeContentType || "application/octet-stream",
-    });
-    const retryAttempt = await supabase.storage
-      .from("profile-images")
-      .upload(filePath, retryBody, uploadOptions);
-    uploadError = retryAttempt.error;
-  }
-
-  if (uploadError) {
-    throw normalizeStorageUploadError(uploadError, {
+  if (!response.ok) {
+    const detail = await readSupabaseErrorDetail(response);
+    throw normalizeStorageUploadError(createRequestError(detail || response.statusText, response.status), {
       originalMimeType: normalizedMimeType,
       safeContentType,
     });
