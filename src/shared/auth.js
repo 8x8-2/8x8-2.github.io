@@ -11,6 +11,8 @@ import { normalizeProfileBio } from "./profile-text.js";
 let ownProfileRpcUnavailable = false;
 let ensureOwnProfileRpcUnavailable = false;
 let notificationQueryMode = "full";
+let profileImageFunctionUnavailable = false;
+let profileImageStorageUnavailable = false;
 
 function ensureSupabase() {
   const supabase = getSupabaseClient();
@@ -326,6 +328,86 @@ async function readSupabaseErrorDetail(response) {
   } catch {
     return await response.text().catch(() => "");
   }
+}
+
+async function fetchSupabaseRestResponse(path, {
+  accessToken = null,
+  method = "GET",
+  headers = null,
+  body = undefined,
+  searchParams = null,
+} = {}) {
+  const requestUrl = createSupabaseUrl(path);
+
+  if (searchParams) {
+    Object.entries(searchParams).forEach(([key, value]) => {
+      if (value == null || value === "") return;
+      requestUrl.searchParams.append(key, String(value));
+    });
+  }
+
+  const response = await fetch(requestUrl, {
+    method,
+    headers: createSupabaseHeaders({
+      accessToken,
+      headers,
+    }),
+    body,
+  });
+
+  if (!response.ok) {
+    const detail = await readSupabaseErrorDetail(response);
+    throw createRequestError(detail || "Supabase 요청을 처리하지 못했습니다.", response.status);
+  }
+
+  return response;
+}
+
+async function fetchNotificationRowsViaRest({
+  accessToken,
+  userId,
+  select = "*",
+  offset = 0,
+  limit = 40,
+  unreadOnly = false,
+} = {}) {
+  const response = await fetchSupabaseRestResponse("/rest/v1/profile_notifications", {
+    accessToken,
+    headers: {
+      Accept: "application/json",
+    },
+    searchParams: {
+      select,
+      user_id: `eq.${userId}`,
+      event_type: "eq.follow",
+      order: "created_at.desc,id.desc",
+      offset,
+      limit,
+      ...(unreadOnly ? { read_at: "is.null" } : {}),
+    },
+  });
+
+  const data = await response.json().catch(() => []);
+  return Array.isArray(data) ? data : [];
+}
+
+async function markNotificationRowsReadViaRest({ accessToken, userId, readAt }) {
+  await fetchSupabaseRestResponse("/rest/v1/profile_notifications", {
+    accessToken,
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    searchParams: {
+      user_id: `eq.${userId}`,
+      event_type: "eq.follow",
+      read_at: "is.null",
+    },
+    body: JSON.stringify({
+      read_at: readAt,
+    }),
+  });
 }
 
 async function fetchProfileRecordById(userId, accessToken = null) {
@@ -860,15 +942,14 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
   return data || [];
 }
 
-async function fetchLegacyNotificationRows(supabase, userId, safeOffset, safeLimit) {
-  const { data, error } = await supabase
-    .from("profile_notifications")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .range(safeOffset, safeOffset + safeLimit - 1);
-
-  if (error) throw error;
+async function fetchLegacyNotificationRows({ accessToken, userId, offset, limit }) {
+  const data = await fetchNotificationRowsViaRest({
+    accessToken,
+    userId,
+    select: "*",
+    offset,
+    limit,
+  });
 
   return (data || [])
     .filter((row) => !row?.event_type || row.event_type === "follow")
@@ -877,8 +958,9 @@ async function fetchLegacyNotificationRows(supabase, userId, safeOffset, safeLim
 }
 
 export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) {
-  const supabase = ensureSupabase();
-  const user = await getUser();
+  ensureSupabase();
+  const session = await getSession();
+  const user = session?.user || null;
 
   if (!user) {
     throw new Error("로그인 후 알림을 볼 수 있습니다.");
@@ -893,7 +975,12 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
 
   if (notificationQueryMode === "legacy") {
     try {
-      return await fetchLegacyNotificationRows(supabase, user.id, safeOffset, safeLimit);
+      return await fetchLegacyNotificationRows({
+        accessToken: session.access_token,
+        userId: user.id,
+        offset: safeOffset,
+        limit: safeLimit,
+      });
     } catch (error) {
       if (isNotificationSchemaCompatibilityError(error)) {
         notificationQueryMode = "unavailable";
@@ -903,21 +990,27 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
     }
   }
 
-  const { data, error } = await supabase
-    .from("profile_notifications")
-    .select("id, actor_id, actor_stellar_id, actor_full_name, actor_profile_image_url, event_type, read_at, created_at")
-    .eq("user_id", user.id)
-    .eq("event_type", "follow")
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(safeOffset, safeOffset + safeLimit - 1);
+  try {
+    const data = await fetchNotificationRowsViaRest({
+      accessToken: session.access_token,
+      userId: user.id,
+      select: "id,actor_id,actor_stellar_id,actor_full_name,actor_profile_image_url,event_type,read_at,created_at",
+      offset: safeOffset,
+      limit: safeLimit,
+    });
 
-  if (error) {
+    return (data || []).map((row) => normalizeNotificationRecord(row)).filter(Boolean);
+  } catch (error) {
     if (isNotificationSchemaCompatibilityError(error)) {
       notificationQueryMode = "legacy";
 
       try {
-        return await fetchLegacyNotificationRows(supabase, user.id, safeOffset, safeLimit);
+        return await fetchLegacyNotificationRows({
+          accessToken: session.access_token,
+          userId: user.id,
+          offset: safeOffset,
+          limit: safeLimit,
+        });
       } catch (legacyError) {
         if (isNotificationSchemaCompatibilityError(legacyError)) {
           notificationQueryMode = "unavailable";
@@ -928,13 +1021,12 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
 
     throw new Error("알림을 불러오지 못했습니다.");
   }
-
-  return (data || []).map((row) => normalizeNotificationRecord(row)).filter(Boolean);
 }
 
 export async function fetchUnreadFollowNotificationCount() {
-  const supabase = ensureSupabase();
-  const user = await getUser();
+  ensureSupabase();
+  const session = await getSession();
+  const user = session?.user || null;
 
   if (!user) {
     return 0;
@@ -949,14 +1041,18 @@ export async function fetchUnreadFollowNotificationCount() {
     return rows.filter((row) => !row?.read_at).length;
   }
 
-  const { count, error } = await supabase
-    .from("profile_notifications")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("event_type", "follow")
-    .is("read_at", null);
+  try {
+    const rows = await fetchNotificationRowsViaRest({
+      accessToken: session.access_token,
+      userId: user.id,
+      select: "id",
+      offset: 0,
+      limit: 1,
+      unreadOnly: true,
+    });
 
-  if (error) {
+    return rows.length;
+  } catch (error) {
     if (isNotificationSchemaCompatibilityError(error)) {
       notificationQueryMode = "legacy";
       const rows = await fetchFollowNotifications({ offset: 0, limit: 100 });
@@ -965,13 +1061,12 @@ export async function fetchUnreadFollowNotificationCount() {
 
     throw new Error("읽지 않은 알림 수를 불러오지 못했습니다.");
   }
-
-  return Number(count || 0);
 }
 
 export async function markFollowNotificationsRead() {
-  const supabase = ensureSupabase();
-  const user = await getUser();
+  ensureSupabase();
+  const session = await getSession();
+  const user = session?.user || null;
 
   if (!user) {
     throw new Error("로그인 후 알림을 확인할 수 있습니다.");
@@ -983,14 +1078,13 @@ export async function markFollowNotificationsRead() {
     return readAt;
   }
 
-  const { error } = await supabase
-    .from("profile_notifications")
-    .update({ read_at: readAt })
-    .eq("user_id", user.id)
-    .eq("event_type", "follow")
-    .is("read_at", null);
-
-  if (error) {
+  try {
+    await markNotificationRowsReadViaRest({
+      accessToken: session.access_token,
+      userId: user.id,
+      readAt,
+    });
+  } catch (error) {
     if (isNotificationSchemaCompatibilityError(error)) {
       notificationQueryMode = "legacy";
       return readAt;
@@ -1053,6 +1147,81 @@ function buildUploadFile(file, extension, contentType) {
   return new File([file], `avatar.${extension}`, {
     type: contentType || "application/octet-stream",
   });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("프로필 이미지를 읽지 못했습니다."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageFromObjectUrl(objectUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("프로필 이미지를 미리 처리하지 못했습니다."));
+    image.src = objectUrl;
+  });
+}
+
+async function createInlineProfileImageFallback(uploadFile) {
+  if (typeof document === "undefined" || typeof Image === "undefined") {
+    return {
+      path: null,
+      publicUrl: await readFileAsDataUrl(uploadFile),
+    };
+  }
+
+  const objectUrl = URL.createObjectURL(uploadFile);
+
+  try {
+    const image = await loadImageFromObjectUrl(objectUrl);
+    const width = Number(image.naturalWidth || image.width || 0);
+    const height = Number(image.naturalHeight || image.height || 0);
+
+    if (!width || !height) {
+      return {
+        path: null,
+        publicUrl: await readFileAsDataUrl(uploadFile),
+      };
+    }
+
+    const maxDimension = 512;
+    const scale = Math.min(1, maxDimension / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return {
+        path: null,
+        publicUrl: await readFileAsDataUrl(uploadFile),
+      };
+    }
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    let dataUrl = canvas.toDataURL("image/webp", 0.88);
+    if (!String(dataUrl || "").startsWith("data:image/webp")) {
+      dataUrl = canvas.toDataURL("image/png");
+    }
+
+    if (!String(dataUrl || "").startsWith("data:image/")) {
+      dataUrl = await readFileAsDataUrl(uploadFile);
+    }
+
+    return {
+      path: null,
+      publicUrl: dataUrl,
+    };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 async function uploadProfileImageViaFunction({ session, uploadFile, filePath }) {
@@ -1183,34 +1352,46 @@ export async function uploadProfileImage(file) {
   );
   const uploadErrors = [];
 
-  try {
-    return await uploadProfileImageViaFunction({
-      session,
-      uploadFile,
-      filePath,
-    });
-  } catch (error) {
-    uploadErrors.push(error);
-    console.warn("profile image upload via function failed", error);
+  if (!profileImageFunctionUnavailable) {
+    try {
+      return await uploadProfileImageViaFunction({
+        session,
+        uploadFile,
+        filePath,
+      });
+    } catch (error) {
+      profileImageFunctionUnavailable = true;
+      uploadErrors.push(error);
+      console.warn("profile image upload via function failed", error);
+    }
+  }
+
+  if (!profileImageStorageUnavailable) {
+    try {
+      return await uploadProfileImageWithSignedUrl(supabase, {
+        filePath,
+        uploadFile,
+        safeContentType,
+      });
+    } catch (error) {
+      uploadErrors.push(error);
+      console.warn("profile image signed upload failed", error);
+    }
+
+    try {
+      return await uploadProfileImageStandard(supabase, {
+        filePath,
+        uploadFile,
+        safeContentType,
+      });
+    } catch (error) {
+      profileImageStorageUnavailable = true;
+      uploadErrors.push(error);
+    }
   }
 
   try {
-    return await uploadProfileImageWithSignedUrl(supabase, {
-      filePath,
-      uploadFile,
-      safeContentType,
-    });
-  } catch (error) {
-    uploadErrors.push(error);
-    console.warn("profile image signed upload failed", error);
-  }
-
-  try {
-    return await uploadProfileImageStandard(supabase, {
-      filePath,
-      uploadFile,
-      safeContentType,
-    });
+    return await createInlineProfileImageFallback(uploadFile);
   } catch (error) {
     uploadErrors.push(error);
   }

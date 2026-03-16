@@ -5,15 +5,23 @@ const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.tr
 
 let supabaseClient = null;
 
+function getHeaderValue(headers, key) {
+  return String(headers.get(key) || "").trim();
+}
+
 export function createSupabaseHeaders({ accessToken = null, headers: sourceHeaders = null } = {}) {
   const headers = new Headers(sourceHeaders || {});
+  const safePublishableKey = String(supabasePublishableKey || "").trim();
+  const safeAccessToken = String(accessToken || "").trim();
 
-  if (!headers.has("apikey")) {
-    headers.set("apikey", supabasePublishableKey);
+  if (!getHeaderValue(headers, "apikey") && safePublishableKey) {
+    headers.set("apikey", safePublishableKey);
   }
 
-  if (!headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${accessToken || supabasePublishableKey}`);
+  const existingAuthorization = getHeaderValue(headers, "Authorization");
+  const hasBearerToken = /^Bearer\s+\S+/i.test(existingAuthorization);
+  if (!hasBearerToken && (safeAccessToken || safePublishableKey)) {
+    headers.set("Authorization", `Bearer ${safeAccessToken || safePublishableKey}`);
   }
 
   return headers;
@@ -33,13 +41,6 @@ function withSupabaseHeaders(input, init = {}) {
   const headers = createSupabaseHeaders({
     headers: sourceHeaders,
   });
-
-  if (input instanceof Request) {
-    return fetch(new Request(input, {
-      ...init,
-      headers,
-    }));
-  }
 
   return fetch(input, {
     ...init,

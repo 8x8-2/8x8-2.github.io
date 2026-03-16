@@ -2,4 +2,4 @@
 verify_jwt = false
 
 [functions.upload-profile-image]
-verify_jwt = true
+verify_jwt = false
