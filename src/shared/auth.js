@@ -97,6 +97,41 @@ function normalizeStellarId(value) {
   return String(value).trim() || null;
 }
 
+function normalizeInteger(value) {
+  if (value == null || value === "") return null;
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
+function normalizeBoolean(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (["true", "1", "yes", "y", "on"].includes(normalized)) return true;
+    if (["false", "0", "no", "n", "off", ""].includes(normalized)) return false;
+  }
+
+  if (typeof value === "number") {
+    if (value === 1) return true;
+    if (value === 0) return false;
+  }
+
+  if (value == null) return fallback;
+  return Boolean(value);
+}
+
+function normalizeStringField(value, fallback = "") {
+  if (value == null) return fallback;
+  return String(value).trim();
+}
+
+function normalizeNullableStringField(value) {
+  const normalized = normalizeStringField(value, "");
+  return normalized || null;
+}
+
 function findSmallestAvailableStellarId(stellarIds = []) {
   const occupied = new Set(
     stellarIds
@@ -117,10 +152,41 @@ function findSmallestAvailableStellarId(stellarIds = []) {
 function normalizeProfileRecord(profile, fallbackStellarId = null) {
   if (!profile) return profile;
 
+  const birthHour = normalizeInteger(profile.birth_hour);
+  const birthMinute = normalizeInteger(profile.birth_minute);
+  const normalizedBirthTimeKnown = normalizeBoolean(profile.birth_time_known, false);
+
   return {
     ...profile,
-    birth_time_known: hasKnownBirthTime(profile),
+    full_name: normalizeStringField(profile.full_name, ""),
+    gender: normalizeStringField(profile.gender, "male") || "male",
+    phone: normalizeNullableStringField(profile.phone),
+    calendar_type: normalizeStringField(profile.calendar_type, "solar") || "solar",
+    is_leap_month: normalizeBoolean(profile.is_leap_month, false),
+    birth_year: normalizeInteger(profile.birth_year),
+    birth_month: normalizeInteger(profile.birth_month),
+    birth_day: normalizeInteger(profile.birth_day),
+    birth_hour: birthHour,
+    birth_minute: birthMinute,
+    birth_time_known: hasKnownBirthTime({
+      ...profile,
+      birth_hour: birthHour,
+      birth_minute: birthMinute,
+      birth_time_known: normalizedBirthTimeKnown,
+    }),
+    marketing_opt_in: normalizeBoolean(profile.marketing_opt_in, false),
     stellar_id: fallbackStellarId || normalizeStellarId(profile.stellar_id),
+    profile_image_path: normalizeNullableStringField(profile.profile_image_path),
+    profile_image_url: normalizeStringField(profile.profile_image_url, ""),
+    mbti: normalizeStringField(profile.mbti, ""),
+    region_country: normalizeStringField(profile.region_country, ""),
+    region_name: normalizeStringField(profile.region_name, ""),
+    bio: normalizeProfileBio(profile.bio || ""),
+    personality_visibility: normalizeStringField(profile.personality_visibility, "public") || "public",
+    health_visibility: normalizeStringField(profile.health_visibility, "public") || "public",
+    love_visibility: normalizeStringField(profile.love_visibility, "public") || "public",
+    ability_visibility: normalizeStringField(profile.ability_visibility, "public") || "public",
+    major_luck_visibility: normalizeStringField(profile.major_luck_visibility, "public") || "public",
   };
 }
 
@@ -183,6 +249,50 @@ export function getDisplayName(user, profile = null) {
 
 export function getProfileInitial(user, profile = null) {
   return getDisplayName(user, profile).charAt(0).toUpperCase();
+}
+
+export function buildSessionProfileStub(session, profile = null) {
+  if (!session?.user) {
+    return normalizeProfileRecord(profile);
+  }
+
+  const metadata = session.user.user_metadata || {};
+
+  return normalizeProfileRecord({
+    ...(profile || {}),
+    id: profile?.id || session.user.id,
+    email: profile?.email || session.user.email || metadata.email || "",
+    full_name: profile?.full_name || metadata.full_name || session.user.email || "회원",
+    gender: profile?.gender || metadata.gender || "male",
+    phone: profile?.phone ?? metadata.phone ?? null,
+    calendar_type: profile?.calendar_type || metadata.calendar_type || "solar",
+    is_leap_month: profile?.is_leap_month ?? metadata.is_leap_month ?? false,
+    birth_year: profile?.birth_year ?? metadata.birth_year ?? null,
+    birth_month: profile?.birth_month ?? metadata.birth_month ?? null,
+    birth_day: profile?.birth_day ?? metadata.birth_day ?? null,
+    birth_hour: profile?.birth_hour ?? metadata.birth_hour ?? null,
+    birth_minute: profile?.birth_minute ?? metadata.birth_minute ?? null,
+    birth_time_known: profile?.birth_time_known ?? metadata.birth_time_known ?? false,
+    marketing_opt_in: profile?.marketing_opt_in ?? metadata.marketing_opt_in ?? false,
+    stellar_id: profile?.stellar_id ?? metadata.stellar_id ?? null,
+    profile_image_path: profile?.profile_image_path ?? metadata.profile_image_path ?? null,
+    profile_image_url: profile?.profile_image_url ?? metadata.profile_image_url ?? "",
+    mbti: profile?.mbti ?? metadata.mbti ?? "",
+    region_country: profile?.region_country ?? metadata.region_country ?? "",
+    region_name: profile?.region_name ?? metadata.region_name ?? "",
+    bio: profile?.bio ?? metadata.bio ?? "",
+    day_pillar_key: profile?.day_pillar_key ?? metadata.day_pillar_key ?? "",
+    day_pillar_hanja: profile?.day_pillar_hanja ?? metadata.day_pillar_hanja ?? "",
+    day_pillar_metaphor: profile?.day_pillar_metaphor ?? metadata.day_pillar_metaphor ?? "",
+    element_class: profile?.element_class ?? metadata.element_class ?? "unknown",
+    preview_summary: profile?.preview_summary ?? metadata.preview_summary ?? "",
+    public_snapshot: profile?.public_snapshot ?? metadata.public_snapshot ?? {},
+    personality_visibility: profile?.personality_visibility ?? metadata.personality_visibility ?? "public",
+    health_visibility: profile?.health_visibility ?? metadata.health_visibility ?? "public",
+    love_visibility: profile?.love_visibility ?? metadata.love_visibility ?? "public",
+    ability_visibility: profile?.ability_visibility ?? metadata.ability_visibility ?? "public",
+    major_luck_visibility: profile?.major_luck_visibility ?? metadata.major_luck_visibility ?? "public",
+  }, normalizeStellarId(profile?.stellar_id ?? metadata.stellar_id ?? null));
 }
 
 function normalizeEnsureProfileError(error) {
@@ -338,8 +448,13 @@ export async function ensureOwnProfile() {
   return normalizeProfileRecord(profile, fallbackStellarId);
 }
 
-export async function fetchProfile(userId = null) {
+export async function fetchProfile(userId = null, options = {}) {
   if (!isSupabaseConfigured()) return null;
+
+  const {
+    allowRepair = true,
+    allowSessionFallback = true,
+  } = options || {};
 
   const session = await getSession();
   const currentUser = session?.user || null;
@@ -350,6 +465,9 @@ export async function fetchProfile(userId = null) {
   const fallbackStellarId = canRepairOwnProfile
     ? normalizeStellarId(currentUser?.user_metadata?.stellar_id)
     : null;
+  const sessionProfileStub = canRepairOwnProfile && allowSessionFallback
+    ? buildSessionProfileStub(session)
+    : null;
 
   let data = null;
 
@@ -359,16 +477,39 @@ export async function fetchProfile(userId = null) {
       : await fetchProfileRecordById(resolvedUserId, session?.access_token || null);
   } catch (error) {
     if (canRepairOwnProfile) {
-      return ensureOwnProfile();
+      if (allowRepair) {
+        try {
+          return await ensureOwnProfile();
+        } catch (repairError) {
+          if (sessionProfileStub) {
+            return sessionProfileStub;
+          }
+          throw repairError;
+        }
+      }
+
+      if (sessionProfileStub) {
+        return sessionProfileStub;
+      }
     }
     throw new Error(error?.message || "프로필을 불러오지 못했습니다.");
   }
 
-  if ((!data || !(fallbackStellarId || data.stellar_id)) && canRepairOwnProfile) {
-    return ensureOwnProfile();
+  if (data) {
+    return normalizeProfileRecord(data, fallbackStellarId);
   }
 
-  return normalizeProfileRecord(data, fallbackStellarId);
+  if (canRepairOwnProfile) {
+    if (sessionProfileStub) {
+      return sessionProfileStub;
+    }
+
+    if (allowRepair) {
+      return ensureOwnProfile();
+    }
+  }
+
+  return null;
 }
 
 export async function updateProfile(updates) {

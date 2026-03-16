@@ -1,5 +1,6 @@
 import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
 import {
+  buildSessionProfileStub,
   fetchProfile,
   getSession,
   isSupabaseConfigured,
@@ -177,14 +178,28 @@ async function init() {
     return;
   }
 
-  let currentProfile = await fetchProfile(session.user.id);
+  const navContainer = document.querySelector("[data-social-nav]");
+  const sessionProfileStub = buildSessionProfileStub(session);
+  let navCleanup = renderSocialNav(navContainer, {
+    session,
+    viewerProfile: sessionProfileStub,
+    currentStellarId: sessionProfileStub?.stellar_id,
+    pageTitle: "계정 정보",
+  });
+
+  let currentProfile = await fetchProfile(session.user.id, {
+    allowSessionFallback: true,
+  }) || sessionProfileStub;
+
   if (!currentProfile) {
     throw new Error("내 정보를 불러오지 못했습니다.");
   }
 
-  renderSocialNav(document.querySelector("[data-social-nav]"), {
+  navCleanup?.();
+  navCleanup = renderSocialNav(navContainer, {
     session,
     viewerProfile: currentProfile,
+    currentStellarId: currentProfile.stellar_id,
     pageTitle: "계정 정보",
   });
 

@@ -87,7 +87,9 @@ async function init() {
     return;
   }
 
-  const profile = await fetchProfile(session.user.id);
+  const profile = await fetchProfile(session.user.id, {
+    allowSessionFallback: true,
+  });
   if (!profile) {
     throw new Error("내 사주 기준 정보를 불러오지 못했습니다.");
   }

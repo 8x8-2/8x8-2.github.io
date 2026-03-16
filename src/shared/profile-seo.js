@@ -1,8 +1,9 @@
 import { normalizeProfileBio } from "./profile-text.js";
 
 const SITE_URL = "https://stellar-id.com";
+const PROFILE_OG_IMAGE_PATH = "/src/img/bi/og-stellarid.png";
 
-export const PROFILE_OG_IMAGE_URL = `${SITE_URL}/og-stellarid.png`;
+export const PROFILE_OG_IMAGE_URL = `${SITE_URL}${PROFILE_OG_IMAGE_PATH}`;
 export const PROFILE_OG_IMAGE_TYPE = "image/png";
 export const PROFILE_OG_IMAGE_WIDTH = "1920";
 export const PROFILE_OG_IMAGE_HEIGHT = "1080";

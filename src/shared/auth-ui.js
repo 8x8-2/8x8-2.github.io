@@ -1,10 +1,11 @@
 import {
+  buildSessionProfileStub,
   fetchProfile,
   isSupabaseConfigured,
   subscribeAuthState,
 } from "./auth.js";
 import { renderSocialNav } from "./social-nav.js";
-import { buildSignedInHomeUrl, resolveOwnStellarId } from "./stellar-id.js";
+import { buildSignedInHomeUrl } from "./stellar-id.js";
 
 function getPageMeta() {
   const body = document.body;
@@ -57,16 +58,6 @@ function resolveGuestPageTitle(meta) {
 
 function buildLoggedInHomeUrl(session, profile) {
   return buildSignedInHomeUrl(session, profile);
-}
-
-function buildSessionProfileStub(session) {
-  if (!session?.user) return null;
-
-  return {
-    full_name: session.user.user_metadata?.full_name || session.user.email || "스텔라 ID",
-    profile_image_url: session.user.user_metadata?.profile_image_url || "",
-    stellar_id: resolveOwnStellarId(session, null),
-  };
 }
 
 function renderPageNav(container, meta, session, profile = null) {

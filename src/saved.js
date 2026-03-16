@@ -1,5 +1,6 @@
 import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
 import {
+  buildSessionProfileStub,
   fetchFollowingProfiles,
   fetchProfile,
   getSession,
@@ -70,8 +71,22 @@ async function init() {
     return;
   }
 
-  const profile = await fetchProfile(session.user.id);
-  renderSocialNav(document.querySelector("[data-social-nav]"), {
+  const sessionProfileStub = buildSessionProfileStub(session);
+  const navContainer = document.querySelector("[data-social-nav]");
+  let navCleanup = renderSocialNav(navContainer, {
+    session,
+    viewerProfile: sessionProfileStub,
+    currentStellarId: sessionProfileStub?.stellar_id,
+    pageTitle: "팔로잉 프로필",
+  });
+
+  const profile = await fetchProfile(session.user.id, {
+    allowRepair: false,
+    allowSessionFallback: true,
+  }).catch(() => sessionProfileStub);
+
+  navCleanup?.();
+  navCleanup = renderSocialNav(navContainer, {
     session,
     viewerProfile: profile,
     currentStellarId: profile?.stellar_id,

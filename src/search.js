@@ -1,5 +1,11 @@
 import { initCommonPageTracking, trackEvent } from "./shared/analytics.js";
-import { fetchProfile, getSession, isSupabaseConfigured, searchPublicProfiles } from "./shared/auth.js";
+import {
+  buildSessionProfileStub,
+  fetchProfile,
+  getSession,
+  isSupabaseConfigured,
+  searchPublicProfiles,
+} from "./shared/auth.js";
 import { formatGenderLabel } from "./shared/birth.js";
 import { escapeHtml } from "./shared/html.js";
 import { renderSocialNav } from "./shared/social-nav.js";
@@ -94,8 +100,20 @@ async function init() {
     return;
   }
 
-  const viewerProfile = await fetchProfile(session.user.id);
-  renderSocialNav(document.querySelector("[data-social-nav]"), {
+  const navContainer = document.querySelector("[data-social-nav]");
+  let navCleanup = renderSocialNav(navContainer, {
+    session,
+    viewerProfile: buildSessionProfileStub(session),
+    pageTitle: "스텔라 프로필 검색",
+  });
+
+  const viewerProfile = await fetchProfile(session.user.id, {
+    allowRepair: false,
+    allowSessionFallback: true,
+  }).catch(() => buildSessionProfileStub(session));
+
+  navCleanup?.();
+  navCleanup = renderSocialNav(navContainer, {
     session,
     viewerProfile,
     pageTitle: "스텔라 프로필 검색",
