@@ -85,6 +85,21 @@ export function getProfileInitial(user, profile = null) {
   return getDisplayName(user, profile).charAt(0).toUpperCase();
 }
 
+function normalizeEnsureProfileError(error) {
+  const message = String(error?.message || "");
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("ensure_my_profile")) {
+    return new Error("Supabase 프로필 복구 함수가 아직 적용되지 않았습니다. SQL Editor에서 최신 schema.sql을 다시 실행해 주세요.");
+  }
+
+  if (isUniqueViolation(error)) {
+    return new Error("이미 사용 중인 스텔라 등록번호입니다.");
+  }
+
+  return new Error(message || "프로필을 생성하지 못했습니다.");
+}
+
 export async function getSession() {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
@@ -98,11 +113,20 @@ export async function getUser() {
   return (await getSession())?.user || null;
 }
 
+export async function ensureOwnProfile() {
+  const supabase = ensureSupabase();
+  const { data, error } = await supabase.rpc("ensure_my_profile");
+
+  if (error) throw normalizeEnsureProfileError(error);
+  return data || null;
+}
+
 export async function fetchProfile(userId = null) {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
 
-  const resolvedUserId = userId || (await getUser())?.id;
+  const currentUser = await getUser();
+  const resolvedUserId = userId || currentUser?.id;
   if (!resolvedUserId) return null;
 
   const { data, error } = await supabase
@@ -111,7 +135,19 @@ export async function fetchProfile(userId = null) {
     .eq("id", resolvedUserId)
     .maybeSingle();
 
-  if (error) throw new Error("프로필을 불러오지 못했습니다.");
+  const canRepairOwnProfile = currentUser?.id === resolvedUserId;
+
+  if (error) {
+    if (canRepairOwnProfile) {
+      return ensureOwnProfile();
+    }
+    throw new Error("프로필을 불러오지 못했습니다.");
+  }
+
+  if ((!data || !data.stellar_id) && canRepairOwnProfile) {
+    return ensureOwnProfile();
+  }
+
   return data;
 }
 

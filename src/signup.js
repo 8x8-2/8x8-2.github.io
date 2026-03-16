@@ -443,7 +443,9 @@ $("signupForm")?.addEventListener("submit", async (event) => {
     });
 
     if (data.session) {
-      window.location.replace(resolveRedirect(buildPublicProfileUrl(stellarId)));
+      const profile = data.user ? await fetchProfile(data.user.id) : null;
+      const resolvedStellarId = profile?.stellar_id || stellarId;
+      window.location.replace(resolveRedirect(buildPublicProfileUrl(resolvedStellarId)));
       return;
     }
 

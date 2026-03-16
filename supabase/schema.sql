@@ -678,6 +678,159 @@ as $$
   );
 $$;
 
+create or replace function public.ensure_my_profile()
+returns public.profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user auth.users%rowtype;
+  requested_stellar_id bigint;
+  ensured_profile public.profiles%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception '로그인 후 프로필을 생성할 수 있습니다.';
+  end if;
+
+  select *
+  into current_user
+  from auth.users
+  where id = auth.uid()
+  limit 1;
+
+  if current_user.id is null then
+    raise exception '계정 정보를 찾지 못했습니다.';
+  end if;
+
+  requested_stellar_id :=
+    case
+      when nullif(current_user.raw_user_meta_data ->> 'stellar_id', '') ~ '^\d{1,16}$'
+        then (current_user.raw_user_meta_data ->> 'stellar_id')::bigint
+      else null
+    end;
+
+  insert into public.profiles (
+    id,
+    email,
+    full_name,
+    gender,
+    phone,
+    calendar_type,
+    is_leap_month,
+    birth_year,
+    birth_month,
+    birth_day,
+    birth_hour,
+    birth_minute,
+    birth_time_known,
+    marketing_opt_in,
+    stellar_id,
+    profile_image_path,
+    profile_image_url,
+    mbti,
+    region_country,
+    region_name,
+    bio,
+    day_pillar_key,
+    day_pillar_hanja,
+    day_pillar_metaphor,
+    element_class,
+    preview_summary,
+    public_snapshot,
+    personality_visibility,
+    health_visibility,
+    love_visibility,
+    ability_visibility,
+    major_luck_visibility
+  )
+  values (
+    current_user.id,
+    current_user.email,
+    coalesce(current_user.raw_user_meta_data ->> 'full_name', '회원'),
+    coalesce(current_user.raw_user_meta_data ->> 'gender', 'male'),
+    nullif(current_user.raw_user_meta_data ->> 'phone', ''),
+    coalesce(current_user.raw_user_meta_data ->> 'calendar_type', 'solar'),
+    coalesce((current_user.raw_user_meta_data ->> 'is_leap_month')::boolean, false),
+    coalesce((current_user.raw_user_meta_data ->> 'birth_year')::integer, 2000),
+    coalesce((current_user.raw_user_meta_data ->> 'birth_month')::integer, 1),
+    coalesce((current_user.raw_user_meta_data ->> 'birth_day')::integer, 1),
+    nullif(current_user.raw_user_meta_data ->> 'birth_hour', '')::integer,
+    nullif(current_user.raw_user_meta_data ->> 'birth_minute', '')::integer,
+    coalesce((current_user.raw_user_meta_data ->> 'birth_time_known')::boolean, true),
+    coalesce((current_user.raw_user_meta_data ->> 'marketing_opt_in')::boolean, false),
+    coalesce(requested_stellar_id, nextval('public.stellar_id_seq')),
+    nullif(current_user.raw_user_meta_data ->> 'profile_image_path', ''),
+    nullif(current_user.raw_user_meta_data ->> 'profile_image_url', ''),
+    nullif(current_user.raw_user_meta_data ->> 'mbti', ''),
+    nullif(current_user.raw_user_meta_data ->> 'region_country', ''),
+    nullif(current_user.raw_user_meta_data ->> 'region_name', ''),
+    left(coalesce(current_user.raw_user_meta_data ->> 'bio', ''), 150),
+    nullif(current_user.raw_user_meta_data ->> 'day_pillar_key', ''),
+    nullif(current_user.raw_user_meta_data ->> 'day_pillar_hanja', ''),
+    nullif(current_user.raw_user_meta_data ->> 'day_pillar_metaphor', ''),
+    coalesce(nullif(current_user.raw_user_meta_data ->> 'element_class', ''), 'unknown'),
+    coalesce(current_user.raw_user_meta_data ->> 'preview_summary', ''),
+    coalesce((current_user.raw_user_meta_data -> 'public_snapshot')::jsonb, '{}'::jsonb),
+    coalesce(current_user.raw_user_meta_data ->> 'personality_visibility', 'public'),
+    coalesce(current_user.raw_user_meta_data ->> 'health_visibility', 'public'),
+    coalesce(current_user.raw_user_meta_data ->> 'love_visibility', 'public'),
+    coalesce(current_user.raw_user_meta_data ->> 'ability_visibility', 'public'),
+    coalesce(current_user.raw_user_meta_data ->> 'major_luck_visibility', 'public')
+  )
+  on conflict (id) do update
+  set
+    email = excluded.email,
+    full_name = excluded.full_name,
+    gender = excluded.gender,
+    phone = excluded.phone,
+    calendar_type = excluded.calendar_type,
+    is_leap_month = excluded.is_leap_month,
+    birth_year = excluded.birth_year,
+    birth_month = excluded.birth_month,
+    birth_day = excluded.birth_day,
+    birth_hour = excluded.birth_hour,
+    birth_minute = excluded.birth_minute,
+    birth_time_known = excluded.birth_time_known,
+    marketing_opt_in = excluded.marketing_opt_in,
+    stellar_id = coalesce(public.profiles.stellar_id, excluded.stellar_id),
+    profile_image_path = coalesce(public.profiles.profile_image_path, excluded.profile_image_path),
+    profile_image_url = coalesce(public.profiles.profile_image_url, excluded.profile_image_url),
+    mbti = coalesce(public.profiles.mbti, excluded.mbti),
+    region_country = coalesce(public.profiles.region_country, excluded.region_country),
+    region_name = coalesce(public.profiles.region_name, excluded.region_name),
+    bio = case
+      when coalesce(public.profiles.bio, '') = '' then excluded.bio
+      else public.profiles.bio
+    end,
+    day_pillar_key = coalesce(public.profiles.day_pillar_key, excluded.day_pillar_key),
+    day_pillar_hanja = coalesce(public.profiles.day_pillar_hanja, excluded.day_pillar_hanja),
+    day_pillar_metaphor = coalesce(public.profiles.day_pillar_metaphor, excluded.day_pillar_metaphor),
+    element_class = case
+      when coalesce(public.profiles.element_class, 'unknown') = 'unknown' then excluded.element_class
+      else public.profiles.element_class
+    end,
+    preview_summary = case
+      when coalesce(public.profiles.preview_summary, '') = '' then excluded.preview_summary
+      else public.profiles.preview_summary
+    end,
+    public_snapshot = case
+      when coalesce(public.profiles.public_snapshot, '{}'::jsonb) = '{}'::jsonb then excluded.public_snapshot
+      else public.profiles.public_snapshot
+    end,
+    personality_visibility = coalesce(nullif(public.profiles.personality_visibility, ''), excluded.personality_visibility),
+    health_visibility = coalesce(nullif(public.profiles.health_visibility, ''), excluded.health_visibility),
+    love_visibility = coalesce(nullif(public.profiles.love_visibility, ''), excluded.love_visibility),
+    ability_visibility = coalesce(nullif(public.profiles.ability_visibility, ''), excluded.ability_visibility),
+    major_luck_visibility = coalesce(nullif(public.profiles.major_luck_visibility, ''), excluded.major_luck_visibility),
+    updated_at = timezone('utc', now())
+  returning *
+  into ensured_profile;
+
+  return ensured_profile;
+end;
+$$;
+
 create or replace function public.get_public_profile_by_stellar_id(stellar_id_input bigint)
 returns table (
   profile_id uuid,
@@ -1049,6 +1202,7 @@ $$;
 
 grant execute on function public.peek_next_stellar_id() to authenticated, anon;
 grant execute on function public.is_stellar_id_available(bigint, uuid) to authenticated, anon;
+grant execute on function public.ensure_my_profile() to authenticated;
 grant execute on function public.get_public_profile_by_stellar_id(bigint) to authenticated, anon;
 grant execute on function public.search_stellar_profiles(text, integer) to authenticated, anon;
 grant execute on function public.get_following_profiles(text, text) to authenticated;
