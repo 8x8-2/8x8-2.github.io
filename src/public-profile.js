@@ -70,7 +70,7 @@ function getTabIcon(name) {
 }
 
 function renderGuestNav() {
-  renderSocialNav(document.querySelector("[data-social-nav]"), {
+  return renderSocialNav(document.querySelector("[data-social-nav]"), {
     authStatus: AUTH_STATE_STATUS.UNAUTHENTICATED,
     session: null,
     viewerProfile: null,
@@ -145,11 +145,10 @@ function renderProfileNav({
   currentStellarId = null,
 } = {}) {
   if (!session && authStatus === AUTH_STATE_STATUS.UNAUTHENTICATED) {
-    renderGuestNav();
-    return;
+    return renderGuestNav();
   }
 
-  renderSocialNav(document.querySelector("[data-social-nav]"), {
+  return renderSocialNav(document.querySelector("[data-social-nav]"), {
     authStatus,
     session,
     viewerProfile: viewerProfile || buildViewerProfileStub(session),
@@ -876,14 +875,33 @@ async function init() {
   let viewerProfile = null;
   let currentPublicProfile = null;
   let isSelfProfileMode = false;
+  let activeNavCleanup = null;
+  let lastNavSignature = "";
+
+  const buildNavSignature = () => ([
+    String(authStatus || ""),
+    String(session?.user?.id || ""),
+    String(viewerProfile?.id || ""),
+    String(viewerProfile?.stellar_id || ""),
+    String(viewerProfile?.full_name || ""),
+    String(viewerProfile?.profile_image_url || ""),
+    String(currentPublicProfile?.stellar_id || stellarId || ""),
+  ].join("|"));
 
   const syncNav = () => {
-    renderProfileNav({
+    const nextSignature = buildNavSignature();
+    if (nextSignature === lastNavSignature) {
+      return;
+    }
+
+    activeNavCleanup?.();
+    activeNavCleanup = renderProfileNav({
       authStatus,
       session,
       viewerProfile,
       currentStellarId: currentPublicProfile?.stellar_id || stellarId,
     });
+    lastNavSignature = nextSignature;
   };
 
   const unsubscribeAuth = subscribeAuthSnapshot((snapshot) => {
@@ -892,7 +910,15 @@ async function init() {
     syncNav();
   });
 
-  window.addEventListener("beforeunload", unsubscribeAuth, { once: true });
+  const cleanupProfileNav = () => {
+    unsubscribeAuth();
+    activeNavCleanup?.();
+    activeNavCleanup = null;
+    lastNavSignature = "";
+  };
+
+  window.addEventListener("beforeunload", cleanupProfileNav, { once: true });
+  window.addEventListener("pagehide", cleanupProfileNav, { once: true });
   syncNav();
 
   const viewerProfilePromise = session

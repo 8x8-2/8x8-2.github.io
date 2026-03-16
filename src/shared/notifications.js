@@ -108,6 +108,11 @@ function createNotificationRow(notification) {
 export function setupNotificationCenter(triggerButton) {
   if (!triggerButton || typeof document === "undefined") return () => {};
 
+  document.querySelectorAll(".notification-center-layer").forEach((existingLayer) => {
+    existingLayer.remove();
+  });
+  document.body.classList.remove("has-notification-center");
+
   const layer = document.createElement("div");
   layer.className = "notification-center-layer";
   layer.setAttribute("aria-hidden", "true");

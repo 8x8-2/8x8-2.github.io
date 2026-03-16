@@ -90,6 +90,15 @@ export function renderSocialNav(container, {
 }) {
   if (!container) return () => {};
 
+  const existingCleanup = typeof container.__stellarNavCleanup === "function"
+    ? container.__stellarNavCleanup
+    : null;
+
+  if (existingCleanup) {
+    container.__stellarNavCleanup = null;
+    existingCleanup();
+  }
+
   const homeUrl = buildHomeUrl(session, viewerProfile, homeUrlOverride);
   const signinUrl = buildSigninUrl();
   const searchUrl = buildSearchUrl();
@@ -201,8 +210,14 @@ export function renderSocialNav(container, {
     }
   });
 
-  return () => {
+  const cleanup = () => {
     notificationCleanup?.();
     document.removeEventListener("click", handleDocumentClick);
+    if (container.__stellarNavCleanup === cleanup) {
+      container.__stellarNavCleanup = null;
+    }
   };
+
+  container.__stellarNavCleanup = cleanup;
+  return cleanup;
 }

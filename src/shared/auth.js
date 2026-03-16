@@ -123,47 +123,20 @@ function clearAuthRefreshTimer() {
 
 function scheduleAuthRefreshTimer(session) {
   clearAuthRefreshTimer();
-
-  if (typeof window === "undefined" || !session?.refresh_token) {
-    return;
-  }
-
-  const expiresAtMs = getSessionExpiresAt(session);
-  if (!expiresAtMs) {
-    return;
-  }
-
-  const remainingMs = expiresAtMs - Date.now();
-  const delayMs = remainingMs > 90_000 ? remainingMs - 60_000 : 60_000;
-
-  authStore.refreshTimerId = window.setTimeout(() => {
-    void refreshAuthSession({
-      reason: "timer",
-      markUnauthenticatedOnFailure: false,
-    });
-  }, Math.max(15_000, delayMs));
+  void session;
 }
 
 function updateAuthStore({ status = authStore.status, session = authStore.session } = {}) {
   const previousStatus = authStore.status;
   const previousSession = authStore.session;
-  const previousToken = String(previousSession?.access_token || "");
-  const nextToken = String(session?.access_token || "");
   const previousUserId = String(previousSession?.user?.id || "");
   const nextUserId = String(session?.user?.id || "");
-  const previousExpiry = Number(previousSession?.expires_at || 0);
-  const nextExpiry = Number(session?.expires_at || 0);
 
   authStore.status = status;
   authStore.session = session || null;
   scheduleAuthRefreshTimer(authStore.session);
 
-  if (
-    previousStatus === authStore.status &&
-    previousToken === nextToken &&
-    previousUserId === nextUserId &&
-    previousExpiry === nextExpiry
-  ) {
+  if (previousStatus === authStore.status && previousUserId === nextUserId) {
     return;
   }
 
@@ -290,16 +263,6 @@ async function hydrateAuthStore({
       }
 
       if (previousSession && !authStore.manualSignOut) {
-        const refreshedSession = await refreshAuthSession({
-          reason: `${reason}:recovery`,
-          markUnauthenticatedOnFailure: false,
-        }).catch(() => previousSession);
-
-        if (refreshedSession?.user) {
-          markAuthenticated(refreshedSession, `${reason}:recovered`);
-          return refreshedSession;
-        }
-
         markAuthenticated(previousSession, `${reason}:preserve`);
         return previousSession;
       }
@@ -331,13 +294,9 @@ function handleSupabaseAuthStateChange(event, session) {
       return;
     }
 
-    const persistedSession = authStore.session || readPersistedSupabaseSession();
+    const persistedSession = readPersistedSupabaseSession() || authStore.session;
     if (persistedSession?.user) {
       markAuthenticated(persistedSession, `event:${event}:preserve`);
-      void hydrateAuthStore({
-        reason: `event:${event}`,
-        allowUnauthenticatedFallback: false,
-      });
       return;
     }
 
@@ -348,13 +307,9 @@ function handleSupabaseAuthStateChange(event, session) {
     return;
   }
 
-  const persistedSession = authStore.session || readPersistedSupabaseSession();
+  const persistedSession = readPersistedSupabaseSession() || authStore.session;
   if (persistedSession?.user && !authStore.manualSignOut) {
     markAuthenticated(persistedSession, `event:${event}:preserve`);
-    void hydrateAuthStore({
-      reason: `event:${event}`,
-      allowUnauthenticatedFallback: false,
-    });
     return;
   }
 
@@ -380,10 +335,11 @@ function installAuthLifecycleObservers() {
     }
 
     if (authStore.session?.user) {
-      void refreshAuthSession({
-        reason: "resume",
-        markUnauthenticatedOnFailure: false,
-      });
+      const persistedSession = readPersistedSupabaseSession();
+      if (persistedSession?.user && String(persistedSession.user.id || "") === String(authStore.session.user.id || "")) {
+        authStore.manualSignOut = false;
+        markAuthenticated(persistedSession, "resume:preserve");
+      }
       return;
     }
 
@@ -648,13 +604,21 @@ function createRequestError(message, status = 500) {
 
 function shouldRetrySupabaseAuthFailure(status, detail = "") {
   const normalizedDetail = String(detail || "").toLowerCase();
+  const numericStatus = Number(status || 0);
+  const isExplicitTokenFailure = [
+    "jwt",
+    "invalid token",
+    "token expired",
+    "expired token",
+    "expired jwt",
+    "invalid jwt",
+    "refresh token",
+    "session expired",
+  ].some((keyword) => normalizedDetail.includes(keyword));
 
   return Boolean(
-    [400, 401, 403].includes(Number(status || 0))
-    || normalizedDetail.includes("jwt")
-    || normalizedDetail.includes("token")
-    || normalizedDetail.includes("auth")
-    || normalizedDetail.includes("session")
+    [401, 403].includes(numericStatus)
+    || (numericStatus === 400 && isExplicitTokenFailure)
   );
 }
 
@@ -952,7 +916,6 @@ async function fetchNotificationRowsViaRest({
     headers: {
       Accept: "application/json",
     },
-    allowAnonFallback: true,
     searchParams: {
       select,
       user_id: `eq.${userId}`,
@@ -1065,17 +1028,8 @@ async function fetchOwnProfileRecordViaClient(userId) {
 }
 
 async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
-  const clientProfile = await fetchOwnProfileRecordViaClient(userId).catch(() => null);
-  if (clientProfile) {
-    return clientProfile;
-  }
-
   const directProfile = await fetchProfileRecordById(userId, accessToken).catch(() => null);
-  if (directProfile) {
-    return directProfile;
-  }
-
-  return null;
+  return directProfile || null;
 }
 
 export async function getSession(options = {}) {
@@ -1088,23 +1042,16 @@ export async function getSession(options = {}) {
   const persistedSession = readPersistedSupabaseSession();
   if (persistedSession?.user && !authStore.manualSignOut) {
     markAuthenticated(persistedSession, "get-session:persisted");
-    void hydrateAuthStore({
-      reason: "get-session:persisted",
-      allowUnauthenticatedFallback: false,
-    });
+    if ([AUTH_STATE_STATUS.UNKNOWN, AUTH_STATE_STATUS.LOADING].includes(authStore.status)) {
+      void hydrateAuthStore({
+        reason: "get-session:persisted",
+        allowUnauthenticatedFallback: false,
+      });
+    }
     return persistedSession;
   }
 
   if (authStore.status === AUTH_STATE_STATUS.UNAUTHENTICATED) {
-    const recoveredSession = await refreshAuthSession({
-      reason: "get-session:recover",
-      markUnauthenticatedOnFailure: false,
-    }).catch(() => null);
-
-    if (recoveredSession?.user) {
-      return recoveredSession;
-    }
-
     return null;
   }
 
@@ -1113,12 +1060,7 @@ export async function getSession(options = {}) {
     return snapshot.session;
   }
 
-  const recoveredSession = await refreshAuthSession({
-    reason: "get-session:post-bootstrap",
-    markUnauthenticatedOnFailure: false,
-  }).catch(() => null);
-
-  return recoveredSession?.user ? recoveredSession : null;
+  return authStore.session?.user ? authStore.session : null;
 }
 
 export async function getUser(options = {}) {
@@ -1754,7 +1696,6 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
 }
 
 export async function fetchOwnFollowCounts(userId = null) {
-  const supabase = ensureSupabase();
   const session = await getSession();
   const resolvedUserId = userId || session?.user?.id || null;
 
@@ -1765,26 +1706,37 @@ export async function fetchOwnFollowCounts(userId = null) {
     };
   }
 
-  await warmSupabaseAuthSession(supabase);
-
-  const [followersResult, followingResult] = await Promise.all([
-    supabase
-      .from("profile_follows")
-      .select("follower_id")
-      .eq("following_id", resolvedUserId),
-    supabase
-      .from("profile_follows")
-      .select("following_id")
-      .eq("follower_id", resolvedUserId),
+  const [followersResponse, followingResponse] = await Promise.all([
+    fetchSupabaseRestResponse("/rest/v1/profile_follows", {
+      accessToken: session?.access_token || null,
+      headers: {
+        Accept: "application/json",
+      },
+      searchParams: {
+        select: "follower_id",
+        following_id: `eq.${resolvedUserId}`,
+      },
+    }),
+    fetchSupabaseRestResponse("/rest/v1/profile_follows", {
+      accessToken: session?.access_token || null,
+      headers: {
+        Accept: "application/json",
+      },
+      searchParams: {
+        select: "following_id",
+        follower_id: `eq.${resolvedUserId}`,
+      },
+    }),
   ]);
 
-  if (followersResult.error || followingResult.error) {
-    throw new Error("팔로우 수를 불러오지 못했습니다.");
-  }
+  const [followersData, followingData] = await Promise.all([
+    followersResponse.json().catch(() => []),
+    followingResponse.json().catch(() => []),
+  ]);
 
   return {
-    followerCount: Array.isArray(followersResult.data) ? followersResult.data.length : 0,
-    followingCount: Array.isArray(followingResult.data) ? followingResult.data.length : 0,
+    followerCount: Array.isArray(followersData) ? followersData.length : 0,
+    followingCount: Array.isArray(followingData) ? followingData.length : 0,
   };
 }
 
