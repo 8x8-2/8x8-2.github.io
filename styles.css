@@ -353,15 +353,15 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   justify-content: center;
   min-height: 44px;
   padding: 10px 16px;
-  border-radius: 12px;
+  border-radius: 0.5rem;
   font-weight: 700;
   text-decoration: none;
 }
 
 .cta-link-button {
-  border: 1px solid #111827;
-  background: #111827;
-  color: #fff;
+  border: none;
+  background:var(--accent);
+  color: #111314;
 }
 
 .text-link-button {
@@ -2214,7 +2214,7 @@ summary:focus-visible {
   align-items: center;
   justify-content: center;
   border-radius: 0.5rem;
-  background: #282D30;
+  background: rgba(40,45,48,0.88);
   color: var(--txt-dim);
   cursor: pointer;
   position: relative;
