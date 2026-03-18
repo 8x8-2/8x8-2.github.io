@@ -278,20 +278,27 @@ body.has-notification-center {
   text-transform: uppercase;
 }
 
-.container { max-width: 860px; margin: 28px auto 40px; padding: 16px; }
+.container { max-width: 800px; margin: 0 auto 60px; padding: 0 16px; }
 
 h1 { margin: 0 0 6px; }
 
 .muted { color: var(--mut); }
 
 .card {
-  background: var(--paper);
-  border: 1px solid var(--bd);
-  border-radius: 14px;
-  padding: 16px;
-  margin-top: 16px;
+  background: linear-gradient(180deg, rgba(23, 27, 34, 0.64) 0%, rgba(17, 19, 20, 0.64) 100%);
+  border: 1px solid #383e4b;
+  border-radius: 1rem;
+  margin: 1rem 0 0 0;
+  padding: 1rem;
+  /* margin-top: 16px; */
   box-shadow: 0 12px 30px rgba(17, 24, 39, 0.05);
+
+  
+  border: 1px solid rgba(56, 62, 75, 0.82);
+  /* box-shadow: 0 22px 44px rgba(0, 0, 0, 0.28); */
+  backdrop-filter: blur(10px);
 }
+
 
 .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: end; }
 
@@ -675,7 +682,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   margin-top: 12px;
 }
 
-.footer { margin-top: 18px; }
+.footer { margin-top: 2rem; }
 
 .footer-meta {
   display: inline-flex;
@@ -1669,14 +1676,14 @@ input[type="radio"] {
   color: var(--txt);
 }
 
-button,
+/* button,
 .cta-link-button,
 .topbar-auth-link {
   border-color: rgba(73, 250, 160, 0.42);
   background: linear-gradient(180deg, #49faa0 0%, #2ed987 100%);
   color: #08130d;
   box-shadow: 0 16px 32px rgba(73, 250, 160, 0.16);
-}
+} */
 
 button,
 .cta-link-button,
@@ -1764,12 +1771,6 @@ button:hover:not(:disabled),
   color: var(--txt);
 }
 
-.card {
-  background: linear-gradient(180deg, rgba(23, 27, 34, 0.92) 0%, rgba(17, 19, 20, 0.96) 100%);
-  border: 1px solid rgba(56, 62, 75, 0.82);
-  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(10px);
-}
 
 .box,
 .info-card,
@@ -2058,14 +2059,14 @@ summary:focus-visible {
 
 .topbar-icon-link svg,
 .social-icon-button svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
+  color: #dee0e3;
 }
 
 .topbar-icon-link:hover,
 .social-icon-button:hover {
-  color: var(--accent);
-  border-color: rgba(73, 250, 160, 0.24);
+  color: var(--accent);;
 }
 
 .profile-panel-divider,
@@ -2086,24 +2087,24 @@ summary:focus-visible {
 }
 
 .social-header-shell > .container {
-  max-width: 980px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 0 16px;
 }
 
 .social-topbar {
-  min-height: 64px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 8px;
 }
 
 .social-topbar-left,
 .social-topbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.5rem;
 }
 
 .social-topbar .topbar-auth-link {
@@ -2131,7 +2132,7 @@ summary:focus-visible {
 .social-brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.5rem;
   color: var(--txt);
 }
 
@@ -2152,8 +2153,8 @@ summary:focus-visible {
 }
 
 .social-brand-logo img {
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 
@@ -2189,32 +2190,46 @@ summary:focus-visible {
 .social-brand-slash,
 .social-brand-id {
   color: var(--accent);
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: -0.04px;
 }
 
 .social-brand-label {
-  color: #aab1b8;
-  font-size: 0.88rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  color: #88929c;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: -0.04px;
 }
 
 .social-page-title {
   font-size: 1rem;
 }
 
-.social-icon-button,
-.social-avatar-button {
+.social-icon-button {
   width: 40px;
   height: 40px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  border: 1px solid rgba(56, 62, 75, 0.88);
-  background: rgba(40, 45, 48, 0.82);
+  border-radius: 0.5rem;
+  background: #282D30;
+  color: var(--txt-dim);
+  cursor: pointer;
+  position: relative;
+}
+
+.social-avatar-button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 0 0 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 88px;
+  background: #282D30;
   color: var(--txt-dim);
   cursor: pointer;
   position: relative;
@@ -2477,15 +2492,16 @@ summary:focus-visible {
 }
 
 .profile-page-shell {
-  padding-top: 24px;
-  padding-bottom: 64px;
+  padding-bottom: 2rem;
 }
 
 .profile-hero {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 20px;
   align-items: start;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  gap: 0.75rem;
 }
 
 .profile-avatar {
@@ -2501,14 +2517,15 @@ summary:focus-visible {
 }
 
 .profile-avatar-large {
-  width: 96px;
-  height: 96px;
+  width: 120px;
+  height: 120px;
   font-size: 1.6rem;
 }
 
 .profile-id-caption {
-  color: var(--accent);
-  font-size: 0.8rem;
+  margin: 0 0 0.25rem 0;
+  color: #737e8a;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -2555,41 +2572,47 @@ summary:focus-visible {
 }
 
 .profile-tabs-card {
+  margin: 0.5rem 0 0 0;
+  padding: 0.25rem 0;
+  background: none;
   position: sticky;
-  top: 86px;
+  top: 68px;
   z-index: 25;
+}
+
+.profile-tabs-card .card {
+display:none;
 }
 
 .profile-tab-strip {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
+  gap: 0px;
 }
 
 .profile-tab-button {
-  min-height: 56px;
+  min-height: 60px;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 8px;
-  border-radius: 14px;
-  border: 1px solid transparent;
-  background: rgba(24, 28, 33, 0.68);
-  color: var(--txt-dim);
-  font-size: 0.76rem;
+  padding: 0;
+  gap: 0.5rem;
+  border-radius: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0);
+  color: #aab1b8;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .profile-tab-button svg {
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
 }
 
 .profile-tab-button.is-active {
-  border-color: rgba(73, 250, 160, 0.24);
-  background: rgba(73, 250, 160, 0.12);
-  color: var(--accent);
+color: #dee0e3;
 }
 
 .profile-summary-stack,
@@ -2927,28 +2950,28 @@ summary:focus-visible {
 }
 
 h1 {
-  font-size: 24px !important;
-  font-weight: 600 !important;
+  font-size: 24px;
+  font-weight: 600;
 }
 
 h2 {
-  font-size: 20px !important;
-  font-weight: 600 !important;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 h3 {
-  font-size: 18px !important;
-  font-weight: 600 !important;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 h4 {
-  font-size: 16px !important;
-  font-weight: 600 !important;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 p,
 a,
 .eyebrow {
-  font-size: 14px !important;
-  font-weight: 400 !important;
+  font-size: 14px ;
+  font-weight: 400;
 }

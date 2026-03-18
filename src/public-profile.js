@@ -41,7 +41,7 @@ import {
 import { formatRegionDisplay } from "./shared/regions.js";
 
 const TABS = [
-  { key: "home", label: "홈", icon: "home" },
+  { key: "home", label: "요약", icon: "home" },
   { key: "personality", label: "성격", icon: "mind" },
   { key: "health", label: "건강", icon: "health" },
   { key: "love", label: "연애", icon: "love" },
