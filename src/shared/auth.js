@@ -653,6 +653,23 @@ function isNotificationSchemaCompatibilityError(error) {
   );
 }
 
+function isFollowSchemaCompatibilityError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const status = Number(error?.status || 0);
+
+  return Boolean(
+    message.includes("profile_follows")
+    || message.includes("get_following_profiles")
+    || message.includes("could not find the table")
+    || message.includes("could not find the function")
+    || message.includes("schema cache")
+    || message.includes("does not exist")
+    || message.includes("returned type")
+    || message.includes("return type mismatch")
+    || (status === 400 && !message)
+  );
+}
+
 function normalizeNotificationRecord(notification) {
   if (!notification) return null;
 
@@ -1688,8 +1705,13 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
       }
 
       return sortFollowingProfilesFallback(filteredRows, followedAtByProfileId);
-    } catch {
-      console.warn("following profiles fallback failed", rpcError);
+    } catch (fallbackError) {
+      console.warn("following profiles fallback failed", rpcError, fallbackError);
+
+      if (isFollowSchemaCompatibilityError(rpcError) || isFollowSchemaCompatibilityError(fallbackError)) {
+        throw new Error("팔로우 기능용 Supabase 스키마가 최신이 아닙니다. `supabase/schema.sql`을 다시 실행해 주세요.");
+      }
+
       throw new Error("팔로잉 프로필을 불러오지 못했습니다.");
     }
   }
