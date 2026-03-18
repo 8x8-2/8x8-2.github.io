@@ -1344,6 +1344,17 @@ grant select, insert, update, delete on public.shared_readings to authenticated;
 grant select, insert, update, delete on public.profile_follows to authenticated;
 grant select, update on public.profile_notifications to authenticated;
 
+update auth.users
+set raw_user_meta_data =
+  coalesce(raw_user_meta_data, '{}'::jsonb)
+  - 'public_snapshot'
+  - 'preview_summary'
+  - 'day_pillar_key'
+  - 'day_pillar_hanja'
+  - 'day_pillar_metaphor'
+  - 'element_class'
+where raw_user_meta_data is not null;
+
 do $$
 begin
   perform pg_notify('pgrst', 'reload schema');
