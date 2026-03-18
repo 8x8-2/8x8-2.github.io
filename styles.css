@@ -1198,6 +1198,7 @@ body.has-modal {
 .section-intro {
   display: grid;
   gap: 8px;
+  margin-bottom: 1rem;
 }
 
 .section-intro h2 {
@@ -1527,7 +1528,7 @@ body.has-modal {
   }
   .brand-name { font-size: 16px; }
   .brand-subtitle { font-size: 10px; letter-spacing: 0.12em; }
-  .container { margin: 20px auto 28px; padding: 12px; }
+  .container { margin: 0 auto 2rem; padding: 0 12px; }
   .card { padding: 14px; }
   .saju-table thead th:first-child { width: 28px; }
   .saju-table tbody th { padding-right: 2px; }
