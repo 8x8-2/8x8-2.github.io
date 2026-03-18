@@ -20,8 +20,8 @@ export function createSupabaseHeaders({ accessToken = null, headers: sourceHeade
 
   const existingAuthorization = getHeaderValue(headers, "Authorization");
   const hasBearerToken = /^Bearer\s+\S+/i.test(existingAuthorization);
-  if (!hasBearerToken && (safeAccessToken || safePublishableKey)) {
-    headers.set("Authorization", `Bearer ${safeAccessToken || safePublishableKey}`);
+  if (!hasBearerToken && safeAccessToken) {
+    headers.set("Authorization", `Bearer ${safeAccessToken}`);
   }
 
   return headers;

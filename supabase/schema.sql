@@ -1335,3 +1335,20 @@ grant execute on function public.get_public_profile_by_stellar_id(text) to authe
 grant execute on function public.search_stellar_profiles(text, integer) to authenticated, anon;
 grant execute on function public.get_following_profiles(text, text) to authenticated;
 grant execute on function public.get_profiles_for_seo() to authenticated, anon;
+
+grant usage on schema public to anon, authenticated;
+
+grant select, update on public.profiles to authenticated;
+grant select, insert, update, delete on public.saved_readings to authenticated;
+grant select, insert, update, delete on public.shared_readings to authenticated;
+grant select, insert, update, delete on public.profile_follows to authenticated;
+grant select, update on public.profile_notifications to authenticated;
+
+do $$
+begin
+  perform pg_notify('pgrst', 'reload schema');
+exception
+  when others then
+    null;
+end;
+$$;

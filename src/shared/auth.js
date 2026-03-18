@@ -622,6 +622,11 @@ function shouldRetrySupabaseAuthFailure(status, detail = "") {
   );
 }
 
+function isGenericBadRequestDetail(detail = "") {
+  const normalizedDetail = String(detail || "").trim().toLowerCase();
+  return !normalizedDetail || normalizedDetail === "bad request";
+}
+
 function isProfileRpcCompatibilityError(error) {
   const message = String(error?.message || "").toLowerCase();
   const status = Number(error?.status || 0);
@@ -759,6 +764,14 @@ async function warmSupabaseAuthSession(supabase) {
   if (!supabase) return null;
 
   try {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const activeSession = !sessionError ? sessionData?.session || null : null;
+    if (activeSession?.user) {
+      authStore.manualSignOut = false;
+      markAuthenticated(activeSession, "warm-session");
+      return activeSession.user;
+    }
+
     const { data, error } = await supabase.auth.getUser();
     if (error) return null;
     return data?.user || null;
@@ -867,6 +880,20 @@ async function fetchSupabaseRestResponse(path, {
   retryOnAuthFailure = true,
   allowAnonFallback = false,
 } = {}) {
+  let resolvedAccessToken = String(accessToken || "").trim();
+  if (!resolvedAccessToken) {
+    const snapshotAccessToken = String(authStore.session?.access_token || "").trim();
+    if (snapshotAccessToken) {
+      resolvedAccessToken = snapshotAccessToken;
+    } else {
+      const warmedSession = await getSession().catch(() => null);
+      const warmedAccessToken = String(warmedSession?.access_token || "").trim();
+      if (warmedAccessToken) {
+        resolvedAccessToken = warmedAccessToken;
+      }
+    }
+  }
+
   const requestUrl = createSupabaseUrl(path);
 
   if (searchParams) {
@@ -879,7 +906,7 @@ async function fetchSupabaseRestResponse(path, {
   const response = await fetch(requestUrl, {
     method,
     headers: createSupabaseHeaders({
-      accessToken,
+      accessToken: resolvedAccessToken,
       headers,
     }),
     body,
@@ -887,9 +914,16 @@ async function fetchSupabaseRestResponse(path, {
 
   if (!response.ok) {
     const detail = await readSupabaseErrorDetail(response);
-    if (retryOnAuthFailure && accessToken && shouldRetrySupabaseAuthFailure(response.status, detail)) {
+    if (
+      retryOnAuthFailure
+      && resolvedAccessToken
+      && (
+        shouldRetrySupabaseAuthFailure(response.status, detail)
+        || (Number(response.status || 0) === 400 && isGenericBadRequestDetail(detail))
+      )
+    ) {
       const refreshedAccessToken = await refreshAccessTokenOnce().catch(() => null);
-      if (refreshedAccessToken && refreshedAccessToken !== String(accessToken || "").trim()) {
+      if (refreshedAccessToken && refreshedAccessToken !== resolvedAccessToken) {
         return fetchSupabaseRestResponse(path, {
           accessToken: refreshedAccessToken,
           method,
@@ -1050,7 +1084,32 @@ async function fetchOwnProfileRecordWithFallback(userId, accessToken = null) {
 }
 
 export async function getSession(options = {}) {
+  void options;
   ensureAuthStoreInitialized();
+  const supabase = isSupabaseConfigured() ? ensureSupabase() : null;
+
+  const readLiveSession = async (reason = "get-session:live") => {
+    if (!supabase) return null;
+
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) return null;
+      const liveSession = data?.session || null;
+      if (liveSession?.user) {
+        authStore.manualSignOut = false;
+        markAuthenticated(liveSession, reason);
+        return liveSession;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const liveSession = await readLiveSession();
+  if (liveSession?.user) {
+    return liveSession;
+  }
 
   if (authStore.session?.user) {
     return authStore.session;
@@ -1074,7 +1133,13 @@ export async function getSession(options = {}) {
 
   const snapshot = await waitForAuthBootstrap();
   if (snapshot.session?.user) {
-    return snapshot.session;
+    const refreshedSnapshotSession = await readLiveSession("get-session:snapshot");
+    return refreshedSnapshotSession?.user ? refreshedSnapshotSession : snapshot.session;
+  }
+
+  const fallbackLiveSession = await readLiveSession("get-session:fallback");
+  if (fallbackLiveSession?.user) {
+    return fallbackLiveSession;
   }
 
   return authStore.session?.user ? authStore.session : null;
@@ -1326,12 +1391,6 @@ export async function updateProfile(updates) {
         region_country: resolvedData.region_country || "",
         region_name: resolvedData.region_name || "",
         bio: resolvedData.bio || "",
-        day_pillar_key: resolvedData.day_pillar_key || "",
-        day_pillar_hanja: resolvedData.day_pillar_hanja || "",
-        day_pillar_metaphor: resolvedData.day_pillar_metaphor || "",
-        element_class: resolvedData.element_class || "unknown",
-        preview_summary: resolvedData.preview_summary || "",
-        public_snapshot: resolvedData.public_snapshot || {},
         personality_visibility: resolvedData.personality_visibility || "public",
         health_visibility: resolvedData.health_visibility || "public",
         love_visibility: resolvedData.love_visibility || "public",
@@ -1661,6 +1720,12 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
     return await fetchViaRpc();
   } catch (rpcError) {
     try {
+      await refreshAuthSession({
+        reason: "following-fallback",
+        markUnauthenticatedOnFailure: false,
+      }).catch(() => null);
+      await warmSupabaseAuthSession(supabase);
+
       const { data: followRows, error: followError } = await supabase
         .from("profile_follows")
         .select("following_id,created_at")
@@ -1718,6 +1783,7 @@ export async function fetchFollowingProfiles({ sort = "recent", query = "" } = {
 }
 
 export async function fetchOwnFollowCounts(userId = null) {
+  const supabase = ensureSupabase();
   const session = await getSession();
   const resolvedUserId = userId || session?.user?.id || null;
 
@@ -1728,38 +1794,66 @@ export async function fetchOwnFollowCounts(userId = null) {
     };
   }
 
-  const [followersResponse, followingResponse] = await Promise.all([
-    fetchSupabaseRestResponse("/rest/v1/profile_follows", {
-      accessToken: session?.access_token || null,
-      headers: {
-        Accept: "application/json",
-      },
-      searchParams: {
-        select: "follower_id",
-        following_id: `eq.${resolvedUserId}`,
-      },
-    }),
-    fetchSupabaseRestResponse("/rest/v1/profile_follows", {
-      accessToken: session?.access_token || null,
-      headers: {
-        Accept: "application/json",
-      },
-      searchParams: {
-        select: "following_id",
-        follower_id: `eq.${resolvedUserId}`,
-      },
-    }),
-  ]);
+  try {
+    const [followersResponse, followingResponse] = await Promise.all([
+      fetchSupabaseRestResponse("/rest/v1/profile_follows", {
+        accessToken: session?.access_token || null,
+        headers: {
+          Accept: "application/json",
+        },
+        searchParams: {
+          select: "follower_id",
+          following_id: `eq.${resolvedUserId}`,
+        },
+      }),
+      fetchSupabaseRestResponse("/rest/v1/profile_follows", {
+        accessToken: session?.access_token || null,
+        headers: {
+          Accept: "application/json",
+        },
+        searchParams: {
+          select: "following_id",
+          follower_id: `eq.${resolvedUserId}`,
+        },
+      }),
+    ]);
 
-  const [followersData, followingData] = await Promise.all([
-    followersResponse.json().catch(() => []),
-    followingResponse.json().catch(() => []),
-  ]);
+    const [followersData, followingData] = await Promise.all([
+      followersResponse.json().catch(() => []),
+      followingResponse.json().catch(() => []),
+    ]);
 
-  return {
-    followerCount: Array.isArray(followersData) ? followersData.length : 0,
-    followingCount: Array.isArray(followingData) ? followingData.length : 0,
-  };
+    return {
+      followerCount: Array.isArray(followersData) ? followersData.length : 0,
+      followingCount: Array.isArray(followingData) ? followingData.length : 0,
+    };
+  } catch {
+    await refreshAuthSession({
+      reason: "follow-counts-fallback",
+      markUnauthenticatedOnFailure: false,
+    }).catch(() => null);
+    await warmSupabaseAuthSession(supabase);
+
+    const [{ data: followerRows, error: followerError }, { data: followingRows, error: followingError }] = await Promise.all([
+      supabase
+        .from("profile_follows")
+        .select("follower_id")
+        .eq("following_id", resolvedUserId),
+      supabase
+        .from("profile_follows")
+        .select("following_id")
+        .eq("follower_id", resolvedUserId),
+    ]);
+
+    if (followerError || followingError) {
+      throw new Error("팔로우 수를 불러오지 못했습니다.");
+    }
+
+    return {
+      followerCount: Array.isArray(followerRows) ? followerRows.length : 0,
+      followingCount: Array.isArray(followingRows) ? followingRows.length : 0,
+    };
+  }
 }
 
 async function fetchLegacyNotificationRows({ accessToken, userId, offset, limit }) {
@@ -1821,6 +1915,40 @@ export async function fetchFollowNotifications({ offset = 0, limit = 40 } = {}) 
 
     return (data || []).map((row) => normalizeNotificationRecord(row)).filter(Boolean);
   } catch (error) {
+    try {
+      await refreshAuthSession({
+        reason: "notifications-fallback",
+        markUnauthenticatedOnFailure: false,
+      }).catch(() => null);
+
+      const clientRows = await fetchNotificationRowsViaClient({
+        userId: user.id,
+        select: "id,actor_id,actor_stellar_id,actor_full_name,actor_profile_image_url,event_type,read_at,created_at",
+        offset: safeOffset,
+        limit: safeLimit,
+      });
+
+      return (clientRows || []).map((row) => normalizeNotificationRecord(row)).filter(Boolean);
+    } catch (clientError) {
+      if (isNotificationSchemaCompatibilityError(error) || isNotificationSchemaCompatibilityError(clientError)) {
+        notificationQueryMode = "legacy";
+
+        try {
+          return await fetchLegacyNotificationRows({
+            accessToken: session.access_token,
+            userId: user.id,
+            offset: safeOffset,
+            limit: safeLimit,
+          });
+        } catch (legacyError) {
+          if (isNotificationSchemaCompatibilityError(legacyError)) {
+            notificationQueryMode = "unavailable";
+            return [];
+          }
+        }
+      }
+    }
+
     if (isNotificationSchemaCompatibilityError(error)) {
       notificationQueryMode = "legacy";
 
@@ -1873,6 +2001,29 @@ export async function fetchUnreadFollowNotificationCount() {
 
     return rows.length;
   } catch (error) {
+    try {
+      await refreshAuthSession({
+        reason: "notifications-unread-fallback",
+        markUnauthenticatedOnFailure: false,
+      }).catch(() => null);
+
+      const clientRows = await fetchNotificationRowsViaClient({
+        userId: user.id,
+        select: "id",
+        offset: 0,
+        limit: 1,
+        unreadOnly: true,
+      });
+
+      return clientRows.length;
+    } catch (clientError) {
+      if (isNotificationSchemaCompatibilityError(error) || isNotificationSchemaCompatibilityError(clientError)) {
+        notificationQueryMode = "legacy";
+        const rows = await fetchFollowNotifications({ offset: 0, limit: 100 });
+        return rows.filter((row) => !row?.read_at).length;
+      }
+    }
+
     if (isNotificationSchemaCompatibilityError(error)) {
       notificationQueryMode = "legacy";
       const rows = await fetchFollowNotifications({ offset: 0, limit: 100 });
