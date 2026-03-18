@@ -34,6 +34,7 @@ import {
   applyPrettyProfilePath,
   buildProfileSettingsUrl,
   buildPublicProfileUrl,
+  buildStaticPublicProfileUrl,
   getRequestedStellarId,
   resolveOwnStellarId,
 } from "./shared/stellar-id.js";
@@ -163,7 +164,7 @@ async function sharePublicProfile(profile) {
   return shareLink({
     title: `${profile.full_name} · ${profile.stellar_id}`,
     text: `${profile.full_name}님의 스텔라 프로필을 공유합니다.`,
-    url: buildPublicProfileUrl(profile.stellar_id, { absolute: true }),
+    url: buildStaticPublicProfileUrl(profile.stellar_id, { absolute: true }),
   });
 }
 

@@ -3,6 +3,7 @@ function getHomeUrl() {
 }
 
 const OWN_STELLAR_ROUTE_CACHE_KEY = "stellar-id:own-route-cache";
+const PRODUCTION_SITE_URL = "https://stellar-id.com";
 
 function parseCachedOwnRoute() {
   if (typeof window === "undefined") return null;
@@ -59,6 +60,19 @@ export function buildInternalProfileUrl(stellarId) {
   return url.toString();
 }
 
+export function buildStaticPublicProfilePath(stellarId) {
+  if (!stellarId) {
+    return "/";
+  }
+
+  return `/profile/${encodeURIComponent(String(stellarId))}`;
+}
+
+export function buildStaticPublicProfileUrl(stellarId, { absolute = false } = {}) {
+  const path = buildStaticPublicProfilePath(stellarId);
+  return absolute ? new URL(path, PRODUCTION_SITE_URL).toString() : path;
+}
+
 export function buildPublicProfileUrl(stellarId, { absolute = false } = {}) {
   if (!stellarId) {
     return absolute ? getHomeUrl().toString() : getHomeUrl().pathname;
@@ -68,7 +82,7 @@ export function buildPublicProfileUrl(stellarId, { absolute = false } = {}) {
     return buildInternalProfileUrl(stellarId);
   }
 
-  const path = `/profile/${encodeURIComponent(String(stellarId))}`;
+  const path = buildStaticPublicProfilePath(stellarId);
   return absolute ? new URL(path, window.location.origin).toString() : path;
 }
 

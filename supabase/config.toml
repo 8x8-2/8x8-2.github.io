@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.upload-profile-image]
 verify_jwt = false
+
+[functions.trigger-pages-rebuild]
+verify_jwt = true

@@ -5,6 +5,17 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      trigger_source:
+        description: Trigger source
+        required: false
+        default: manual
+        type: string
+      stellar_id:
+        description: Updated stellar ID
+        required: false
+        default: ""
+        type: string
   schedule:
     - cron: "17 18 * * *"
 

@@ -308,12 +308,18 @@ async function init() {
       currentProfile = {
         ...currentProfile,
         stellar_id: updatedProfile.stellar_id,
+        static_rebuild_requested: updatedProfile.static_rebuild_requested,
+        static_rebuild_error: updatedProfile.static_rebuild_error,
       };
       $("settingsStellarId").value = String(updatedProfile.stellar_id || "");
       setStellarIdEditMode(false);
       renderNav(currentProfile);
       statusEl.textContent = "";
-      showToast("스텔라 ID가 변경되었습니다.");
+      showToast(
+        updatedProfile.static_rebuild_requested
+          ? "스텔라 ID가 변경되었습니다. 공유 미리보기는 잠시 뒤 자동 갱신됩니다."
+          : "스텔라 ID가 변경되었습니다."
+      );
     } catch (error) {
       statusEl.textContent = "";
       setStellarIdHint(error.message || "스텔라 ID를 저장하지 못했습니다.", "error");
@@ -411,7 +417,9 @@ async function init() {
       removeAvatar = false;
       fillForm(currentProfile);
       renderNav(currentProfile);
-      statusEl.textContent = "저장되었습니다. 프로필로 이동합니다...";
+      statusEl.textContent = currentProfile.static_rebuild_requested
+        ? "저장되었습니다. 정적 프로필 갱신을 예약했고, 잠시 뒤 프로필로 이동합니다..."
+        : "저장되었습니다. 프로필로 이동합니다...";
       window.location.href = buildProfileRedirectUrl(currentProfile.stellar_id);
     } catch (error) {
       errorEl.textContent = error.message || "프로필을 저장하지 못했습니다.";

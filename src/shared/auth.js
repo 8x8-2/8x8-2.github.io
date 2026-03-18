@@ -1402,7 +1402,26 @@ export async function updateProfile(updates) {
     // profiles 테이블이 실제 표시용 데이터 소스라서, 메타데이터 동기화 실패는 저장 실패로 보지 않습니다.
   }
 
-  return resolvedData;
+  let staticRebuildRequested = false;
+  let staticRebuildError = "";
+
+  if (resolvedData?.stellar_id) {
+    try {
+      const rebuildResult = await requestStaticProfileRebuild(resolvedData.stellar_id);
+      staticRebuildRequested = Boolean(rebuildResult?.queued);
+      if (!staticRebuildRequested && rebuildResult?.reason) {
+        staticRebuildError = String(rebuildResult.reason);
+      }
+    } catch (error) {
+      staticRebuildError = error?.message || "정적 프로필 재생성을 예약하지 못했습니다.";
+    }
+  }
+
+  return {
+    ...resolvedData,
+    static_rebuild_requested: staticRebuildRequested,
+    static_rebuild_error: staticRebuildError,
+  };
 }
 
 export function subscribeAuthState(callback) {
@@ -1592,6 +1611,33 @@ export async function refreshPublicProfileByStellarId(stellarId) {
   }
 
   return data || null;
+}
+
+export async function requestStaticProfileRebuild(stellarId) {
+  const normalizedStellarId = normalizeStellarId(stellarId);
+  if (!normalizedStellarId) {
+    return {
+      queued: false,
+      reason: "invalid_stellar_id",
+    };
+  }
+
+  const supabase = ensureSupabase();
+  const { data, error } = await supabase.functions.invoke("trigger-pages-rebuild", {
+    body: {
+      reason: "profile_update",
+      stellarId: normalizedStellarId,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || "정적 프로필 재생성을 예약하지 못했습니다.");
+  }
+
+  return data || {
+    queued: false,
+    reason: "empty_response",
+  };
 }
 
 export async function searchPublicProfiles(query, limit = 20) {

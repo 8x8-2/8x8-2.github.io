@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT_DIR, "soulday");
 const SITE_URL = "https://stellar-id.com";
-const OG_IMAGE = `${SITE_URL}/src/img/bi/og-stellarid.png`;
+const OG_IMAGE = `${SITE_URL}/og-stellarid-url.png`;
 
 function escapeHtml(value = "") {
   return String(value)
@@ -46,9 +46,9 @@ function buildHead({ title, description, canonicalPath, jsonLd }) {
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta name="theme-color" content="#111314" />
-      <link rel="icon" href="/src/img/bi/favicon-stellarid.png" sizes="any">
-      <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-stellarid.png">
-      <link rel="manifest" href="/src/img/bi/favicon-stellarid.png">
+      <link rel="icon" href="/favicon-stellarid.png" sizes="any">
+      <link rel="apple-touch-icon" sizes="180x180" href="/favicon-stellarid.png">
+      <link rel="manifest" href="/favicon-stellarid.png">
       <title>${escapeHtml(title)}</title>
       <link rel="stylesheet" href="/styles.css" />
       <meta name="description" content="${escapeHtml(description)}">

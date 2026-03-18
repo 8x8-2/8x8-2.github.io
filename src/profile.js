@@ -309,7 +309,11 @@ async function init() {
       fillEditForm(currentProfile);
       setEditMode(false);
       statusEl.textContent = "";
-      showToast("내 정보가 저장되었습니다.");
+      showToast(
+        currentProfile.static_rebuild_requested
+          ? "내 정보가 저장되었습니다. 공유 미리보기는 잠시 뒤 자동 갱신됩니다."
+          : "내 정보가 저장되었습니다."
+      );
 
       trackEvent("profile_update_success", {
         page_name: "profile",
