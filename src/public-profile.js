@@ -45,7 +45,7 @@ const TABS = [
   { key: "health", label: "건강", icon: "health" },
   { key: "love", label: "연애", icon: "love" },
   { key: "ability", label: "능력", icon: "ability" },
-  { key: "majorLuck", label: "대세운", icon: "chart" },
+  { key: "majorLuck", label: "대운수", icon: "chart" },
 ];
 
 function $(id) {
@@ -54,16 +54,16 @@ function $(id) {
 
 function getTabIcon(name) {
   const icons = {
-    home: '<path d="M4.5 10.5 12 4l7.5 6.5v8A1.5 1.5 0 0 1 18 20h-3.5v-5h-5v5H6a1.5 1.5 0 0 1-1.5-1.5v-8Z" fill="currentColor"/>',
-    mind: '<path d="M12 3.5a7 7 0 0 0-4.88 12.02c.54.52.88 1.22.88 1.97v.51h8v-.5c0-.76.34-1.46.88-1.98A7 7 0 0 0 12 3.5Zm-2.25 17a1.25 1.25 0 0 0 2.5 0h-2.5Z" fill="currentColor"/>',
-    health: '<path d="M12.5 4.5h-1v5h-5v1h5v5h1v-5h5v-1h-5v-5Z" fill="currentColor"/><path d="M12 2.5c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9Zm0 2a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z" fill="currentColor"/>',
-    love: '<path d="M12 19.35 3.78 11.8a4.77 4.77 0 0 1 6.75-6.73L12 6.54l1.47-1.47a4.77 4.77 0 1 1 6.75 6.73L12 19.35Z" fill="currentColor"/>',
-    ability: '<path d="M9 5.5h6a2.5 2.5 0 0 1 2.5 2.5v.5H21v8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5v-8h3.5V8A2.5 2.5 0 0 1 9 5.5Zm0 2a.5.5 0 0 0-.5.5v.5h7V8a.5.5 0 0 0-.5-.5H9Z" fill="currentColor"/>',
-    chart: '<path d="M5 18.5h14a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1v-15a1 1 0 1 1 2 0v14Zm3.5-3.25a1 1 0 0 1-1-1v-3.5a1 1 0 1 1 2 0v3.5a1 1 0 0 1-1 1Zm4-5a1 1 0 0 1-1-1v-5a1 1 0 1 1 2 0v5a1 1 0 0 1-1 1Zm4 3a1 1 0 0 1-1-1V7.75a1 1 0 1 1 2 0v4.5a1 1 0 0 1-1 1Z" fill="currentColor"/>',
+    home: '<path d="M18.4384 20C19.3561 20 20.1493 19.3726 20.2725 18.4632 20.3895 17.5988 20.5 16.4098 20.5 15 20.5 12 20.6683 10.1684 17.5 7c-1.4614-1.46135-3.0936-2.58101-4.1976-3.25912-.804600000000001-.49423-1.8003-.49423-2.6049.0C9.5935 4.41899 7.96131 5.53865 6.49996 7c-3.16839 3.1684-2.99999 5-2.99999 8 0 1.4098.11042 2.5988.22748 3.4631C3.85061 19.3726 4.64378 20 5.56152 20H18.4384z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    mind: '<path d="M9 20.3048C5.73629 19.8014 4.19864 18.2637 3.69522 15M20.3048 15C19.8014 18.2637 18.2637 19.8014 15 20.3048M15 3.69522C18.2637 4.19864 19.8014 5.73629 20.3048 9M3.69522 9C4.19864 5.73629 5.73629 4.19864 9 3.69522M12.5 11v1.5l-1 .5M15 8v2M9 8v2m0 6s1 1 3 1 3-1 3-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    health: '<path d="M18 5.5C18 5.6939 17.9779 5.88264 17.9362 6.06385 18.1174 6.02207 18.3061 6 18.5 6 19.8807 6 21 7.11929 21 8.5S19.8807 11 18.5 11C17.7411 11 16.9411 10.836 16.2614 11.1734 15.4685 11.567 14.7401 12.0884 14.1073 12.7213l-1.3859 1.3859C12.0885 14.7401 11.567 15.4685 11.1734 16.2615 10.836 16.9412 11 17.7412 11 18.5 11 19.8807 9.88071 21 8.5 21 7.11929 21 6 19.8807 6 18.5 6 18.3061 6.02207 18.1174 6.06385 17.9362 5.88264 17.9779 5.6939 18 5.5 18 4.11929 18 3 16.8807 3 15.5 3 14.1193 4.11929 13 5.5 13 6.25893 13 7.05907 13.1641 7.73885 12.8266 8.53173 12.433 9.2601 11.9116 9.89295 11.2787L11.2788 9.89284C11.9116 9.26007 12.433 8.53178 12.8266 7.739 13.1641 7.05919 13 6.25898 13 5.5 13 4.11929 14.1193 3 15.5 3 16.8807 3 18 4.11929 18 5.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    love: '<path d="M12 20s9-4 9-10.28595C21 6 18.9648 4 16.4543 4c-1.2056.0-2.3618.49666-3.2143 1.38071L12.7198 5.92016c-.3932.40782-1.0464.40782-1.4396.0L10.76 5.38071C9.90749 4.49666 8.75128 4 7.54569 4 5 4 3 6 3 9.71405 3 16 12 20 12 20z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    ability: '<path d="M12 14V12m0 2v2m0-2c-4 0-8-1-7.93873-3M12 14c4 0 8-1 7.9387-3M4.06127 11C4.02207 11.633 4 12.3069 4 13c0 3.1111.44444 5.8333.88889 6.2222C5.33333 19.6111 8.44444 20 12 20 15.5556 20 18.6667 19.6111 19.1111 19.2222 19.5556 18.8333 20 16.1111 20 13 20 12.3069 19.9779 11.633 19.9387 11M4.06127 11C4.19804 8.79172 4.54346 7.08002 4.88889 6.77778 5.33333 6.38889 9 6.09322 9 6.09322M19.9387 11C19.802 8.79172 19.4565 7.08002 19.1111 6.77778 18.6667 6.38889 15 6.09322 15 6.09322m-6 0C9.92143 6.0345 10.941 6 12 6S14.0786 6.0345 15 6.09322m-6 0V5c0-1.77504 1.6373-2 3-2s3 .22496 3 2V6.09322" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    chart: '<path d="M10.137 15.4206C10.285 17.1402 10.5 18 10.5 18s2-.5 5.5-2.5S20.5 12 20.5 12s-1-1.5-4.5-3.5S10.5 6 10.5 6s-.2164.86552-.3645 2.59655M10.137 15.4206C10.0593 14.5175 10 13.3773 10 12 10 10.6314 10.0585 9.49689 10.1355 8.59655M10.137 15.4206C8.39233 16.4315 6.47691 17.5058 4.5 18c0 0-.5-2-.5-6s.5-6 .5-6c1.90315.47579 4.05404 1.47003 5.6355 2.59655" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
   };
 
   return `
-    <svg viewBox="0 0 24 24" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       ${icons[name] || icons.home}
     </svg>
   `;
@@ -419,7 +419,7 @@ function buildCurrentLuckSummary(snapshot) {
   const currentYear = getCurrentYearLuck(snapshot);
 
   if (!currentMajor && !currentYear) {
-    return snapshot?.advanced?.majorLuck?.summary || "현재 대세운 정보를 아직 불러오지 못했습니다.";
+    return snapshot?.advanced?.majorLuck?.summary || "현재 대운수 정보를 아직 불러오지 못했습니다.";
   }
 
   const labels = [currentMajor ? `${currentMajor.index}대운 ${currentMajor.pillarString}` : "", currentYear ? `${currentYear.year}년 ${currentYear.pillarString}` : ""].filter(Boolean);
@@ -507,6 +507,7 @@ function shouldRefreshPublicProfile(profile) {
 }
 
 function buildHomeTab(profile, snapshot, visibility) {
+  const profileName = profile.full_name || "회원";
   const cards = [];
 
   if (visibility.personality) {
@@ -539,19 +540,19 @@ function buildHomeTab(profile, snapshot, visibility) {
 
   if (visibility.majorLuck) {
     cards.push({
-      title: "대세운 요약",
+      title: "대운수 요약",
       text: buildCurrentLuckSummary(snapshot),
     });
   }
 
   return `
     ${renderPillarsTableCard(snapshot?.pillars, {
-      title: "4주 8자",
+      title: `${profileName}님의 사주 원국`,
       className: "profile-home-pillars-card",
     })}
     <section class="card">
       <div class="section-intro">
-        <h2>빠른 홈</h2>
+        <h2>${escapeHtml(profileName)}님의 운명 개요</h2>
       </div>
       <div class="profile-summary-stack">
         ${cards.map((card) => `
@@ -825,7 +826,7 @@ function buildMajorLuckTab(snapshot) {
   return `
     <section class="card">
       <div class="section-intro">
-        <h2>대세운</h2>
+        <h2>대운수</h2>
         <p class="muted">대운과 세운을 지금 보기 쉽게 다시 정리했습니다.</p>
       </div>
       <section class="profile-rank-section">
@@ -877,7 +878,7 @@ function renderProfileContent(profile, snapshot, viewerSnapshot, relationship, a
     health: visibility.health ? buildHealthTab(snapshot) : buildLockCard("건강"),
     love: visibility.love ? buildLoveTab(profile, snapshot, viewerSnapshot, relationship.isSelf) : buildLockCard("연애"),
     ability: visibility.ability ? buildAbilityTab(profile, snapshot, viewerSnapshot, relationship.isSelf) : buildLockCard("능력"),
-    majorLuck: visibility.majorLuck ? buildMajorLuckTab(snapshot) : buildLockCard("대세운"),
+    majorLuck: visibility.majorLuck ? buildMajorLuckTab(snapshot) : buildLockCard("대운수"),
   };
 
   $("profileContent").innerHTML = sections[activeTab];

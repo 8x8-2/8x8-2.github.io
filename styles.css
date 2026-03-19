@@ -288,7 +288,7 @@ h1 { margin: 0 0 6px; }
   background: linear-gradient(180deg, rgba(35,39,41,0.64) 0%, rgba(26,29,31,0.64) 100%);
   border: 1px solid #2c3134;
   border-radius: 0.5rem;
-  margin: 1rem 0 0 0;
+  margin: 0.5rem 0 0 0;
   padding: 1.5rem;
   backdrop-filter: blur(0.75rem);
   /* margin-top: 16px; */
@@ -496,7 +496,11 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   white-space: nowrap;
 }
 
-.stack { display: grid; gap: 10px; margin-top: 10px; }
+.stack { 
+  display: grid; 
+  /* gap: 10px;  */
+  /* margin-top: 10px;  */
+}
 
 .box {
   border: 1px solid var(--bd);
@@ -2242,10 +2246,10 @@ summary:focus-visible {
 
 .social-brand-id {
   display: inline-block;
-  flex: 0 1 6ch;
-  width: 6ch;
+  flex: 0 1 9ch;
+  width: 9ch;
   min-width: 0;
-  max-width: 6ch;
+  max-width: 9ch;
   overflow: hidden;
   white-space: nowrap;
   vertical-align: bottom;
@@ -2565,7 +2569,8 @@ summary:focus-visible {
 
 .profile-hero-main {
   width: 100%;
-  padding: 0 1rem;
+  margin: 0;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2629,17 +2634,17 @@ summary:focus-visible {
 }
 
 .profile-tag-row {
-  margin: 0;
-  padding: 0 1rem;
-    display: flex;
+  margin: 0.25rem 0;
+  padding: 0;
+  display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
 }
 
 .profile-follow-stats {
-  margin-top: 0.2rem;
+  margin-top: 0.5rem;
   color: var(--txt-soft);
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .profile-follow-stats strong {
@@ -2697,7 +2702,7 @@ summary:focus-visible {
   top: 4rem;
   z-index: 24;
   position: sticky;
-  margin: 0.25rem 0 0 0;
+  margin: 0.5rem 0 0 0;
   padding: 0.25rem 0;
   border: 1px solid #2c3134;
   border-radius: 0.5rem;

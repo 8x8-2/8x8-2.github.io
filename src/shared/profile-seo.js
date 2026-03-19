@@ -114,7 +114,7 @@ export function getProfileSeoSections(profile) {
     ["ability_visibility", "ability", "능력"],
     ["love_visibility", "love", "연애"],
     ["health_visibility", "health", "건강"],
-    ["major_luck_visibility", "majorLuck", "대세운"],
+    ["major_luck_visibility", "majorLuck", "대운수"],
   ].forEach(([visibilityKey, summaryKey, title]) => {
     if (profile?.[visibilityKey] !== "public") return;
     const text = resolvePublicSummary(profile, summaryKey);
