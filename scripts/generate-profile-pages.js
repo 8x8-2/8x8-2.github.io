@@ -148,30 +148,70 @@ function formatGenderLabel(gender) {
   }[gender] || "프로필";
 }
 
-function buildFallbackSection(profile) {
-  const seo = buildProfileSeoData(profile);
-  const sections = getProfileSeoSections(profile);
+function renderStaticAvatar(profile) {
+  if (profile.profile_image_url) {
+    return `<img src="${escapeHtml(profile.profile_image_url)}" alt="" />`;
+  }
+
+  return `<span>${escapeHtml(String(profile.full_name || "스").charAt(0))}</span>`;
+}
+
+function buildStaticProfileTagMarkup(profile) {
+  const genderLabel = profile.gender ? formatGenderLabel(profile.gender) : "";
   const chips = [
-    formatGenderLabel(profile.gender),
+    genderLabel,
     profile.day_pillar_key ? `${profile.day_pillar_key} 일주` : "",
     profile.mbti || "",
   ].filter(Boolean);
 
+  if (!chips.length) {
+    return "";
+  }
+
+  return `
+    <div class="profile-tag-row">
+      ${chips.map((item, index) => `
+        <span class="impact-chip ${index === 1 ? "impact-chip-good" : "impact-chip-neutral"}">${escapeHtml(item)}</span>
+      `).join("")}
+    </div>
+  `.trim();
+}
+
+function buildStaticProfileMetaMarkup(profile, seo) {
+  const normalizedBio = profile.bio || seo.metaDescription || "";
+
+  if (!normalizedBio) {
+    return "";
+  }
+
+  return `
+    <div class="profile-meta-stack">
+      <p class="profile-bio">${escapeHtml(normalizedBio)}</p>
+    </div>
+  `.trim();
+}
+
+function buildFallbackSection(profile) {
+  const seo = buildProfileSeoData(profile);
+  const sections = getProfileSeoSections(profile);
+
   return `
     <section id="profileSeoFallback" class="card">
       <p class="eyebrow">스텔라 프로필</p>
-      <h1>${escapeHtml(seo.pageTitle)}</h1>
-      <p class="hero-subtitle">${escapeHtml(seo.metaDescription)}</p>
-      ${chips.length
-        ? `
-          <div class="profile-tag-row">
-            ${chips.map((item, index) => `
-              <span class="impact-chip ${index === 1 ? "impact-chip-good" : "impact-chip-neutral"}">${escapeHtml(item)}</span>
-            `).join("")}
+      <div class="profile-fallback-hero">
+        <div class="profile-hero-main">
+          <div class="profile-avatar profile-avatar-large">
+            ${renderStaticAvatar(profile)}
           </div>
-        `
-        : ""
-      }
+          <div class="profile-fallback-copy">
+            <div class="profile-id-caption">#${escapeHtml(String(profile.stellar_id || ""))}</div>
+            <h1>${escapeHtml(profile.full_name || seo.pageTitle)}</h1>
+          </div>
+        </div>
+        <p class="hero-subtitle">${escapeHtml(seo.metaDescription)}</p>
+        ${buildStaticProfileTagMarkup(profile)}
+        ${buildStaticProfileMetaMarkup(profile, seo)}
+      </div>
       ${sections.length
         ? `
           <div class="profile-summary-stack">

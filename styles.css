@@ -346,6 +346,7 @@ button {
 
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.button-primary,
 .cta-link-button,
 .text-link-button {
   display: inline-flex;
@@ -358,6 +359,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   text-decoration: none;
 }
 
+.button-primary,
 .cta-link-button {
   border: none;
   background:var(--accent);
@@ -2497,12 +2499,20 @@ summary:focus-visible {
 }
 
 .profile-hero {
-  display: grid;
-  align-items: start;
+  display: flex;
   flex-direction: column;
+  align-items: start;
   margin: 0;
   padding: 0;
-  gap: 0.75rem;
+  gap: 1rem;
+}
+
+.profile-hero-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .profile-avatar {
@@ -2521,10 +2531,33 @@ summary:focus-visible {
   width: 120px;
   height: 120px;
   font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.profile-hero-copy,
+.profile-fallback-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.profile-hero-copy {
+  display: grid;
+  align-content: center;
+  gap: 0.35rem;
+}
+
+.profile-fallback-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.profile-hero-copy h1,
+.profile-fallback-copy h1 {
+  margin: 0;
 }
 
 .profile-id-caption {
-  margin: 0 0 0.25rem 0;
+  margin: 0;
   color: #737e8a;
   font-size: 0.75rem;
   font-weight: 700;
@@ -2535,18 +2568,33 @@ summary:focus-visible {
 .profile-follow-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 12px;
+  gap: 0.5rem 1rem;
+}
+
+.profile-tag-row {
+  margin-top: 0;
 }
 
 .profile-follow-stats {
+  margin-top: 0.2rem;
   color: var(--txt-soft);
   font-size: 0.95rem;
 }
 
+.profile-follow-stats strong {
+  color: var(--txt);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.profile-meta-stack {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .profile-location,
 .profile-bio {
-  margin-top: 12px;
+  margin: 0;
   color: var(--txt-soft);
 }
 
@@ -2555,12 +2603,17 @@ summary:focus-visible {
   white-space: pre-line;
 }
 
+.profile-fallback-hero {
+  display: grid;
+  gap: 1rem;
+}
+
 .profile-cta-row {
-  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 20px;
+  width: 100%;
+  margin-top: 0.25rem;
 }
 
 .profile-cta-row.is-self {
@@ -2879,10 +2932,6 @@ color: #dee0e3;
 }
 
 @media (max-width: 860px) {
-  .profile-hero {
-    grid-template-columns: 1fr;
-  }
-
   .profile-avatar-large {
     width: 84px;
     height: 84px;
@@ -2892,13 +2941,17 @@ color: #dee0e3;
   .profile-detail-grid,
   .profile-mini-list,
   .profile-luck-list,
-  .profile-cta-row,
   .inline-field-row,
   .social-filter-row,
   .profile-settings-avatar-row {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .profile-hero-main {
+    align-items: flex-start;
+    gap: 0.875rem;
   }
 
   .profile-tabs-card {

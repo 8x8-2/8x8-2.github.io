@@ -1568,20 +1568,16 @@ export async function fetchPublicProfileByStellarId(stellarId) {
   if (!isSupabaseConfigured()) {
     throw new Error("Supabase 연결 정보가 아직 설정되지 않았습니다.");
   }
-
-  const requestUrl = createSupabaseUrl("/rest/v1/rpc/get_public_profile_by_stellar_id");
-
-  const response = await fetch(requestUrl, {
+  const response = await fetchSupabaseRestResponse("/rest/v1/rpc/get_public_profile_by_stellar_id", {
     method: "POST",
-    headers: createSupabaseHeaders({
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/vnd.pgrst.object+json",
-      },
-    }),
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/vnd.pgrst.object+json",
+    },
     body: JSON.stringify({
       stellar_id_input: normalizedStellarId,
     }),
+    allowAnonFallback: true,
   });
 
   if (response.status === 406) {

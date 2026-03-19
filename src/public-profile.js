@@ -33,7 +33,6 @@ import { showToast } from "./shared/ui.js";
 import {
   applyPrettyProfilePath,
   buildProfileSettingsUrl,
-  buildPublicProfileUrl,
   buildStaticPublicProfileUrl,
   getRequestedStellarId,
   resolveOwnStellarId,
@@ -171,18 +170,24 @@ async function sharePublicProfile(profile) {
 function renderSeoFallback(profile, meta) {
   const seo = buildProfileSeoData(profile);
   const sections = getProfileSeoSections(profile);
-  const locationText = formatRegionDisplay(profile.region_country, profile.region_name);
 
   $("profileSeoFallback").innerHTML = `
     <p class="eyebrow">스텔라 프로필</p>
-    <h1>${escapeHtml(seo.pageTitle)}</h1>
-    <p class="hero-subtitle">${escapeHtml(seo.metaDescription)}</p>
-    <div class="profile-tag-row">
-      <span class="impact-chip impact-chip-neutral">${escapeHtml(formatGenderLabel(profile.gender))}</span>
-      <span class="impact-chip impact-chip-good">${escapeHtml(meta.dayPillarKey)} 일주</span>
-      ${profile.mbti ? `<span class="impact-chip impact-chip-neutral">${escapeHtml(profile.mbti)}</span>` : ""}
+    <div class="profile-fallback-hero">
+      <div class="profile-hero-main">
+        <div class="profile-avatar profile-avatar-large">
+          ${renderAvatar(profile)}
+        </div>
+        <div class="profile-fallback-copy">
+          <div class="profile-id-caption">#${escapeHtml(String(profile.stellar_id || ""))}</div>
+          <h1>${escapeHtml(profile.full_name || seo.pageTitle)}</h1>
+          ${buildProfileFollowStatsMarkup(profile)}
+        </div>
+      </div>
+      <p class="hero-subtitle">${escapeHtml(seo.metaDescription)}</p>
+      ${buildProfileTagMarkup(profile, meta)}
+      ${buildProfileMetaMarkup(profile)}
     </div>
-    ${locationText ? `<p class="muted">${escapeHtml(locationText)}</p>` : ""}
     ${sections.length
       ? `
         <div class="profile-summary-stack">
@@ -206,6 +211,102 @@ function renderAvatar(profile) {
   }
 
   return `<span>${escapeHtml(String(profile.full_name || "스").charAt(0))}</span>`;
+}
+
+function formatCount(value) {
+  return new Intl.NumberFormat("ko-KR").format(Math.max(0, Number(value) || 0));
+}
+
+function buildProfileTagMarkup(profile, meta) {
+  const genderLabel = profile.gender ? formatGenderLabel(profile.gender) : "";
+  const chips = [
+    genderLabel ? `<span class="impact-chip impact-chip-neutral">${escapeHtml(genderLabel)}</span>` : "",
+    meta.dayPillarKey ? `<span class="impact-chip impact-chip-good">${escapeHtml(meta.dayPillarKey)} 일주</span>` : "",
+    profile.mbti ? `<span class="impact-chip impact-chip-neutral">${escapeHtml(profile.mbti)}</span>` : "",
+  ].filter(Boolean);
+
+  if (!chips.length) {
+    return "";
+  }
+
+  return `
+    <div class="profile-tag-row">
+      ${chips.join("")}
+    </div>
+  `;
+}
+
+function buildProfileFollowStatsMarkup(profile) {
+  return `
+    <div class="profile-follow-stats" aria-label="팔로우 현황">
+      <span><strong>${formatCount(profile.follower_count)}</strong> 팔로워</span>
+      <span><strong>${formatCount(profile.following_count)}</strong> 팔로잉</span>
+    </div>
+  `;
+}
+
+function buildProfileMetaMarkup(profile) {
+  const locationText = formatRegionDisplay(profile.region_country, profile.region_name);
+  const normalizedBio = normalizeProfileBio(profile.bio || "");
+  const items = [
+    locationText ? `<div class="profile-location">${escapeHtml(locationText)}</div>` : "",
+    normalizedBio ? `<p class="profile-bio">${escapeHtmlWithBreaks(normalizedBio)}</p>` : "",
+  ].filter(Boolean);
+
+  if (!items.length) {
+    return "";
+  }
+
+  return `
+    <div class="profile-meta-stack">
+      ${items.join("")}
+    </div>
+  `;
+}
+
+function buildProfileCtaMarkup(relationship) {
+  if (relationship.isSelf) {
+    return `
+      <div class="profile-cta-row is-self">
+        <button id="profileShareButton" class="button-muted" type="button">프로필 공유</button>
+        <a id="profileSettingsButton" class="cta-link-button" href="${escapeHtml(buildProfileSettingsUrl())}">프로필 설정</a>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="profile-cta-row">
+      <button id="profileShareButton" class="button-muted" type="button">프로필 공유</button>
+      <button
+        id="profileFollowButton"
+        class="${relationship.isFollowing ? "button-muted" : "button-primary"}"
+        type="button"
+        aria-pressed="${relationship.isFollowing}"
+      >
+        ${relationship.isFollowing ? "팔로우 중" : "팔로우"}
+      </button>
+    </div>
+  `;
+}
+
+function buildHeroMarkup(profile, meta, relationship) {
+  return `
+    <div class="profile-hero">
+      <div class="profile-hero-main">
+        <div class="profile-avatar profile-avatar-large">
+          ${renderAvatar(profile)}
+        </div>
+        <div class="profile-hero-copy">
+          <div class="profile-id-caption">#${escapeHtml(String(profile.stellar_id))}</div>
+          <h1 id="profileNameHeading">${escapeHtml(profile.full_name)}</h1>
+          ${buildProfileFollowStatsMarkup(profile)}
+        </div>
+      </div>
+      ${buildProfileTagMarkup(profile, meta)}
+      ${buildProfileMetaMarkup(profile)}
+      ${buildProfileCtaMarkup(relationship)}
+    </div>
+  `;
 }
 
 function buildCompatibilityEntries(targetSnapshot, mode = "personality", inverse = false) {
@@ -765,39 +866,7 @@ function getVisibilityMap(profile, relationship) {
 }
 
 function renderHero(profile, meta, relationship) {
-  const locationText = formatRegionDisplay(profile.region_country, profile.region_name);
-  const isSelf = relationship.isSelf;
-  const normalizedBio = normalizeProfileBio(profile.bio || "");
-
-  $("profileHeroInner").innerHTML = `
-    <div class="profile-hero">
-      <div class="profile-avatar profile-avatar-large">
-        ${renderAvatar(profile)}
-      </div>
-      <div class="profile-hero-copy">
-        <div class="profile-id-caption">#${escapeHtml(String(profile.stellar_id))}</div>
-        <h1 id="profileNameHeading">${escapeHtml(profile.full_name)}</h1>
-        <div class="profile-tag-row">
-          <span class="impact-chip impact-chip-neutral">${escapeHtml(formatGenderLabel(profile.gender))}</span>
-          <span class="impact-chip impact-chip-good">${escapeHtml(meta.dayPillarKey)} 일주</span>
-          ${profile.mbti ? `<span class="impact-chip impact-chip-neutral">${escapeHtml(profile.mbti)}</span>` : ""}
-        </div>
-        <div class="profile-follow-stats">
-          <span>팔로워 ${profile.follower_count}</span>
-          <span>팔로잉 ${profile.following_count}</span>
-        </div>
-        ${locationText ? `<div class="profile-location">${escapeHtml(locationText)}</div>` : ""}
-        ${normalizedBio ? `<p class="profile-bio">${escapeHtmlWithBreaks(normalizedBio)}</p>` : ""}
-      </div>
-      <div class="profile-cta-row ${isSelf ? "is-self" : ""}">
-        <button id="profileShareButton" class="button-muted" type="button">프로필 공유</button>
-        ${isSelf
-          ? `<a id="profileSettingsButton" class="cta-link-button" href="${escapeHtml(buildProfileSettingsUrl())}">프로필 설정</a>`
-          : `<button id="profileFollowButton" type="button">${relationship.isFollowing ? "팔로우 취소" : "데이터 팔로우"}</button>`
-        }
-      </div>
-    </div>
-  `;
+  $("profileHeroInner").innerHTML = buildHeroMarkup(profile, meta, relationship);
 }
 
 function renderProfileContent(profile, snapshot, viewerSnapshot, relationship, activeTab) {
@@ -853,6 +922,20 @@ function buildProfileRelationship(publicProfile, session, viewerProfile) {
     isSelf,
     isFollowing: !isSelf && Boolean(publicProfile?.is_following),
   };
+}
+
+function buildSigninRedirectUrl() {
+  const url = new URL(document.body.dataset.linkSignin || "../signin/", window.location.href);
+  url.searchParams.set("next", `${window.location.pathname}${window.location.search}${window.location.hash}`);
+  return url.toString();
+}
+
+function applyFollowState(profile, relationship, isFollowing) {
+  const followerDelta = isFollowing ? 1 : -1;
+
+  relationship.isFollowing = isFollowing;
+  profile.is_following = isFollowing;
+  profile.follower_count = Math.max(0, Number(profile.follower_count || 0) + followerDelta);
 }
 
 async function init() {
@@ -995,9 +1078,50 @@ async function init() {
   const currentViewerSnapshot = viewerProfile?.public_snapshot && !needsPublicProfileRefresh(viewerProfile.public_snapshot)
     ? viewerProfile.public_snapshot
     : buildLocalSnapshotFromProfile(viewerProfile);
-  renderHero(publicProfile, meta, relationship);
-
   let activeTab = "home";
+
+  const bindHeroActions = () => {
+    $("profileShareButton")?.addEventListener("click", async () => {
+      try {
+        await sharePublicProfile(publicProfile);
+      } catch (error) {
+        window.alert(error.message || "프로필 공유에 실패했습니다.");
+      }
+    });
+
+    const followButton = $("profileFollowButton");
+    followButton?.addEventListener("click", async () => {
+      if (!session) {
+        window.location.href = buildSigninRedirectUrl();
+        return;
+      }
+
+      followButton.disabled = true;
+
+      try {
+        const nextFollowing = !relationship.isFollowing;
+
+        if (nextFollowing) {
+          await followProfile(publicProfile.profile_id);
+        } else {
+          await unfollowProfile(publicProfile.profile_id);
+        }
+
+        applyFollowState(publicProfile, relationship, nextFollowing);
+        renderHero(publicProfile, meta, relationship);
+        bindHeroActions();
+        renderProfileContent(publicProfile, snapshot, currentViewerSnapshot, relationship, activeTab);
+        showToast(nextFollowing ? "팔로우했습니다." : "팔로우를 취소했습니다.");
+      } catch (error) {
+        followButton.disabled = false;
+        window.alert(error.message || "팔로우 상태를 바꾸지 못했습니다.");
+      }
+    });
+  };
+
+  renderHero(publicProfile, meta, relationship);
+  bindHeroActions();
+
   renderTabs(activeTab);
   renderProfileContent(publicProfile, snapshot, currentViewerSnapshot, relationship, activeTab);
 
@@ -1007,33 +1131,6 @@ async function init() {
     activeTab = button.dataset.tabKey;
     renderTabs(activeTab);
     renderProfileContent(publicProfile, snapshot, currentViewerSnapshot, relationship, activeTab);
-  });
-
-  $("profileShareButton")?.addEventListener("click", async () => {
-    try {
-      await sharePublicProfile(publicProfile);
-    } catch (error) {
-      window.alert(error.message || "프로필 공유에 실패했습니다.");
-    }
-  });
-
-  $("profileFollowButton")?.addEventListener("click", async () => {
-    if (!session) {
-      window.location.href = new URL(document.body.dataset.linkSignin || "../signin/", window.location.href).toString();
-      return;
-    }
-
-    try {
-      if (relationship.isFollowing) {
-        await unfollowProfile(publicProfile.profile_id);
-      } else {
-        await followProfile(publicProfile.profile_id);
-      }
-
-      window.location.reload();
-    } catch (error) {
-      window.alert(error.message || "팔로우 상태를 바꾸지 못했습니다.");
-    }
   });
 }
 
