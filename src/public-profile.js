@@ -220,8 +220,8 @@ function formatCount(value) {
 function buildProfileTagMarkup(profile, meta) {
   const genderLabel = profile.gender ? formatGenderLabel(profile.gender) : "";
   const chips = [
-    genderLabel ? `<span class="impact-chip impact-chip-neutral">${escapeHtml(genderLabel)}</span>` : "",
     meta.dayPillarKey ? `<span class="impact-chip impact-chip-good">${escapeHtml(meta.dayPillarKey)} 일주</span>` : "",
+    genderLabel ? `<span class="impact-chip impact-chip-neutral">${escapeHtml(genderLabel)}</span>` : "",
     profile.mbti ? `<span class="impact-chip impact-chip-neutral">${escapeHtml(profile.mbti)}</span>` : "",
   ].filter(Boolean);
 

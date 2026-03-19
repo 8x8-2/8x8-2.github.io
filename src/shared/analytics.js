@@ -1,3 +1,5 @@
+import { renderSiteFooter } from "./footer.js";
+
 export function trackEvent(name, params = {}) {
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
   window.gtag("event", name, {
@@ -9,7 +11,11 @@ export function trackEvent(name, params = {}) {
 let commonTrackingBound = false;
 
 export function initCommonPageTracking() {
-  if (typeof document === "undefined" || commonTrackingBound) return;
+  if (typeof document === "undefined") return;
+
+  renderSiteFooter();
+
+  if (commonTrackingBound) return;
   commonTrackingBound = true;
 
   document.addEventListener("click", (event) => {

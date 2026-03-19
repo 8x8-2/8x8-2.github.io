@@ -128,17 +128,7 @@ function buildTopbar() {
 }
 
 function buildFooter() {
-  return `
-    <footer class="muted footer">
-      <small class="footer-meta">
-        <span>© <script>document.write(new Date().getFullYear())</script>.</span>
-        <span class="footer-divider" aria-hidden="true">·</span>
-        <a href="/privacy/" data-footer-link="privacy">개인정보처리방침</a>
-        <span class="footer-divider" aria-hidden="true">·</span>
-        <a href="https://themercenary.org" target="_blank" data-footer-link="mercenary">The Mercenary</a>
-      </small>
-    </footer>
-  `.trim();
+  return '<footer class="muted footer" data-site-footer></footer>';
 }
 
 function formatGenderLabel(gender) {
@@ -159,10 +149,19 @@ function renderStaticAvatar(profile) {
 function buildStaticProfileTagMarkup(profile) {
   const genderLabel = profile.gender ? formatGenderLabel(profile.gender) : "";
   const chips = [
-    genderLabel,
-    profile.day_pillar_key ? `${profile.day_pillar_key} 일주` : "",
-    profile.mbti || "",
-  ].filter(Boolean);
+    {
+      label: profile.day_pillar_key ? `${profile.day_pillar_key} 일주` : "",
+      tone: "good",
+    },
+    {
+      label: genderLabel,
+      tone: "neutral",
+    },
+    {
+      label: profile.mbti || "",
+      tone: "neutral",
+    },
+  ].filter((chip) => chip.label);
 
   if (!chips.length) {
     return "";
@@ -170,8 +169,8 @@ function buildStaticProfileTagMarkup(profile) {
 
   return `
     <div class="profile-tag-row">
-      ${chips.map((item, index) => `
-        <span class="impact-chip ${index === 1 ? "impact-chip-good" : "impact-chip-neutral"}">${escapeHtml(item)}</span>
+      ${chips.map((chip) => `
+        <span class="impact-chip impact-chip-${chip.tone}">${escapeHtml(chip.label)}</span>
       `).join("")}
     </div>
   `.trim();
