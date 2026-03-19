@@ -110,6 +110,7 @@ function buildHead(profile) {
       <meta name="twitter:description" content="${escapeHtml(seo.twitterDescription)}" />
       <meta name="twitter:image" content="${escapeHtml(PROFILE_OG_IMAGE_URL)}" />
       <meta name="twitter:image:alt" content="${escapeHtml(PROFILE_OG_IMAGE_ALT)}" />
+      <script>document.documentElement.classList.add("profile-hydrating");</script>
       <link rel="stylesheet" href="/styles.css" />
       ${buildAnalyticsSnippet({ title: seo.title, canonicalPath: seo.canonicalPath })}
       <script type="application/ld+json" id="profileStructuredData">${JSON.stringify(jsonLd)}</script>

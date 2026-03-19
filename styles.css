@@ -392,9 +392,20 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   color: #1f2937;
 }
 
+.home-cta-button {
+  min-width: 180px;
+  min-height: 48px;
+  padding: 0 20px;
+  font-size: 1rem;
+}
+
 .error { color: #dc2626; margin: 10px 0 0; }
 
 .hidden { display: none!important; }
+
+html.profile-hydrating body[data-page-name="public_profile"] #profileSeoFallback {
+  display: none;
+}
 
 .pillars-wrap {
   margin-top: 14px;
@@ -807,6 +818,10 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .result-content {
   position: relative;
+}
+
+#result {
+  scroll-margin-top: 84px;
 }
 
 #result.is-preview-locked .result-content {
@@ -1580,6 +1595,10 @@ body.has-modal {
   .scroll-top-button {
     right: 14px;
     bottom: 14px;
+  }
+
+  .home-cta-button {
+    width: 100%;
   }
 }
 
@@ -2983,10 +3002,12 @@ color: #dee0e3;
 
 .profile-settings-form .inline-field-row > * {
   min-width: 0;
+  min-height: 44px;
 }
 
 .profile-settings-form .inline-field-row input {
   flex: 1 1 220px;
+  line-height: 1.4;
 }
 
 .profile-settings-form input[type="file"] {

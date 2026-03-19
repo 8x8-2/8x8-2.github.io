@@ -270,6 +270,19 @@ function render(snapshot) {
   resultEl.classList.remove("hidden");
 }
 
+function scrollToResult() {
+  if (!resultEl) return;
+
+  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+  window.requestAnimationFrame(() => {
+    resultEl.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  });
+}
+
 function validateInput({ year, month, day, birthTime, isLunar, unknownTime }) {
   if (!Number.isInteger(year) || year < 1900 || year > 2100) return "년은 1900~2100 사이여야 합니다.";
   if (!Number.isInteger(month) || month < 1 || month > 12) return "월은 1~12 사이여야 합니다.";
@@ -448,6 +461,7 @@ btn.addEventListener("click", async () => {
     });
 
     render(snapshot);
+    scrollToResult();
 
     trackEvent("saju_calculation_success", {
       calendar_type: isLunar ? "lunar" : "solar",

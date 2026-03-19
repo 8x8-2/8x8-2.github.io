@@ -52,6 +52,10 @@ function $(id) {
   return document.getElementById(id);
 }
 
+function settleProfileHydration() {
+  document.documentElement.classList.remove("profile-hydrating");
+}
+
 function getTabIcon(name) {
   const icons = {
     home: '<path d="M18.4384 20C19.3561 20 20.1493 19.3726 20.2725 18.4632 20.3895 17.5988 20.5 16.4098 20.5 15 20.5 12 20.6683 10.1684 17.5 7c-1.4614-1.46135-3.0936-2.58101-4.1976-3.25912-.804600000000001-.49423-1.8003-.49423-2.6049.0C9.5935 4.41899 7.96131 5.53865 6.49996 7c-3.16839 3.1684-2.99999 5-2.99999 8 0 1.4098.11042 2.5988.22748 3.4631C3.85061 19.3726 4.64378 20 5.56152 20H18.4384z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
@@ -1089,6 +1093,7 @@ async function init() {
 
   $("profileLoading").classList.add("hidden");
   $("profileSeoFallback")?.classList.add("hidden");
+  settleProfileHydration();
   $("profileHero").classList.remove("hidden");
   $("profileTabsSection").classList.remove("hidden");
   $("profileContent").classList.remove("hidden");
@@ -1155,6 +1160,7 @@ async function init() {
 init().catch((error) => {
   console.warn("public profile hydration failed", error);
   $("profileLoading").classList.add("hidden");
+  settleProfileHydration();
 
   const hasSeoFallback = Boolean($("profileSeoFallback")?.textContent?.trim());
   if (hasSeoFallback) {
