@@ -363,12 +363,25 @@ const UNKNOWN_HOUR_SENTENCES = {
   health: "생활 리듬과 회복 패턴도 태어난 시간이 있으면 조금 더 촘촘하게 볼 수 있습니다.",
 };
 
+const BEGINNER_FRIENDLY_REPLACEMENTS = [
+  [/물상/g, "대표 이미지"],
+  [/일간/g, "기본 성향"],
+  [/월지/g, "태어난 달의 기운"],
+  [/사주 해석상/g, "전통 해석에서는"],
+];
+
 function createBuckets() {
   return Object.fromEntries(CATEGORY_KEYS.map((key) => [key, []]));
 }
 
 function normalizeSentence(text) {
-  return String(text || "").replace(/\s+/g, " ").trim();
+  let normalized = String(text || "").replace(/\s+/g, " ").trim();
+
+  BEGINNER_FRIENDLY_REPLACEMENTS.forEach(([pattern, replacement]) => {
+    normalized = normalized.replace(pattern, replacement);
+  });
+
+  return normalized;
 }
 
 function pushSentenceMap(target, sentenceMap, { prepend = false } = {}) {
@@ -514,8 +527,8 @@ function buildDayPillarArchetypeSentences(profile) {
 
   return {
     innate: [
-      `${profile.dayPillarKey}(${info.hanja}) 일주는 흔히 '${info.metaphor}'의 물상으로 비유합니다.`,
-      "이 물상 한 줄은 일주의 기본 분위기와 성정의 결을 직관적으로 읽을 때 먼저 참고하는 표현입니다.",
+      `${profile.dayPillarKey}(${info.hanja}) 일주는 흔히 '${info.metaphor}' 같은 이미지로 설명합니다.`,
+      "이 한 줄은 성격의 첫인상과 분위기를 쉽게 잡기 위한 비유라고 생각하면 됩니다.",
     ],
   };
 }

@@ -128,6 +128,22 @@ function buildSelfProfileViewModel(profile, session) {
   };
 }
 
+function applyRefreshResultToProfile(profile, refreshResult) {
+  if (!profile || !refreshResult?.publicSnapshot) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    day_pillar_key: refreshResult.dayPillarKey || profile.day_pillar_key,
+    day_pillar_hanja: refreshResult.dayPillarHanja || profile.day_pillar_hanja,
+    day_pillar_metaphor: refreshResult.dayPillarMetaphor || profile.day_pillar_metaphor,
+    element_class: refreshResult.elementClass || profile.element_class,
+    preview_summary: refreshResult.previewSummary || profile.preview_summary,
+    public_snapshot: refreshResult.publicSnapshot,
+  };
+}
+
 function applySelfFollowCounts(profile, counts) {
   if (!profile) return profile;
 
@@ -1039,7 +1055,8 @@ async function init() {
 
   if (!isSelfProfileMode && shouldRefreshPublicProfile(publicProfile)) {
     try {
-      await refreshPublicProfileByStellarId(stellarId);
+      const refreshResult = await refreshPublicProfileByStellarId(stellarId);
+      publicProfile = applyRefreshResultToProfile(publicProfile, refreshResult);
       publicProfile = await fetchPublicProfileWithRetry(stellarId, {
         attempts: 2,
         delayMs: 250,

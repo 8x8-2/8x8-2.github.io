@@ -1,7 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { buildProfileDerivedFieldsFromInput } from "../../../src/shared/profile-derived.js";
-import { getKstDateParts, needsPublicProfileRefresh } from "../../../src/shared/profile-insights.js";
+import {
+  getKstDateParts,
+  getPublicProfileRefreshState,
+  refreshPublicProfileSnapshot,
+} from "../../../src/shared/profile-insights.js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,12 +21,35 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
-function shouldRefreshProfile(profile: Record<string, unknown> | null) {
-  return !profile
+function getProfileRefreshDecision(profile: Record<string, unknown> | null, now = new Date()) {
+  const refreshState = getPublicProfileRefreshState(profile?.public_snapshot, now);
+  const missingBaseFields = !profile
     || !profile.day_pillar_key
     || !profile.preview_summary
-    || !profile.element_class
-    || needsPublicProfileRefresh(profile.public_snapshot);
+    || !profile.element_class;
+
+  return {
+    refreshState,
+    missingBaseFields,
+    needsRefresh: missingBaseFields || refreshState.needsRefresh,
+    requiresFullRebuild: missingBaseFields || refreshState.requiresFullRebuild,
+  };
+}
+
+function buildRefreshPayload(profile: Record<string, unknown> | null, fields: Record<string, unknown>) {
+  const publicSnapshot = fields.public_snapshot || profile?.public_snapshot || null;
+
+  return {
+    generatedDateKst: publicSnapshot?.meta?.generated_date_kst || null,
+    generatedMonthKst: publicSnapshot?.meta?.generated_month_kst || null,
+    generatedYearKst: publicSnapshot?.meta?.generated_year_kst || null,
+    previewSummary: fields.preview_summary || profile?.preview_summary || null,
+    dayPillarKey: fields.day_pillar_key || profile?.day_pillar_key || publicSnapshot?.dayPillar?.key || null,
+    dayPillarHanja: fields.day_pillar_hanja || publicSnapshot?.dayPillar?.hanja || null,
+    dayPillarMetaphor: fields.day_pillar_metaphor || publicSnapshot?.dayPillar?.metaphor || null,
+    elementClass: fields.element_class || profile?.element_class || publicSnapshot?.dayPillar?.elementClass || null,
+    publicSnapshot,
+  };
 }
 
 Deno.serve(async (request) => {
@@ -97,29 +124,47 @@ Deno.serve(async (request) => {
     return json({ error: "profile_birth_data_incomplete" }, 409);
   }
 
-  if (!shouldRefreshProfile(profile)) {
+  const now = new Date();
+  const refreshDecision = getProfileRefreshDecision(profile, now);
+
+  if (!refreshDecision.needsRefresh) {
     return json({
       refreshed: false,
       stellarId,
+      refreshScope: "none",
       generatedDateKst: profile.public_snapshot?.meta?.generated_date_kst || null,
     });
   }
 
-  const now = new Date();
   const kstDate = getKstDateParts(now);
-  const { fields } = buildProfileDerivedFieldsFromInput({
-    birthYear: profile.birth_year,
-    birthMonth: profile.birth_month,
-    birthDay: profile.birth_day,
-    birthHour: profile.birth_hour,
-    birthMinute: profile.birth_minute,
-    birthTimeKnown: profile.birth_time_known,
-    calendarType: profile.calendar_type,
-    isLeapMonth: profile.is_leap_month,
-    gender: profile.gender,
-  }, {
-    currentDate: kstDate.referenceDate,
-  });
+  let fields: Record<string, unknown>;
+  let refreshScope = "insights";
+
+  if (refreshDecision.requiresFullRebuild) {
+    ({ fields } = buildProfileDerivedFieldsFromInput({
+      birthYear: profile.birth_year,
+      birthMonth: profile.birth_month,
+      birthDay: profile.birth_day,
+      birthHour: profile.birth_hour,
+      birthMinute: profile.birth_minute,
+      birthTimeKnown: profile.birth_time_known,
+      calendarType: profile.calendar_type,
+      isLeapMonth: profile.is_leap_month,
+      gender: profile.gender,
+    }, {
+      currentDate: kstDate.referenceDate,
+    }));
+    refreshScope = "full";
+  } else {
+    const refreshedSnapshot = refreshPublicProfileSnapshot(profile.public_snapshot, kstDate.referenceDate);
+    if (!refreshedSnapshot) {
+      return json({ error: "snapshot_refresh_failed" }, 500);
+    }
+
+    fields = {
+      public_snapshot: refreshedSnapshot,
+    };
+  }
 
   const { error: updateError } = await supabase
     .from("profiles")
@@ -136,6 +181,7 @@ Deno.serve(async (request) => {
   return json({
     refreshed: true,
     stellarId,
-    generatedDateKst: fields.public_snapshot?.meta?.generated_date_kst || kstDate.dateKey,
+    refreshScope,
+    ...buildRefreshPayload(profile, fields),
   });
 });

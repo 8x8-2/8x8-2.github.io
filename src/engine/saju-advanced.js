@@ -1095,36 +1095,36 @@ function buildUseGodSignals(item, diagnosis) {
     if (!element) return;
 
     if (element === useGods.yongShin) {
-      boosts.push(`용신(${ELEMENT_LABEL[element]}) 유입`);
+      boosts.push(`잘 맞는 기운(${ELEMENT_LABEL[element]})`);
       signals.push("good");
       return;
     }
 
     if (element === useGods.heeShin) {
-      boosts.push(`희신(${ELEMENT_LABEL[element]}) 보조`);
+      boosts.push(`도움이 되는 기운(${ELEMENT_LABEL[element]})`);
       signals.push("good");
       return;
     }
 
     if (element === useGods.giShin) {
-      cautions.push(`기신(${ELEMENT_LABEL[element]}) 자극`);
+      cautions.push(`부담이 되는 기운(${ELEMENT_LABEL[element]})`);
       signals.push("warn");
       return;
     }
 
     if (element === useGods.guShin) {
-      cautions.push(`구신(${ELEMENT_LABEL[element]}) 가세`);
+      cautions.push(`주의할 기운(${ELEMENT_LABEL[element]})`);
       signals.push("warn");
     }
   });
 
   let alignmentText = "";
   if (signals.includes("good") && signals.includes("warn")) {
-    alignmentText = "용희신·기구신 혼재";
+    alignmentText = "좋은 흐름과 주의 흐름이 함께 옴";
   } else if (signals.includes("good")) {
-    alignmentText = "용희신 도움";
+    alignmentText = "잘 맞는 흐름이 강함";
   } else if (signals.includes("warn")) {
-    alignmentText = "기구신 경계";
+    alignmentText = "주의 흐름이 강함";
   }
 
   return {
@@ -1158,8 +1158,8 @@ function enrichLuckItem(item, pillars, diagnosis) {
 
   return {
     ...item,
-    background: stemImpact?.background || "천간은 배경과 환경 쪽 신호를 읽는 참고축입니다.",
-    result: branchImpact?.result || "지지는 실제 체감과 결과 쪽 신호를 읽는 참고축입니다.",
+    background: stemImpact?.background || "겉으로 보이는 환경 변화와 분위기를 읽는 참고 포인트입니다.",
+    result: branchImpact?.result || "실제로 체감하기 쉬운 변화와 결과를 읽는 참고 포인트입니다.",
     boosts,
     cautions,
     interactionTags: [...stemRelations.tags, ...branchRelations.tags].slice(0, 5),
@@ -1256,7 +1256,7 @@ function getBoundaryTermsAround(date) {
   return { next, previous };
 }
 
-function getCurrentFortuneYear(currentDate) {
+export function getCurrentFortuneYear(currentDate) {
   const year = currentDate.getFullYear();
   const lichun = getSolarTermDate(year, 2);
   return currentDate.getTime() < lichun.getTime() ? year - 1 : year;
@@ -1366,11 +1366,10 @@ function buildMajorLuckData({ birthInfo, pillars, gender, unknownTime, diagnosis
 
   const currentMajorLuck = items.find((item) => item.isCurrent) || items[0];
   const directionText = direction === 1 ? "순행" : "역행";
-  const guideText = "대운은 10년 단위의 큰 배경 흐름으로 보고, 천간은 배경·환경, 지지는 현실 체감 쪽으로 풀어 썼습니다.";
-  const relationText = "합은 협조·연결, 충은 변동·마찰, 형·파·해는 누적 갈등이나 균열 신호로 함께 정리했습니다.";
-  const schoolText = "명리학은 학파마다 세부 해석이 달라, 여기서는 널리 쓰이는 월지·투간·억부 기준을 바탕으로 요약했습니다.";
-  const useGodText = diagnosis ? `현재 카드에는 ${ELEMENT_LABEL[diagnosis.useGods.yongShin]} 용신과 ${ELEMENT_LABEL[diagnosis.useGods.heeShin]} 희신이 들어오는지, ${ELEMENT_LABEL[diagnosis.useGods.giShin]} 기신이 자극되는지도 함께 반영했습니다.` : "";
-  const note = [guideText, relationText, schoolText, useGodText, unknownTime ? "태어난 시간을 모르는 경우 대운 시작 시점은 정오 기준으로 계산해 실제보다 몇 개월 차이가 날 수 있습니다." : ""]
+  const guideText = "대운은 10년 단위의 큰 흐름으로 보고, 지금 삶의 분위기가 어디에 실리는지 쉽게 풀어 썼습니다.";
+  const relationText = "도움이 되는 연결과 변동, 마찰 가능성도 함께 정리했습니다.";
+  const useGodText = diagnosis ? "지금 시기에 잘 맞는 기운과 부담이 되는 기운도 함께 반영했습니다." : "";
+  const note = [guideText, relationText, useGodText, unknownTime ? "태어난 시간을 모르면 대운 시작 시점은 실제와 몇 개월 정도 차이 날 수 있습니다." : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -1378,7 +1377,7 @@ function buildMajorLuckData({ birthInfo, pillars, gender, unknownTime, diagnosis
     direction: directionText,
     startAge,
     note,
-    summary: `대운은 ${directionText}으로 흐르며, 출생 후 약 ${startAge}세부터 첫 대운이 시작되는 구조로 계산했습니다. 여기서는 각 10년마다 어떤 배경이 깔리고, 용희신에 힘이 실리는지, 어떤 합형충파해를 조심하면 좋은지 바로 읽히도록 정리했습니다.`,
+    summary: `대운은 ${directionText}으로 흐르며, 출생 후 약 ${startAge}세부터 첫 흐름이 시작되는 구조로 계산했습니다. 각 10년마다 어떤 분위기가 강해지고 무엇을 챙기면 좋은지 읽기 쉽게 정리했습니다.`,
     current: currentMajorLuck,
     items,
   };
@@ -1410,66 +1409,66 @@ function buildYearLuckData({ dayStem, pillars, diagnosis, currentDate = new Date
   const items = rawItems.map((item) => enrichLuckItem(item, pillars, diagnosis));
 
   return {
-    summary: `세운은 현재 기준 ${currentFortuneYear}년부터 앞으로 ${count}년 흐름을 함께 보여줍니다. 올해와 앞으로의 해마다 힘 받는 점과 주의할 점을 빠르게 읽을 수 있도록 정리했습니다.`,
-    note: `세운은 해당 연도의 촉발 요인으로 보고, 대운 위에 얹혀서 실제 체감이 커지는 해를 확인하는 방식으로 정리했습니다. 명리학은 학파마다 세부 해석이 달라, 여기서는 널리 쓰이는 월지·투간·억부 기준과 지지 상호작용을 중심으로 요약했습니다.${diagnosis ? ` 카드에는 ${ELEMENT_LABEL[diagnosis.useGods.yongShin]} 용신·${ELEMENT_LABEL[diagnosis.useGods.heeShin]} 희신 도움과 ${ELEMENT_LABEL[diagnosis.useGods.giShin]} 기신 경계도 함께 표시했습니다.` : ""}`,
+    summary: `세운은 현재 기준 ${currentFortuneYear}년부터 앞으로 ${count}년 흐름을 함께 보여줍니다. 해마다 힘이 실리는 점과 조심할 점을 바로 읽을 수 있게 정리했습니다.`,
+    note: `세운은 그해 분위기와 체감 변화를 가볍게 읽는 참고 자료입니다. 큰 흐름 위에 어떤 해가 겹치는지 중심으로 풀었습니다.${diagnosis ? " 잘 맞는 흐름과 주의 흐름도 함께 반영했습니다." : ""}`,
     items,
   };
 }
 
 function buildMoneyStyleText(properCount, irregularCount, counts) {
   if (properCount > irregularCount) {
-    return "정재 쪽 비중이 더 커서 안정 수입, 계약, 고정적인 현금흐름, 예산 관리형 돈 운과 비교적 잘 맞는 편입니다.";
+    return "안정적인 수입, 계약, 예산 관리처럼 꾸준히 쌓아 가는 방식이 특히 잘 맞는 편입니다.";
   }
 
   if (irregularCount > properCount) {
-    return "편재 비중이 더 커서 영업, 사업, 외부 기회, 네트워크, 부수입처럼 유동적인 돈 흐름에 감각이 살아날 수 있습니다.";
+    return "영업, 사업, 외부 기회, 네트워크, 부수입처럼 움직이며 잡는 수입 흐름에 감각이 살아날 수 있습니다.";
   }
 
   if (properCount + irregularCount > 0) {
-    return "정재와 편재가 함께 보이는 편이라 안정 수입과 기회형 수입을 병행할 때 장점이 잘 살아날 수 있습니다.";
+    return "안정적으로 챙기는 돈과 기회형 수입을 함께 가져갈 때 장점이 잘 살아날 수 있습니다.";
   }
 
   if (counts.식신 + counts.상관 >= 2) {
-    return "재성이 겉으로 강하게 많지는 않지만 식상 쪽이 살아 있어, 실력과 결과물을 수익으로 연결하는 방식이 더 안정적으로 맞을 수 있습니다.";
+    return "돈 기회가 겉으로 아주 많지는 않아도, 실력과 결과물을 수익으로 연결하는 방식이 더 잘 맞을 수 있습니다.";
   }
 
-  return "재성이 겉으로 많이 드러난 구조는 아니라, 돈은 한 번에 크게 벌기보다 생활 구조와 경력의 안정 속에서 서서히 쌓는 방식이 더 맞을 수 있습니다.";
+  return "돈은 한 번에 크게 벌기보다 생활 구조와 경력의 안정 속에서 서서히 쌓는 방식이 더 잘 맞을 수 있습니다.";
 }
 
 function buildCurrentMoneyFlowText(majorLuck, yearLuck) {
   const currentMajor = majorLuck.current;
   const currentYear = yearLuck.items[0];
   const totalWealthHits = currentMajor.wealthHitCount + currentYear.wealthHitCount;
-  const currentMajorLabel = `대운 ${currentMajor.pillarString}(${currentMajor.stemGod}/${currentMajor.branchGod})`;
-  const currentYearLabel = `세운 ${currentYear.year}년 ${currentYear.pillarString}(${currentYear.stemGod}/${currentYear.branchGod})`;
+  const currentMajorLabel = `현재 대운 ${currentMajor.pillarString}`;
+  const currentYearLabel = `올해 ${currentYear.year}년 ${currentYear.pillarString}`;
 
   if (totalWealthHits >= 3) {
-    return `현재 ${currentMajorLabel}와 ${currentYearLabel}에서 재성 신호가 강하게 겹쳐, 실속 챙기기와 수익화, 계약 관리에 특히 신경 쓸 만한 시기입니다.`;
+    return `지금은 ${currentMajorLabel}과 ${currentYearLabel} 흐름이 함께 실속, 수익화, 계약 관리에 힘을 보태는 시기입니다.`;
   }
 
   if (totalWealthHits >= 1) {
-    return `현재 ${currentMajorLabel}, ${currentYearLabel}에서는 재성 신호가 일부 들어와 있어 돈 문제를 정리하고 실속을 챙기기 좋은 흐름이 열려 있습니다.`;
+    return `지금은 ${currentMajorLabel}과 ${currentYearLabel} 흐름을 타고 돈 문제를 정리하고 실속을 챙기기 좋은 시기입니다.`;
   }
 
   if (isOutputGod(currentMajor.stemGod) || isOutputGod(currentMajor.branchGod) || isOutputGod(currentYear.stemGod) || isOutputGod(currentYear.branchGod)) {
-    return `현재는 재성이 직접 강하게 들어오기보다 ${currentMajorLabel}과 ${currentYearLabel}을 통해 실력, 결과물, 성과를 먼저 키우고 그것을 돈으로 연결하는 흐름에 가깝습니다.`;
+    return `지금은 바로 돈만 보기보다 ${currentMajorLabel}과 ${currentYearLabel} 흐름을 타고 실력과 결과물을 먼저 키우는 편이 유리합니다.`;
   }
 
   if (isOfficialGod(currentMajor.stemGod) || isOfficialGod(currentMajor.branchGod) || isOfficialGod(currentYear.stemGod) || isOfficialGod(currentYear.branchGod)) {
-    return `현재는 재물 자체보다 직장, 책임, 역할 변화가 돈의 흐름을 좌우하기 쉬운 시기라 커리어 안정이 곧 재물 관리의 핵심이 됩니다.`;
+    return "지금은 직장, 책임, 역할 변화가 돈 흐름을 좌우하기 쉬운 시기라 커리어 안정이 곧 재물 관리의 핵심이 됩니다.";
   }
 
-  return `현재 흐름은 돈이 갑자기 커지기보다 생활 구조와 지출 관리, 역할 정리가 함께 맞물리며 실속을 만드는 쪽에 가깝습니다.`;
+  return "지금은 돈이 갑자기 커지기보다 생활 구조와 지출 관리, 역할 정리를 통해 실속을 만드는 쪽에 가깝습니다.";
 }
 
 function buildUpcomingMoneyText(yearLuck) {
   const richYears = yearLuck.items.filter((item) => item.wealthHitCount > 0).slice(0, 3);
 
   if (!richYears.length) {
-    return "앞으로 바로 재성 신호가 강하게 들어오는 해가 많지는 않아, 성급한 투자보다 준비된 기회를 기다리는 편이 유리합니다.";
+    return "앞으로 바로 돈 흐름이 강하게 들어오는 해가 많지는 않아, 성급한 투자보다 준비된 기회를 기다리는 편이 유리합니다.";
   }
 
-  return `가까이서 재성 신호가 비교적 또렷한 해는 ${richYears.map((item) => `${item.year}년`).join(", ")} 정도로 보여, 해당 시기에는 수익화와 계약, 저축 계획을 더 적극적으로 점검해 볼 만합니다.`;
+  return `가까운 시기에는 ${richYears.map((item) => `${item.year}년`).join(", ")} 무렵에 돈과 계약 흐름이 비교적 또렷해 보여, 해당 해에는 수익화와 저축 계획을 더 적극적으로 점검해 볼 만합니다.`;
 }
 
 function buildWealthData({ pillars, tenGods, majorLuck, yearLuck, unknownTime }) {
@@ -1505,21 +1504,21 @@ function buildWealthData({ pillars, tenGods, majorLuck, yearLuck, unknownTime })
 
   const totalWealthCount = visibleWealthCount + hiddenWealthCount;
   const strengthText = totalWealthCount >= 5
-    ? "재성이 비교적 두드러지는 편"
+    ? "돈 기회가 비교적 많이 드러나는 편"
     : totalWealthCount >= 3
-      ? "재성 신호가 중간 이상으로 보이는 편"
+      ? "돈 흐름이 중간 이상으로 보이는 편"
       : totalWealthCount >= 1
-        ? "재성은 숨어 있는 형태로 보이는 편"
-        : "재성이 강하게 드러난 사주는 아닌 편";
+        ? "돈 기회가 숨어 있는 형태로 보이는 편"
+        : "돈 흐름이 강하게 드러나는 타입은 아닌 편";
 
   const cards = [
     {
-      title: "재성 구조",
-      text: `일간 기준 재물 오행은 ${ELEMENT_LABEL[wealthElement]}입니다. 원국에서는 ${strengthText}으로, 천간에 드러난 재성은 ${visibleWealthCount}개이고 지장간까지 포함한 전체 재성은 ${totalWealthCount}개입니다. 정재 ${properCount}개, 편재 ${irregularCount}개 흐름으로 읽을 수 있습니다.`,
+      title: "돈 흐름 구조",
+      text: `이 사주는 ${strengthText}입니다. 눈에 띄는 돈 기회는 ${visibleWealthCount}곳, 숨은 가능성까지 합치면 ${totalWealthCount}곳 정도로 읽힙니다. 안정형 흐름은 ${properCount}, 기회형 흐름은 ${irregularCount}로 잡힙니다.`,
     },
     {
       title: "돈 버는 방식",
-      text: `${buildMoneyStyleText(properCount, irregularCount, countMap)} ${countMap.비견 + countMap.겁재 >= 3 ? "비겁 기운도 적지 않아 사람 문제나 경쟁, 충동 지출로 새는 돈은 의식적으로 관리하는 편이 좋습니다." : ""} ${countMap.정인 + countMap.편인 >= 3 ? "인성 비중이 높다면 자격, 공부, 문서, 전문성 축적이 결국 돈의 안정으로 이어지기 쉽습니다." : ""}`.trim(),
+      text: `${buildMoneyStyleText(properCount, irregularCount, countMap)} ${countMap.비견 + countMap.겁재 >= 3 ? "사람 문제, 경쟁, 충동 지출로 새는 돈은 의식적으로 관리하는 편이 좋습니다." : ""} ${countMap.정인 + countMap.편인 >= 3 ? "공부, 자격, 문서, 전문성 축적이 결국 돈의 안정으로 이어지기 쉬운 편입니다." : ""}`.trim(),
     },
     {
       title: "현재 재물 흐름",
@@ -1528,7 +1527,7 @@ function buildWealthData({ pillars, tenGods, majorLuck, yearLuck, unknownTime })
   ];
 
   return {
-    summary: `재물운은 단순히 돈이 많고 적다기보다, 재성이 어떤 형태로 보이고 현재 대운·세운이 어디에 힘을 싣는지 함께 보는 편이 정확합니다.`,
+    summary: "재물운은 돈이 많고 적다기보다, 어떤 방식으로 벌기 쉬운지와 지금 시기가 어디에 힘을 싣는지를 함께 보는 편이 더 실용적입니다.",
     cards,
   };
 }

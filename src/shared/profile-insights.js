@@ -1,5 +1,14 @@
 import { getDayPillarArchetype } from "../../data/daypillars.js";
+import { getCurrentFortuneYear } from "../engine/saju-advanced.js";
 import { calculateFourPillars } from "../engine/soulscan-engine.js";
+
+export const PROFILE_REFRESH_POLICY = Object.freeze({
+  personality: "daily",
+  health: "monthly",
+  love: "monthly",
+  ability: "monthly",
+  majorLuck: "yearly",
+});
 
 const GENERATES = {
   목: "화",
@@ -258,6 +267,120 @@ export function getKstDateParts(now = new Date()) {
   };
 }
 
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasList(values) {
+  return Array.isArray(values) && values.some((value) => hasText(value));
+}
+
+function hasArray(values) {
+  return Array.isArray(values);
+}
+
+function hasSectionText(snapshot, index) {
+  return hasText(snapshot?.sections?.[index]?.text);
+}
+
+function hasWealthCards(snapshot) {
+  const cards = snapshot?.advanced?.wealth?.cards;
+  return Array.isArray(cards) && cards.length > 0 && cards.every((card) => hasText(card?.title) && hasText(card?.text));
+}
+
+function hasLuckItems(items) {
+  return Array.isArray(items) && items.length > 0 && items.every((item) => hasText(item?.pillarString));
+}
+
+function isCompletePersonalityDailyInsight(insight, dateKey) {
+  return insight?.dateKey === dateKey
+    && hasText(insight?.point)
+    && hasText(insight?.goodEmotion)
+    && hasText(insight?.improve)
+    && hasList(insight?.goodSignals)
+    && hasList(insight?.warnSignals);
+}
+
+function isCompleteMonthlyInsight(insight, monthKey, { requireGoodPoint = false } = {}) {
+  return insight?.monthKey === monthKey
+    && hasText(insight?.point)
+    && (!requireGoodPoint || hasText(insight?.goodPoint))
+    && hasList(insight?.goodSignals)
+    && hasList(insight?.warnSignals);
+}
+
+function isCompleteLoveDetailInsight(insight) {
+  return hasText(insight?.summary)
+    && hasText(insight?.attraction)
+    && hasText(insight?.dislike)
+    && hasText(insight?.strategy);
+}
+
+function isCompleteHealthYearlyInsight(insight, fortuneYear) {
+  return Number(insight?.fortuneYear || 0) === Number(fortuneYear || 0)
+    && hasText(insight?.goodPoint)
+    && hasArray(insight?.supports);
+}
+
+function getRequiredFullRefreshReasons(publicSnapshot, currentKeys) {
+  const reasons = [];
+
+  if (!publicSnapshot?.dayPillar?.key || !publicSnapshot?.advanced || !Array.isArray(publicSnapshot?.sections)) {
+    reasons.push("missing_snapshot_base");
+    return reasons;
+  }
+
+  if (!hasSectionText(publicSnapshot, 0)) reasons.push("missing_personality_section");
+  if (!hasSectionText(publicSnapshot, 1)) reasons.push("missing_ability_section");
+  if (!hasSectionText(publicSnapshot, 2)) reasons.push("missing_love_section");
+  if (!hasSectionText(publicSnapshot, 4)) reasons.push("missing_health_section");
+  if (!hasText(publicSnapshot?.advanced?.majorLuck?.summary)) reasons.push("missing_major_luck_summary");
+  if (!hasLuckItems(publicSnapshot?.advanced?.majorLuck?.items)) reasons.push("missing_major_luck_items");
+  if (!hasText(publicSnapshot?.advanced?.yearLuck?.summary)) reasons.push("missing_year_luck_summary");
+  if (!hasLuckItems(publicSnapshot?.advanced?.yearLuck?.items)) reasons.push("missing_year_luck_items");
+  if (!hasText(publicSnapshot?.advanced?.wealth?.summary) || !hasWealthCards(publicSnapshot)) reasons.push("missing_wealth_cards");
+
+  if (String(publicSnapshot?.meta?.generated_year_kst || "") !== currentKeys.yearKey) {
+    reasons.push("stale_year_kst");
+  }
+
+  if (Number(publicSnapshot?.meta?.generated_fortune_year || 0) !== currentKeys.fortuneYear) {
+    reasons.push("stale_fortune_year");
+  }
+
+  return reasons;
+}
+
+function getRequiredInsightRefreshReasons(publicSnapshot, currentKeys) {
+  const reasons = [];
+
+  if (!isCompletePersonalityDailyInsight(publicSnapshot?.insights?.personalityDaily, currentKeys.dateKey)) {
+    reasons.push("stale_personality_daily");
+  }
+
+  if (!isCompleteMonthlyInsight(publicSnapshot?.insights?.healthMonthly, currentKeys.monthKey, { requireGoodPoint: true })) {
+    reasons.push("stale_health_monthly");
+  }
+
+  if (!isCompleteHealthYearlyInsight(publicSnapshot?.insights?.healthYearly, currentKeys.fortuneYear)) {
+    reasons.push("stale_health_yearly");
+  }
+
+  if (!isCompleteLoveDetailInsight(publicSnapshot?.insights?.loveDetail)) {
+    reasons.push("stale_love_detail");
+  }
+
+  if (!isCompleteMonthlyInsight(publicSnapshot?.insights?.loveMonthly, currentKeys.monthKey)) {
+    reasons.push("stale_love_monthly");
+  }
+
+  if (!isCompleteMonthlyInsight(publicSnapshot?.insights?.abilityMonthly, currentKeys.monthKey)) {
+    reasons.push("stale_ability_monthly");
+  }
+
+  return reasons;
+}
+
 function getElementRole(dayElement, targetElement) {
   if (!dayElement || !targetElement) return "peer";
   if (dayElement === targetElement) return "peer";
@@ -335,7 +458,7 @@ function buildPersonalityDailyInsight(snapshot, kstDateParts) {
     dateLabel: kstDateParts.dateLabel,
     pillarKey: todayKey,
     pillarHanja: todayArchetype.hanja || "",
-    point: `${copy.point}${todayArchetype.metaphor ? ` 오늘 흐름은 ${todayArchetype.metaphor} 결로 읽힙니다.` : ""}`.trim(),
+    point: `${copy.point}${todayArchetype.metaphor ? ` 오늘 분위기는 '${todayArchetype.metaphor}' 이미지에 가깝습니다.` : ""}`.trim(),
     goodEmotion: copy.goodEmotion,
     improve: copy.improve,
     goodSignals: [...new Set(goodSignals)].slice(0, 4),
@@ -382,7 +505,7 @@ function buildMonthlyInsight(snapshot, variant, kstDateParts) {
     monthLabel: kstDateParts.monthLabel,
     pillarKey: monthKey,
     pillarHanja: monthArchetype.hanja || "",
-    point: `${copy.point || ""}${monthArchetype.metaphor ? ` 이번 달 결은 ${monthArchetype.metaphor} 쪽으로 읽힙니다.` : ""}`.trim(),
+    point: `${copy.point || ""}${monthArchetype.metaphor ? ` 이번 달 분위기는 '${monthArchetype.metaphor}' 이미지에 가깝습니다.` : ""}`.trim(),
     goodPoint: copy.goodPoint || "",
     goodSignals: [...new Set(goodSignals)].slice(0, 4),
     warnSignals: [...new Set(warnSignals)].slice(0, 4),
@@ -404,12 +527,16 @@ function buildLoveDetailInsight(snapshot) {
 
 export function buildProfileInsightBundle(snapshot, now = new Date()) {
   const kstDateParts = getKstDateParts(now);
+  const fortuneYear = getCurrentFortuneYear(kstDateParts.referenceDate);
 
   return {
     meta: {
       generated_date_kst: kstDateParts.dateKey,
       generated_month_kst: kstDateParts.monthKey,
+      generated_year_kst: String(kstDateParts.year),
+      generated_fortune_year: fortuneYear,
       generated_at: new Date(now).toISOString(),
+      refresh_policy: PROFILE_REFRESH_POLICY,
     },
     personalityDaily: buildPersonalityDailyInsight(snapshot, kstDateParts),
     healthMonthly: buildMonthlyInsight(snapshot, "health", kstDateParts),
@@ -442,27 +569,42 @@ export function buildEnrichedPublicProfileSnapshot(snapshot, now = new Date()) {
   };
 }
 
-export function needsPublicProfileRefresh(publicSnapshot, now = new Date()) {
-  if (!publicSnapshot?.dayPillar?.key || !publicSnapshot?.advanced || !Array.isArray(publicSnapshot?.sections)) {
-    return true;
-  }
-
+export function getPublicProfileRefreshState(publicSnapshot, now = new Date()) {
   const kstDateParts = getKstDateParts(now);
-  const generatedDateKey = publicSnapshot?.meta?.generated_date_kst;
-  const generatedMonthKey = publicSnapshot?.meta?.generated_month_kst;
+  const currentKeys = {
+    dateKey: kstDateParts.dateKey,
+    monthKey: kstDateParts.monthKey,
+    yearKey: String(kstDateParts.year),
+    fortuneYear: getCurrentFortuneYear(kstDateParts.referenceDate),
+  };
+  const fullReasons = getRequiredFullRefreshReasons(publicSnapshot, currentKeys);
+  const insightReasons = fullReasons.length ? [] : getRequiredInsightRefreshReasons(publicSnapshot, currentKeys);
 
-  if (generatedDateKey !== kstDateParts.dateKey) {
-    return true;
+  return {
+    needsRefresh: fullReasons.length > 0 || insightReasons.length > 0,
+    requiresFullRebuild: fullReasons.length > 0,
+    needsInsightRefresh: fullReasons.length === 0 && insightReasons.length > 0,
+    fullReasons,
+    insightReasons,
+    currentKeys,
+  };
+}
+
+export function refreshPublicProfileSnapshot(publicSnapshot, now = new Date()) {
+  if (!publicSnapshot?.dayPillar?.key || !publicSnapshot?.advanced || !Array.isArray(publicSnapshot?.sections)) {
+    return null;
   }
 
-  if (generatedMonthKey !== kstDateParts.monthKey) {
-    return true;
-  }
+  return buildEnrichedPublicProfileSnapshot({
+    gender: publicSnapshot.gender,
+    unknownTime: publicSnapshot.unknownTime,
+    pillars: publicSnapshot.pillars,
+    sections: publicSnapshot.sections,
+    advanced: publicSnapshot.advanced,
+    dayPillar: publicSnapshot.dayPillar,
+  }, now);
+}
 
-  return !publicSnapshot?.insights?.personalityDaily
-    || !publicSnapshot?.insights?.healthMonthly
-    || !publicSnapshot?.insights?.healthYearly
-    || !publicSnapshot?.insights?.loveDetail
-    || !publicSnapshot?.insights?.loveMonthly
-    || !publicSnapshot?.insights?.abilityMonthly;
+export function needsPublicProfileRefresh(publicSnapshot, now = new Date()) {
+  return getPublicProfileRefreshState(publicSnapshot, now).needsRefresh;
 }
