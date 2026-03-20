@@ -386,9 +386,9 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 10px 16px;
-  border-radius: 0.5rem;
+  min-height: 3rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
   font-weight: 700;
   text-decoration: none;
 }
