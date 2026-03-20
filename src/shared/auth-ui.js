@@ -49,6 +49,7 @@ function resolvePageTitle(meta) {
 function resolveGuestPageTitle(meta) {
   switch (meta.pageName) {
     case "home":
+      return "STELLAR-ID";
     case "soulday_list":
     case "soulday_detail":
       return "스텔라 ID";
