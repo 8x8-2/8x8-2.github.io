@@ -6,25 +6,10 @@ import {
   signInWithPassword,
 } from "./shared/auth.js";
 import { setupAuthUi } from "./shared/auth-ui.js";
-import { buildSignedInHomeUrl } from "./shared/stellar-id.js";
+import { buildSignedInHomeUrl, resolvePostAuthRedirect } from "./shared/stellar-id.js";
 
 function $(id) {
   return document.getElementById(id);
-}
-
-function resolveRedirect(fallbackPath) {
-  const next = new URLSearchParams(window.location.search).get("next");
-  const fallbackUrl = new URL(fallbackPath, window.location.href);
-
-  if (!next) return fallbackUrl.toString();
-
-  try {
-    const targetUrl = new URL(next, window.location.href);
-    if (targetUrl.origin !== window.location.origin) return fallbackUrl.toString();
-    return targetUrl.toString();
-  } catch {
-    return fallbackUrl.toString();
-  }
 }
 
 function isValidEmail(value) {
@@ -55,10 +40,10 @@ getSession()
       fetchProfile(session.user.id)
         .then((profile) => {
           const fallback = buildSignedInHomeUrl(session, profile);
-          window.location.replace(resolveRedirect(fallback));
+          window.location.replace(resolvePostAuthRedirect(new URLSearchParams(window.location.search).get("next"), fallback));
         })
         .catch(() => {
-          window.location.replace(resolveRedirect(buildSignedInHomeUrl(session, null)));
+          window.location.replace(resolvePostAuthRedirect(new URLSearchParams(window.location.search).get("next"), buildSignedInHomeUrl(session, null)));
         });
     }
   })
@@ -91,7 +76,7 @@ form?.addEventListener("submit", async (event) => {
     const data = await signInWithPassword({ email, password });
     const profile = data?.user ? await fetchProfile(data.user.id) : null;
     const fallback = data?.session ? buildSignedInHomeUrl(data.session, profile) : homePath;
-    window.location.replace(resolveRedirect(fallback));
+    window.location.replace(resolvePostAuthRedirect(new URLSearchParams(window.location.search).get("next"), fallback));
   } catch (error) {
     errorEl.textContent = error.message || "로그인에 실패했습니다.";
     statusEl.textContent = "";

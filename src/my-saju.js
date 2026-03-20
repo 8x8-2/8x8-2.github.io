@@ -38,9 +38,8 @@ function buildProfileUrl(userId) {
 }
 
 function setGuestLinks() {
-  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  $("mySajuGuestSignin").href = `${document.body.dataset.linkSignin || "../signin/"}?next=${encodeURIComponent(currentPath)}`;
-  $("mySajuGuestSignup").href = `${document.body.dataset.linkSignup || "../signup/"}?next=${encodeURIComponent(currentPath)}`;
+  $("mySajuGuestSignin").href = document.body.dataset.linkSignin || "../signin/";
+  $("mySajuGuestSignup").href = document.body.dataset.linkSignup || "../signup/";
 }
 
 function fillSummary(profile, snapshot) {

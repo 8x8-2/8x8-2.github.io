@@ -87,6 +87,7 @@ export function renderSocialNav(container, {
   searchTitle = "스텔라 프로필 검색",
   showProfileIdentity = false,
   homeUrlOverride = null,
+  hideGuestSignin = false,
 }) {
   if (!container) return () => {};
 
@@ -133,7 +134,7 @@ export function renderSocialNav(container, {
                 ${getAvatarMarkup(viewerProfile)}
               </button>
               <div class="social-profile-panel" role="menu" data-social-panel>
-                <a class="social-profile-panel-link" href="${escapeHtml(homeUrl)}">내 스텔라 프로필</a>
+                <a class="social-profile-panel-link" href="${escapeHtml(homeUrl)}">내 프로필</a>
                 <a class="social-profile-panel-link" href="${escapeHtml(followingUrl)}">팔로잉 프로필</a>
                 <span class="social-profile-divider" aria-hidden="true"></span>
                 <a class="social-profile-panel-link" href="${escapeHtml(accountUrl)}">계정 정보</a>
@@ -141,7 +142,9 @@ export function renderSocialNav(container, {
               </div>
             </div>
           `
-          : showAuthLoadingPlaceholder
+          : hideGuestSignin
+            ? ""
+            : showAuthLoadingPlaceholder
             ? `<span class="social-auth-placeholder" aria-hidden="true"></span>`
             : `<a class="topbar-auth-link" href="${escapeHtml(signinUrl)}" data-auth-action="signin">로그인</a>`
         }

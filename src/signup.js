@@ -10,7 +10,7 @@ import {
 import { buildProfileDerivedFieldsFromInput } from "./shared/profile-derived.js";
 import { setupAuthUi } from "./shared/auth-ui.js";
 import { loadBirthDraft, saveBirthDraft } from "./shared/drafts.js";
-import { buildSignedInHomeUrl, buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput } from "./shared/stellar-id.js";
+import { buildSignedInHomeUrl, buildPublicProfileUrl, isValidStellarId, normalizeStellarIdInput, resolvePostAuthRedirect } from "./shared/stellar-id.js";
 
 function $(id) {
   return document.getElementById(id);
@@ -125,21 +125,6 @@ function updateBirthTimeState() {
   birthTimeEl.placeholder = "00:00";
   birthTimeEl.value = normalizeBirthTimeInput(birthTimeEl.value);
   feedbackEl.classList.toggle("hidden", isValidBirthTime(birthTimeEl.value));
-}
-
-function resolveRedirect(fallbackPath) {
-  const next = new URLSearchParams(window.location.search).get("next");
-  const fallbackUrl = new URL(fallbackPath, window.location.href);
-
-  if (!next) return fallbackUrl.toString();
-
-  try {
-    const targetUrl = new URL(next, window.location.href);
-    if (targetUrl.origin !== window.location.origin) return fallbackUrl.toString();
-    return targetUrl.toString();
-  } catch {
-    return fallbackUrl.toString();
-  }
 }
 
 let stellarIdAvailability = {
@@ -268,10 +253,10 @@ getSession()
     if (session) {
       fetchProfile(session.user.id)
         .then((profile) => {
-          window.location.replace(resolveRedirect(buildSignedInHomeUrl(session, profile)));
+          window.location.replace(resolvePostAuthRedirect(new URLSearchParams(window.location.search).get("next"), buildSignedInHomeUrl(session, profile)));
         })
         .catch(() => {
-          window.location.replace(resolveRedirect(buildSignedInHomeUrl(session, null)));
+          window.location.replace(resolvePostAuthRedirect(new URLSearchParams(window.location.search).get("next"), buildSignedInHomeUrl(session, null)));
         });
     }
   })
@@ -450,7 +435,7 @@ $("signupForm")?.addEventListener("submit", async (event) => {
         }
       }
 
-      window.location.replace(resolveRedirect(buildPublicProfileUrl(resolvedStellarId)));
+      window.location.replace(resolvePostAuthRedirect(new URLSearchParams(window.location.search).get("next"), buildPublicProfileUrl(resolvedStellarId)));
       return;
     }
 

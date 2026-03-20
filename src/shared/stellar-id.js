@@ -158,6 +158,39 @@ export function buildAccountUrl(userId = null) {
   return url.toString();
 }
 
+export function isLegacyOwnProfileUrl(urlLike) {
+  try {
+    const url = urlLike instanceof URL ? urlLike : new URL(String(urlLike || ""), window.location.href);
+    const normalizedPath = url.pathname.replace(/\/+$/, "") || "/";
+    return normalizedPath === "/my-saju";
+  } catch {
+    return false;
+  }
+}
+
+export function resolvePostAuthRedirect(next, fallbackPath) {
+  const fallbackUrl = new URL(fallbackPath, window.location.href);
+
+  if (!next) {
+    return fallbackUrl.toString();
+  }
+
+  try {
+    const targetUrl = new URL(next, window.location.href);
+    if (targetUrl.origin !== window.location.origin) {
+      return fallbackUrl.toString();
+    }
+
+    if (isLegacyOwnProfileUrl(targetUrl)) {
+      return fallbackUrl.toString();
+    }
+
+    return targetUrl.toString();
+  } catch {
+    return fallbackUrl.toString();
+  }
+}
+
 export function buildSignedInHomeUrl(session, profile = null) {
   const stellarId = resolveOwnStellarId(session, profile);
   if (stellarId) {

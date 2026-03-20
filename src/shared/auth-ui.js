@@ -24,9 +24,9 @@ function resolvePageTitle(meta) {
 
   switch (meta.pageName) {
     case "home":
-      return "무료 사주";
+      return "STELLAR-ID";
     case "signin":
-      return "로그인";
+      return "STELLAR-ID";
     case "signup":
       return "회원가입";
     case "privacy":
@@ -42,7 +42,7 @@ function resolvePageTitle(meta) {
     case "password":
       return "암호 변경";
     default:
-      return "스텔라 ID";
+      return "STELLAR-ID";
   }
 }
 
@@ -68,6 +68,7 @@ function renderPageNav(container, meta, session, profile = null, authStatus = AU
     viewerProfile: profile || buildSessionProfileStub(session),
     pageTitle: session ? resolvePageTitle(meta) : resolveGuestPageTitle(meta),
     homeUrlOverride: session ? buildLoggedInHomeUrl(session, profile) : null,
+    hideGuestSignin: meta.pageName === "signin",
   });
 }
 
