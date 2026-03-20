@@ -1,10 +1,22 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 
 :root {
+  --gray-01: #000000;
+  --gray-02: #111314;
+  --gray-03: #272b35;
+  --gray-04: #383e4b;
+  --gray-05: #272b35;
+  --gray-06: #5a6378;
+  --gray-07: #6a768e;
+  --gray-08: #808aa0;
+  --gray-09: #aab1b8;
+  --gray-10: #dee0e3;
+  --gray-11: #f1f2f3;
+  --gray-12: #f7f8f9;
   --bd: #e5e7eb;
   --txt: #111827;
   --mut: #6b7280;
-  --bg: #111314;
+  --bg: var(--gray-02);
   --paper: #ffffff;
   --wood: #003b00;
   --fire: #882a2a;
@@ -258,7 +270,7 @@ body.has-notification-center {
 
 .profile-panel-link.is-active {
   border-color: rgba(17, 24, 39, 0.14);
-  background: #111314;
+  background: var(--gray-02);
   color: #fff;
 }
 
@@ -397,7 +409,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .cta-link-button {
   border: none;
   background:var(--accent);
-  color: #111314;
+  color: var(--gray-02);
 }
 
 .text-link-button {
@@ -752,13 +764,13 @@ html.profile-hydrating body[data-page-name="public_profile"] #profileSeoFallback
 .footer-meta span {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #88929c;
+  color: var(--gray-08);
 }
 
 .footer-meta a {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #aab1b8;
+  color: var(--gray-09);
 }
 
 .footer-divider {
@@ -857,42 +869,6 @@ html.profile-hydrating body[data-page-name="public_profile"] #profileSeoFallback
   padding: 18px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 16px 30px rgba(17, 24, 39, 0.08);
-}
-
-.auth-card {
-  max-width: 25rem;
-  margin-inline: auto;
-}
-
-.auth-form {
-  display: grid;
-  gap: 14px;
-  margin-top: 20px;
-}
-
-.auth-form-wide {
-  margin-top: 24px;
-}
-
-.auth-grid-two {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 0;
-}
-
-.auth-helper-box {
-  margin-top: 18px;
-}
-
-.auth-consent {
-  margin-top: 2px;
-}
-
-.auth-secondary {
-  margin-top: 22px;
-}
-
-.auth-secondary-link {
-  width: 100%;
 }
 
 .saved-reading-list {
@@ -1650,12 +1626,12 @@ body.has-modal {
   --accent-strong: #84ffd0;
   --accent-soft: rgba(73, 250, 160, 0.14);
   --accent-outline: rgba(73, 250, 160, 0.34);
-  --bd: #383e4b;
+  --bd: var(--gray-04);
   --bd-strong: #737e8a;
-  --txt: #f1f2f3;
-  --txt-soft: #dee0e3;
+  --txt: var(--gray-11);
+  --txt-soft: var(--gray-10);
   --mut: #737e8a;
-  --bg: #111314;
+  --bg: var(--gray-02);
   --bg-deep: #0b0d12;
   --paper: #171b22;
   --paper-soft: #1d222b;
@@ -1673,7 +1649,7 @@ html {
 
 ::selection {
   background: #49faa0;
-  color: #111314;
+  color: var(--gray-02);
 }
 
 body {
@@ -2132,7 +2108,7 @@ summary:focus-visible {
 .social-icon-button svg {
   width: 20px;
   height: 20px;
-  color: #dee0e3;
+  color: var(--gray-10);
 }
 
 .topbar-icon-link:hover,
@@ -2190,7 +2166,7 @@ summary:focus-visible {
 .social-topbar .topbar-auth-link {
   border: 1px solid rgba(244, 247, 250, 0.96);
   background: rgba(244, 247, 250, 0.98);
-  color: #111314;
+  color: var(--gray-02);
   font-size: 0.94rem;
   font-weight: 700;
 }
@@ -2288,12 +2264,12 @@ summary:focus-visible {
   white-space: nowrap;
   vertical-align: bottom;
   font-variant-numeric: tabular-nums;
-  -webkit-mask-image: linear-gradient(90deg, #111314 0 66%, transparent 100%);
-  mask-image: linear-gradient(90deg, #111314 0 66%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, var(--gray-02) 0 66%, transparent 100%);
+  mask-image: linear-gradient(90deg, var(--gray-02) 0 66%, transparent 100%);
 }
 
 .social-brand-label {
-  color: #88929c;
+  color: var(--gray-08);
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: -0.04px;
@@ -2654,7 +2630,7 @@ summary:focus-visible {
 
 .profile-id-caption {
   margin: 0;
-  color: #88929c;
+  color: var(--gray-08);
   font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -2698,7 +2674,7 @@ summary:focus-visible {
   margin: 0;
   font-size: 0.875rem;
   font-weight: 700;
-  color: #aab1b8;
+  color: var(--gray-09);
 }
 
 .profile-bio {
@@ -2707,7 +2683,7 @@ summary:focus-visible {
   font-size: 0.875rem;
   font-weight:normal;
   white-space: pre-line;
-  color: #aab1b8;
+  color: var(--gray-09);
 }
 
 .profile-fallback-hero {
@@ -2771,7 +2747,7 @@ summary:focus-visible {
 }
 
 .profile-tab-button.is-active {
-color: #dee0e3;
+color: var(--gray-10);
 }
 
 .profile-summary-stack,
@@ -3152,6 +3128,43 @@ p#signin-description {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--mut)
+}
+
+
+.auth-card {
+  max-width: 25rem;
+  margin-inline: auto;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.auth-form-wide {
+  margin-top: 24px;
+}
+
+.auth-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.auth-helper-box {
+  margin-top: 18px;
+}
+
+.auth-consent {
+  margin-top: 2px;
+}
+
+.auth-secondary {
+  margin: 1.25rem 0 0 0;
+}
+
+.auth-secondary-link {
+  width: 100%;
 }
 
 .auth-secondary p {
