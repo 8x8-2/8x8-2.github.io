@@ -27,6 +27,7 @@
 }
 
 * { box-sizing: border-box; }
+hr { color: var(--gray)}
 
 .mt-1 { margin-top: 0.25rem!important;}
 .mt-2 { margin-top: 0.5rem!important;}
@@ -400,7 +401,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   justify-content: center;
   min-height: 3rem;
   padding: 0.5rem 1rem;
-  border-radius: 0.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
   font-weight: 700;
   text-decoration: none;
 }
