@@ -75,13 +75,6 @@ let lastRenderedReading = null;
 let shouldAutoRunAfterAuth = consumeHomeAutoRun();
 let signedInHomeRedirectPending = false;
 
-function syncCurrentYear() {
-  const currentYear = String(new Date().getFullYear());
-  document.querySelectorAll("[data-current-year]").forEach((element) => {
-    element.textContent = currentYear;
-  });
-}
-
 function getBirthDraftFromForm() {
   return {
     calendar: calendarEl.value,
@@ -294,7 +287,6 @@ function validateInput({ year, month, day, birthTime, isLunar, unknownTime }) {
   return null;
 }
 
-syncCurrentYear();
 initCommonPageTracking();
 setupAuthUi();
 setupScrollTopButton(scrollTopButtonEl);
@@ -446,7 +438,7 @@ btn.addEventListener("click", async () => {
 
     const [hour, minute] = unknownTime ? [null, null] : birthTime.split(":").map(Number);
 
-    statusEl.textContent = "계산 중...";
+    statusEl.textContent = "프로필 초안 준비 중...";
 
     const snapshot = calculateReadingSnapshot({
       year,
@@ -469,7 +461,7 @@ btn.addEventListener("click", async () => {
     });
 
     updateBirthTimeState();
-    statusEl.textContent = "완료";
+    statusEl.textContent = "초안 준비 완료";
   } catch (error) {
     errEl.textContent = error?.message || "오류가 발생했습니다.";
     updateBirthTimeState();
