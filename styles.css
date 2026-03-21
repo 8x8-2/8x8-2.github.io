@@ -863,11 +863,11 @@ html.profile-hydrating body[data-page-name="public_profile"] #profileSeoFallback
 }
 
 #result.is-preview-locked .result-content {
-  max-height: 620px;
+  max-height: 860px;
   overflow: hidden;
 }
 
-body[data-page-name="home"] #result .result-content > :nth-child(n + 6) {
+body[data-page-name="home"] #result .result-content > :nth-child(n + 8) {
   display: none;
 }
 
