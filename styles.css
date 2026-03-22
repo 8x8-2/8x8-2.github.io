@@ -2757,8 +2757,8 @@ summary:focus-visible {
   margin: 0;
   color: var(--gray-06);
   font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .profile-tag-row,
