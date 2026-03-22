@@ -2716,7 +2716,7 @@ summary:focus-visible {
 }
 
 .profile-follow-stats {
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
   color: var(--txt-soft);
   font-size: 1rem;
 }
