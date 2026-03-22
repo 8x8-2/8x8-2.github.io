@@ -461,6 +461,19 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .hidden { display: none!important; }
 
+#homeGuestShell {
+  display: grid;
+  gap: 1.5rem;
+}
+
+html.home-auth-loading-active #homeRedirectLoading {
+  display: block !important;
+}
+
+html.home-auth-loading-active #homeGuestShell {
+  display: none !important;
+}
+
 html.profile-hydrating body[data-page-name="public_profile"] #profileSeoFallback {
   display: none;
 }

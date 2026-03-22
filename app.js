@@ -1,9 +1,11 @@
 import { initCommonPageTracking, trackEvent } from "./src/shared/analytics.js";
 import {
+  AUTH_STATE_STATUS,
   fetchProfile,
   isSupabaseConfigured,
   saveReading,
   subscribeAuthState,
+  subscribeAuthSnapshot,
   upsertSharedReading,
 } from "./src/shared/auth.js";
 import {
@@ -56,6 +58,8 @@ const btn = $("btnCalc");
 const statusEl = $("status");
 const errEl = $("error");
 const resultEl = $("result");
+const homeGuestShellEl = $("homeGuestShell");
+const homeRedirectLoadingEl = $("homeRedirectLoading");
 const resultPreviewGateEl = $("resultPreviewGate");
 const saveReadingButtonEl = $("saveReadingButton");
 const shareReadingButtonEl = $("shareReadingButton");
@@ -75,6 +79,20 @@ let currentSession = null;
 let lastRenderedReading = null;
 let shouldAutoRunAfterAuth = consumeHomeAutoRun();
 let signedInHomeRedirectPending = false;
+let homeRedirectLoadingHint = document.documentElement.classList.contains("home-auth-loading-active");
+
+function setHomeRedirectLoading(active) {
+  const shouldShow = Boolean(
+    active
+    && isSupabaseConfigured()
+    && homeGuestShellEl
+    && homeRedirectLoadingEl
+  );
+
+  document.documentElement.classList.toggle("home-auth-loading-active", shouldShow);
+  homeRedirectLoadingEl?.classList.toggle("hidden", !shouldShow);
+  homeGuestShellEl?.classList.toggle("hidden", shouldShow);
+}
 
 function getBirthDraftFromForm() {
   return {
@@ -185,6 +203,8 @@ function updateResultAccessState() {
 async function redirectSignedInHome(session) {
   if (!session?.user || signedInHomeRedirectPending) return;
   signedInHomeRedirectPending = true;
+  homeRedirectLoadingHint = true;
+  setHomeRedirectLoading(true);
 
   try {
     const profile = await fetchProfile(session.user.id, {
@@ -199,12 +219,16 @@ async function redirectSignedInHome(session) {
 
     if (sameRoute) {
       signedInHomeRedirectPending = false;
+      homeRedirectLoadingHint = false;
+      setHomeRedirectLoading(false);
       return;
     }
 
     window.location.replace(targetUrl.toString());
   } catch {
     signedInHomeRedirectPending = false;
+    homeRedirectLoadingHint = false;
+    setHomeRedirectLoading(false);
   }
 }
 
@@ -295,6 +319,7 @@ function validateInput({ year, month, day, birthTime, isLunar, unknownTime }) {
 }
 
 initCommonPageTracking();
+setHomeRedirectLoading(homeRedirectLoadingHint);
 setupAuthUi();
 setupScrollTopButton(scrollTopButtonEl);
 trackEvent("home_view", {
@@ -407,6 +432,24 @@ subscribeAuthState((session) => {
       btn.click();
     }, 0);
   }
+});
+
+subscribeAuthSnapshot((snapshot) => {
+  const authStatus = snapshot.status || AUTH_STATE_STATUS.UNKNOWN;
+  const hasSession = Boolean(snapshot.session?.user);
+
+  if (authStatus === AUTH_STATE_STATUS.UNAUTHENTICATED) {
+    homeRedirectLoadingHint = false;
+  }
+
+  const shouldShowRedirectLoading = signedInHomeRedirectPending
+    || hasSession
+    || (
+      homeRedirectLoadingHint
+      && [AUTH_STATE_STATUS.UNKNOWN, AUTH_STATE_STATUS.LOADING].includes(authStatus)
+    );
+
+  setHomeRedirectLoading(shouldShowRedirectLoading);
 });
 
 btn.addEventListener("click", async () => {

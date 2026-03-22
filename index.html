@@ -44,6 +44,23 @@
         page_location: window.location.href,
       });
     </script>
+    <script>
+      (function markHomeAuthLoadingState() {
+        try {
+          if (!window.localStorage) return;
+          const hasPersistedSession = Object.keys(window.localStorage).some((key) => {
+            if (!/^sb-.*-auth-token$/.test(key)) return false;
+            const rawValue = window.localStorage.getItem(key);
+            return Boolean(rawValue && rawValue.includes("access_token") && rawValue.includes("\"user\""));
+          });
+          if (hasPersistedSession) {
+            document.documentElement.classList.add("home-auth-loading-active");
+          }
+        } catch {
+          // Ignore storage access failures and keep the guest home visible.
+        }
+      }());
+    </script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -114,6 +131,13 @@
     </header>
 
     <main class="container">
+      <section id="homeRedirectLoading" class="card hero-card hidden" aria-live="polite" aria-labelledby="homeRedirectLoadingHeading">
+        <p class="eyebrow">STELLAR-ID</p>
+        <h1 id="homeRedirectLoadingHeading">내 프로필로 이동하는 중입니다</h1>
+        <p class="hero-subtitle">잠시만 기다려 주세요.</p>
+      </section>
+
+      <div id="homeGuestShell">
       <section class="card hero-card home-builder-card" aria-labelledby="hero-heading">
 <p class="eyebrow">사주명리학 기반 디지털 프로필</p>
 <h1 id="hero-heading">스텔라 ID를 만들고, 내 운명과 잘 맞는 사람들을 만나보세요</h1>
@@ -295,6 +319,7 @@
       </section>
 
       <footer class="muted footer" data-site-footer></footer>
+      </div>
     </main>
 
     <div id="saveReadingModal" class="modal hidden" aria-hidden="true">
