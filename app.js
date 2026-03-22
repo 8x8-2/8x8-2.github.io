@@ -468,7 +468,7 @@ btn.addEventListener("click", async () => {
     });
 
     updateBirthTimeState();
-    statusEl.textContent = "초안 준비 완료";
+    statusEl.textContent = "";
   } catch (error) {
     errEl.textContent = error?.message || "오류가 발생했습니다.";
     updateBirthTimeState();
