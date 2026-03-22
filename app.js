@@ -44,6 +44,7 @@ const $ = (id) => document.getElementById(id);
 
 const calendarEl = $("calendar");
 const leapEl = $("leapMonth");
+const nameEl = $("homeName");
 const genderEl = $("gender");
 const unknownTimeEl = $("unknownTime");
 const birthTimeEl = $("birthTime");
@@ -77,8 +78,10 @@ let signedInHomeRedirectPending = false;
 
 function getBirthDraftFromForm() {
   return {
+    name: nameEl?.value.trim() || "",
     calendar: calendarEl.value,
     leapMonth: leapEl.checked,
+    gender: genderEl.value,
     year: yearEl.value.trim(),
     month: monthEl.value.trim(),
     day: dayEl.value.trim(),
@@ -91,8 +94,12 @@ function applyBirthDraftToForm() {
   const draft = loadBirthDraft();
   if (!draft) return;
 
+  if (nameEl) {
+    nameEl.value = draft.name || nameEl.value;
+  }
   calendarEl.value = draft.calendar || calendarEl.value;
   leapEl.checked = Boolean(draft.leapMonth);
+  genderEl.value = draft.gender || genderEl.value;
   yearEl.value = draft.year || yearEl.value;
   monthEl.value = draft.month || monthEl.value;
   dayEl.value = draft.day || dayEl.value;

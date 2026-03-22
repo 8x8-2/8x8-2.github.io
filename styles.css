@@ -1127,6 +1127,15 @@ body.has-modal {
   gap: 14px;
 }
 
+.home-grid-name-gender {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.home-grid-name-gender > .field {
+  min-width: 0;
+}
+
 .home-form-label {
   margin: 0;
   color: var(--txt);
@@ -3132,6 +3141,7 @@ color: var(--gray-10);
 }
 
 @media (max-width: 640px) {
+  .home-grid-name-gender,
   .signup-grid-name-gender,
   .signup-grid-birth-primary,
   .signup-grid-birth-day,
@@ -3211,8 +3221,8 @@ a {
 }
 
 .eyebrow {
-  margin-top: 1rem;
-  font-size: 0.875rem;
+  margin: 1rem 0 0 0;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: -0.002px;
 }

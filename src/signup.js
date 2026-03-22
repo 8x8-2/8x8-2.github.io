@@ -91,8 +91,10 @@ function fillDraft() {
   const draft = loadBirthDraft();
   if (!draft) return;
 
+  $("signupName").value = draft.name || "";
   $("signupCalendar").value = draft.calendar || "solar";
   $("signupLeapMonth").checked = Boolean(draft.leapMonth);
+  $("signupGender").value = draft.gender || "male";
   $("signupYear").value = draft.year || "";
   $("signupMonth").value = draft.month || "";
   $("signupDay").value = draft.day || "";
@@ -376,7 +378,9 @@ $("signupForm")?.addEventListener("submit", async (event) => {
   });
 
   const birthDraft = {
+    name: fullName,
     calendar: calendarType,
+    gender,
     leapMonth: calendarType === "lunar" ? isLeapMonth : false,
     year: String(birthYear),
     month: String(birthMonth),
