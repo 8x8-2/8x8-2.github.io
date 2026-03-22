@@ -2369,12 +2369,16 @@ summary:focus-visible {
 }
 
 .social-brand-slash,
-.social-brand-hash,
 .social-brand-id {
   color: var(--accent);
   font-size: 0.75rem;
   font-weight: 900;
   letter-spacing: -0.04px;
+}
+
+.social-brand-slash {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .social-brand-id {
@@ -2396,6 +2400,8 @@ summary:focus-visible {
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: -0.04px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .social-icon-button {
@@ -3207,7 +3213,6 @@ color: var(--gray-10);
   }
 
   .social-brand-slash,
-  .social-brand-hash,
   .social-brand-id,
   .social-brand-label {
     font-size: 0.75rem;

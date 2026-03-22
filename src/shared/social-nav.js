@@ -20,9 +20,8 @@ function getBrandMarkup(stellarId, showProfileIdentity) {
         ${showProfileIdentity
           ? `
             <span class="social-brand-meta">
-              <span class="social-brand-label">ID</span>
+              <span class="social-brand-label">stellar-id.com</span>
               <span class="social-brand-slash">/</span>
-              <span class="social-brand-hash">#</span>
               ${safeStellarId
                 ? `<a class="social-brand-id social-brand-home-link" href="#" data-social-home>${safeStellarId}</a>`
                 : ""
