@@ -76,7 +76,6 @@ async function init() {
     session,
     viewerProfile: sessionProfileStub,
     currentStellarId: sessionProfileStub?.stellar_id,
-    pageTitle: "팔로잉 프로필",
   });
 
   ["input", "change", "search", "keyup", "compositionend"].forEach((eventName) => {

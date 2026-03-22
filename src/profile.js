@@ -56,7 +56,6 @@ function renderGuestNav() {
   renderSocialNav(document.querySelector("[data-social-nav]"), {
     session: null,
     viewerProfile: null,
-    pageTitle: "계정 정보",
   });
 }
 
@@ -184,7 +183,6 @@ async function init() {
     session,
     viewerProfile: sessionProfileStub,
     currentStellarId: sessionProfileStub?.stellar_id,
-    pageTitle: "계정 정보",
   });
 
   let currentProfile = await fetchProfile(session.user.id, {
@@ -200,7 +198,6 @@ async function init() {
     session,
     viewerProfile: currentProfile,
     currentStellarId: currentProfile.stellar_id,
-    pageTitle: "계정 정보",
   });
 
   fillProfileSummary(currentProfile, session);

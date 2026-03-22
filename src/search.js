@@ -103,7 +103,6 @@ async function init() {
   renderSocialNav(navContainer, {
     session,
     viewerProfile: buildSessionProfileStub(session),
-    pageTitle: "스텔라 프로필 검색",
   });
 
   $("searchForm").addEventListener("submit", (event) => {

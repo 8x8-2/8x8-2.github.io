@@ -218,7 +218,6 @@ async function init() {
       session,
       viewerProfile,
       currentStellarId: viewerProfile?.stellar_id || sessionProfileStub?.stellar_id,
-      pageTitle: "프로필 설정",
     });
   };
 

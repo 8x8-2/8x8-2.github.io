@@ -78,7 +78,6 @@ function renderGuestNav() {
     authStatus: AUTH_STATE_STATUS.UNAUTHENTICATED,
     session: null,
     viewerProfile: null,
-    pageTitle: "스텔라 프로필",
     currentStellarId: getRequestedStellarId(),
     showProfileIdentity: true,
   });
@@ -173,7 +172,6 @@ function renderProfileNav({
     session,
     viewerProfile: viewerProfile || buildViewerProfileStub(session),
     currentStellarId: currentStellarId || getRequestedStellarId(),
-    pageTitle: "스텔라 프로필",
     showProfileIdentity: true,
   });
 }

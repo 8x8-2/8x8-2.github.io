@@ -8,68 +8,21 @@ import {
 import { renderSocialNav } from "./social-nav.js";
 import { buildSignedInHomeUrl } from "./stellar-id.js";
 
-function getPageMeta() {
-  const body = document.body;
-
-  return {
-    pageName: body.dataset.pageName || "",
-    navTitle: body.dataset.navTitle || "",
-  };
-}
-
-function resolvePageTitle(meta) {
-  if (meta.navTitle) {
-    return meta.navTitle;
-  }
-
-  switch (meta.pageName) {
-    case "home":
-      return "STELLAR-ID";
-    case "signin":
-      return "STELLAR-ID";
-    case "signup":
-      return "회원가입";
-    case "privacy":
-      return "개인정보처리방침";
-    case "soulday_list":
-      return "일주별 보기";
-    case "soulday_detail":
-      return document.body.dataset.souldayName || "일주 정보";
-    case "reading":
-      return "저장된 사주 정보";
-    case "my_saju":
-      return "내 사주";
-    case "password":
-      return "암호 변경";
-    default:
-      return "STELLAR-ID";
-  }
-}
-
-function resolveGuestPageTitle(meta) {
-  switch (meta.pageName) {
-    case "home":
-      return "STELLAR-ID";
-    case "soulday_list":
-    case "soulday_detail":
-      return "스텔라 ID";
-    default:
-      return resolvePageTitle(meta);
-  }
+function getPageName() {
+  return document.body.dataset.pageName || "";
 }
 
 function buildLoggedInHomeUrl(session, profile) {
   return buildSignedInHomeUrl(session, profile);
 }
 
-function renderPageNav(container, meta, session, profile = null, authStatus = AUTH_STATE_STATUS.UNAUTHENTICATED) {
+function renderPageNav(container, pageName, session, profile = null, authStatus = AUTH_STATE_STATUS.UNAUTHENTICATED) {
   return renderSocialNav(container, {
     authStatus,
     session,
     viewerProfile: profile || buildSessionProfileStub(session),
-    pageTitle: session ? resolvePageTitle(meta) : resolveGuestPageTitle(meta),
     homeUrlOverride: session ? buildLoggedInHomeUrl(session, profile) : null,
-    hideGuestSignin: meta.pageName === "signin",
+    hideGuestSignin: pageName === "signin",
   });
 }
 
@@ -77,16 +30,16 @@ export function setupAuthUi() {
   const container = document.querySelector("[data-social-nav]");
   if (!container) return () => {};
 
-  const meta = getPageMeta();
+  const pageName = getPageName();
 
   if (!isSupabaseConfigured()) {
-    return renderPageNav(container, meta, null, null);
+    return renderPageNav(container, pageName, null, null);
   }
 
   let activeCleanup = null;
   let renderVersion = 0;
 
-  activeCleanup = renderPageNav(container, meta, null, null, AUTH_STATE_STATUS.LOADING);
+  activeCleanup = renderPageNav(container, pageName, null, null, AUTH_STATE_STATUS.LOADING);
 
   const unsubscribe = subscribeAuthSnapshot((snapshot) => {
     const session = snapshot.session || null;
@@ -103,7 +56,7 @@ export function setupAuthUi() {
     if (!session) {
       activeCleanup = renderPageNav(
         container,
-        meta,
+        pageName,
         null,
         null,
         authStatus === AUTH_STATE_STATUS.UNAUTHENTICATED ? AUTH_STATE_STATUS.UNAUTHENTICATED : AUTH_STATE_STATUS.LOADING
@@ -111,7 +64,7 @@ export function setupAuthUi() {
       return;
     }
 
-    if (meta.pageName === "home") {
+    if (pageName === "home") {
       fetchProfile(session.user.id)
         .then((profile) => {
           if (version !== renderVersion) return;
@@ -124,7 +77,7 @@ export function setupAuthUi() {
       return;
     }
 
-    activeCleanup = renderPageNav(container, meta, session, null, AUTH_STATE_STATUS.AUTHENTICATED);
+    activeCleanup = renderPageNav(container, pageName, session, null, AUTH_STATE_STATUS.AUTHENTICATED);
 
     fetchProfile(session.user.id)
       .then((profile) => {
@@ -133,7 +86,7 @@ export function setupAuthUi() {
           activeCleanup();
           activeCleanup = null;
         }
-        activeCleanup = renderPageNav(container, meta, session, profile, AUTH_STATE_STATUS.AUTHENTICATED);
+        activeCleanup = renderPageNav(container, pageName, session, profile, AUTH_STATE_STATUS.AUTHENTICATED);
       })
       .catch(() => {
         // Keep the session-based nav if the profile request is slow or fails.

@@ -377,15 +377,24 @@ textarea {
 
 .checkbox { flex-direction: row; align-items: center; gap: 10px; min-width: auto; }
 
-.actions { margin-top: 14px; display: flex; gap: 12px; align-items: center; }
+.actions {
+  flex-direction: row-reverse;
+  margin-top: 0.75rem; 
+  display: flex; 
+  gap: 0.5rem; 
+  align-items: center; 
+}
 
 button {
-  padding: 10px 14px;
-  border-radius: 12px;
   border: 1px solid #111827;
-  background: #111827;
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -393,6 +402,8 @@ button {
   border-color: var(--bd);
   background: #fff;
   color: #1f2937;
+  cursor: pointer;
+
 }
 
 button:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -403,12 +414,13 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 3rem;
-  padding: 0.5rem 1rem;
+  padding: 0.875rem 1.25rem;
   border-radius: 0.5rem;
   font-size: 0.875rem;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
+
 }
 
 .button-primary,
@@ -416,6 +428,8 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   border: none;
   background:var(--accent);
   color: var(--gray-02);
+  cursor: pointer;
+
 }
 
 .text-link-button {
@@ -1641,6 +1655,10 @@ body.has-modal {
   .home-cta-button {
     width: 100%;
   }
+
+  .button-primary {
+    width:100%;
+  }
 }
 
 @media (max-width: 380px) {
@@ -2279,8 +2297,7 @@ summary:focus-visible {
   min-width: 0;
 }
 
-.social-brand-name,
-.social-page-title {
+.social-brand-name {
   font-family: var(--font-ui);
   font-size: 1rem;
   font-weight: 800;
@@ -2297,6 +2314,7 @@ summary:focus-visible {
 }
 
 .social-brand-slash,
+.social-brand-hash,
 .social-brand-id {
   color: var(--accent);
   font-size: 0.75rem;
@@ -2323,10 +2341,6 @@ summary:focus-visible {
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: -0.04px;
-}
-
-.social-page-title {
-  font-size: 1rem;
 }
 
 .social-icon-button {
@@ -2714,7 +2728,7 @@ summary:focus-visible {
 }
 
 .profile-meta-stack {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 1rem 0.5rem 0;
   display: grid;
   gap: 0.5rem;
 }
@@ -3113,6 +3127,7 @@ color: var(--gray-10);
   }
 
   .social-brand-slash,
+  .social-brand-hash,
   .social-brand-id,
   .social-brand-label {
     font-size: 0.75rem;
