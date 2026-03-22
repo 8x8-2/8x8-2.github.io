@@ -41,8 +41,8 @@
     <main class="container">
       <section class="card auth-card" aria-labelledby="signup-heading">
         <p class="eyebrow">SETLLAR-ID REGISTRATION</p>
-        <h1 id="signup-heading">나만의 스텔라 프로필을 만들려면 가입이 필요합니다</h1>
-        <p class="hero-subtitle">가입은 무료이며, 무료 사주 결과 저장은 물론 앞으로 사람과 사람을 잇는 관계 기반 경험의 시작점이 됩니다.</p>
+        <h1 id="signup-heading">스텔라 프로필 생성을 위한 가입이 필요합니다</h1>
+        <!-- <p class="hero-subtitle">가입은 무료이며, 무료 사주 결과 저장은 물론 앞으로 사람과 사람을 잇는 관계 기반 경험의 시작점이 됩니다.</p> -->
 
         <div id="signupConfigError" class="box hidden auth-helper-box">
           <div class="title">Supabase 연결이 아직 설정되지 않았습니다.</div>
@@ -50,9 +50,8 @@
         </div>
 
         <form id="signupForm" class="auth-form auth-form-wide">
-          <p class="auth-form-note"><strong>필수 항목</strong>: 이메일, STELLAR-ID, 비밀번호, 이름, 성별, 생년월일</p>
-          <p class="auth-form-note"><strong>선택 항목</strong>: 전화번호, 마케팅 수신 동의</p>
-          <p class="auth-section-note">만 14세 미만은 가입할 수 없습니다. 자세한 내용은 <a href="/privacy/">개인정보처리방침</a>에서 확인해 주세요.</p>
+          <!-- <p class="auth-form-note"><strong>필수 항목</strong>: 이메일, STELLAR-ID, 비밀번호, 이름, 성별, 생년월일</p>
+          <p class="auth-form-note"><strong>선택 항목</strong>: 전화번호, 마케팅 수신 동의</p> -->
 
           <label class="field">
             <span>이메일 주소 (필수)</span>
@@ -66,8 +65,8 @@
               <input id="signupStellarId" type="text" inputmode="numeric" maxlength="16" autocomplete="off" placeholder="예: 1" required />
               <button id="signupStellarIdCheck" class="button-muted" type="button">중복 확인</button>
             </div>
+            <small id="signupStellarIdHint" class="primary">스텔라 ID가 자동으로 부여됩니다. 원하면 다른 번호로 바꿀 수 있습니다.</small>
             <small class="signup-field-help">스텔라 프로필의 고유 등록번호입니다. 'stellar-id.com/고유번호' 형태로 내 프로필에 바로 접속할 수 있는 전용 주소로도 사용됩니다.</small>
-            <small id="signupStellarIdHint" class="muted">회원가입 순서 기준 추천 스텔라 ID가 자동으로 채워집니다. 원하면 다른 숫자로 바꿀 수 있습니다.</small>
           </div>
 
           <label class="field">
@@ -102,24 +101,25 @@
 
           <div class="auth-field-group">
             <p class="auth-form-note"><strong>생년월일 (필수)</strong></p>
-            <p class="auth-section-note">입력한 생년월일 기준으로 만 14세 미만은 가입할 수 없습니다.</p>
+            <p class="auth-section-note">입력한 생년월일 기준으로 만 14세 미만은 가입할 수 없습니다. 자세한 내용은 <a href="/privacy/" target="_blank"><u>개인정보처리방침</u></a>에서 확인해 주세요.</p>
             <div class="grid signup-grid-birth-primary">
-              <label class="field">
-                <span>년</span>
-                <input id="signupYear" type="text" inputmode="numeric" maxlength="4" required />
-              </label>
-              <div class="field signup-calendar-field">
+              <div class="field">
                 <span>달력 기준</span>
                 <select id="signupCalendar">
                   <option value="solar">양력</option>
                   <option value="lunar">음력</option>
                 </select>
-                <label class="checkbox signup-calendar-extra">
-                  <input type="checkbox" id="signupLeapMonth" disabled />
-                  <span>윤달(음력)</span>
-                </label>
               </div>
+              <label class="field checkbox signup-birth-leap">
+                <input type="checkbox" id="signupLeapMonth" disabled />
+                <span>윤달(음력)</span>
+              </label>
             </div>
+
+            <label class="field">
+              <span>년</span>
+              <input id="signupYear" type="text" inputmode="numeric" maxlength="4" required />
+            </label>
 
             <div class="grid signup-grid-birth-day">
               <label class="field">

@@ -26,6 +26,19 @@
   --font-ui: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
 }
 
+.primary {
+  color: var(--accent)
+}
+
+.plain {
+  color: var(--gray-09)
+}
+
+.muted { 
+  color: var(--mut);
+}
+
+
 * { box-sizing: border-box; }
 hr { 
   border-color: var(--gray-04);
@@ -312,7 +325,6 @@ body.has-notification-center {
 
 h1 { margin: 0 0 6px; }
 
-.muted { color: var(--mut); }
 
 .card {
   background: linear-gradient(180deg, rgba(29,32,34,0.4
@@ -357,7 +369,7 @@ justify-content: center;
 
 .field { display: flex; flex-direction: column; gap: 0.5rem; min-width: 140px; }
 
-.field span { font-size: 0.75rem; color: var(--gray-04); }
+.field span { font-size: 0.875rem;}
 
 input,
 select,
@@ -1879,7 +1891,8 @@ button:hover:not(:disabled),
 .luck-meta,
 .mini-note,
 .accordion summary::after {
-  color: var(--mut);
+  color: var(--gray-08);
+  font-weight:600;
 }
 
 .profile-panel-link {
@@ -3088,7 +3101,6 @@ color: var(--gray-10);
     grid-template-columns: minmax(0, 3fr) minmax(92px, 1fr);
   }
 
-  .signup-grid-birth-primary,
   .signup-grid-birth-time {
     grid-template-columns: minmax(0, 3fr) minmax(120px, 1fr);
   }
@@ -3256,8 +3268,7 @@ p#signin-description {
 }
 
 .signup-grid-name-gender > .field,
-.signup-grid-birth-primary > .field,
-.signup-grid-birth-primary > .signup-calendar-field,
+.signup-grid-birth-primary > *,
 .signup-grid-birth-day > .field,
 .signup-grid-birth-time > .field {
   min-width: 0;
@@ -3267,7 +3278,10 @@ p#signin-description {
   grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
 }
 
-.signup-grid-birth-primary,
+.signup-grid-birth-primary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .signup-grid-birth-time {
   grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
 }
@@ -3276,21 +3290,12 @@ p#signin-description {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.signup-calendar-field {
-  gap: 0.45rem;
-}
-
-.signup-calendar-extra {
-  margin-top: 0.1rem;
-  min-width: 0;
-}
-
-.signup-calendar-extra span,
+.signup-birth-leap span,
 .signup-time-unknown span {
   font-size: 0.75rem;
-  color: var(--gray-04);
 }
 
+.signup-birth-leap,
 .signup-time-unknown {
   justify-content: flex-start;
   align-self: end;
