@@ -3084,6 +3084,15 @@ color: var(--gray-10);
     height: 84px;
   }
 
+  .signup-grid-name-gender {
+    grid-template-columns: minmax(0, 3fr) minmax(92px, 1fr);
+  }
+
+  .signup-grid-birth-primary,
+  .signup-grid-birth-time {
+    grid-template-columns: minmax(0, 3fr) minmax(120px, 1fr);
+  }
+
   .profile-stat-grid,
   .profile-detail-grid,
   .profile-mini-list,
@@ -3111,6 +3120,22 @@ color: var(--gray-10);
 }
 
 @media (max-width: 640px) {
+  .signup-grid-name-gender,
+  .signup-grid-birth-primary,
+  .signup-grid-birth-day,
+  .signup-grid-birth-time {
+    grid-template-columns: 1fr;
+  }
+
+  .signup-time-unknown {
+    align-self: stretch;
+    min-height: auto;
+  }
+
+  .signup-calendar-extra {
+    margin-top: 0.35rem;
+  }
+
   .social-topbar {
     min-height: 60px;
   }
@@ -3214,6 +3239,62 @@ p#signin-description {
 .auth-grid-two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 0;
+}
+
+.signup-field-help {
+  margin: -2px 0 0;
+  color: var(--mut);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.signup-grid-name-gender,
+.signup-grid-birth-primary,
+.signup-grid-birth-day,
+.signup-grid-birth-time {
+  margin-top: 0;
+}
+
+.signup-grid-name-gender > .field,
+.signup-grid-birth-primary > .field,
+.signup-grid-birth-primary > .signup-calendar-field,
+.signup-grid-birth-day > .field,
+.signup-grid-birth-time > .field {
+  min-width: 0;
+}
+
+.signup-grid-name-gender {
+  grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
+}
+
+.signup-grid-birth-primary,
+.signup-grid-birth-time {
+  grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
+}
+
+.signup-grid-birth-day {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.signup-calendar-field {
+  gap: 0.45rem;
+}
+
+.signup-calendar-extra {
+  margin-top: 0.1rem;
+  min-width: 0;
+}
+
+.signup-calendar-extra span,
+.signup-time-unknown span {
+  font-size: 0.75rem;
+  color: var(--gray-04);
+}
+
+.signup-time-unknown {
+  justify-content: flex-start;
+  align-self: end;
+  min-height: 44px;
 }
 
 .auth-helper-box {

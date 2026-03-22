@@ -50,41 +50,42 @@
         </div>
 
         <form id="signupForm" class="auth-form auth-form-wide">
-          <p class="auth-form-note"><strong>필수 항목</strong>: 이메일, 이름, 성별, 생년월일</p>
+          <p class="auth-form-note"><strong>필수 항목</strong>: 이메일, STELLAR-ID, 비밀번호, 이름, 성별, 생년월일</p>
           <p class="auth-form-note"><strong>선택 항목</strong>: 전화번호, 마케팅 수신 동의</p>
           <p class="auth-section-note">만 14세 미만은 가입할 수 없습니다. 자세한 내용은 <a href="/privacy/">개인정보처리방침</a>에서 확인해 주세요.</p>
-        <div class="grid auth-grid-two">
+
           <label class="field">
-            <span>이메일 주소(ID) (필수)</span>
+            <span>이메일 주소 (필수)</span>
             <input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
+            <small class="signup-field-help">STELLAR-ID 계정 접근에 필요한 ID입니다.</small>
           </label>
-            <label class="field">
-              <span>이름 (필수)</span>
-              <input id="signupName" type="text" autocomplete="name" placeholder="2글자 이상" required />
-            </label>
-          </div>
 
           <div class="field">
-            <span>스텔라 ID (필수)</span>
+            <span>STELLAR-ID (필수)</span>
             <div class="inline-field-row">
               <input id="signupStellarId" type="text" inputmode="numeric" maxlength="16" autocomplete="off" placeholder="예: 1" required />
               <button id="signupStellarIdCheck" class="button-muted" type="button">중복 확인</button>
             </div>
+            <small class="signup-field-help">스텔라 프로필의 고유 등록번호입니다. 'stellar-id.com/고유번호' 형태로 내 프로필에 바로 접속할 수 있는 전용 주소로도 사용됩니다.</small>
             <small id="signupStellarIdHint" class="muted">회원가입 순서 기준 추천 스텔라 ID가 자동으로 채워집니다. 원하면 다른 숫자로 바꿀 수 있습니다.</small>
           </div>
 
-          <div class="grid auth-grid-two">
-            <label class="field">
-              <span>비밀번호 (필수)</span>
-              <input id="signupPassword" type="password" autocomplete="new-password" placeholder="6자 이상" required />
-            </label>
-            <label class="field">
-              <span>비밀번호 재확인 (필수)</span>
-              <input id="signupPasswordConfirm" type="password" autocomplete="new-password" placeholder="한 번 더 입력" required />
-            </label>
-          </div>
+          <label class="field">
+            <span>비밀번호 (필수)</span>
+            <input id="signupPassword" type="password" autocomplete="new-password" placeholder="6자 이상" required />
+          </label>
 
-          <div class="row">
+          <label class="field">
+            <span>비밀번호 재확인 (필수)</span>
+            <input id="signupPasswordConfirm" type="password" autocomplete="new-password" placeholder="한 번 더 입력" required />
+          </label>
+
+          <div class="grid signup-grid-name-gender">
+            <label class="field">
+              <span>이름 (필수)</span>
+              <input id="signupName" type="text" autocomplete="name" placeholder="2글자 이상" required />
+              <small class="signup-field-help">스텔라 프로필에 보여질 내 이름을 입력해 주세요.</small>
+            </label>
             <label class="field">
               <span>성별 (필수)</span>
               <select id="signupGender" required>
@@ -92,39 +93,55 @@
                 <option value="female">여</option>
               </select>
             </label>
-            <label class="field">
-              <span>달력 기준 (필수)</span>
-              <select id="signupCalendar">
-                <option value="solar">양력</option>
-                <option value="lunar">음력</option>
-              </select>
-            </label>
-            <label class="field checkbox">
-              <input type="checkbox" id="signupLeapMonth" disabled />
-              <span>윤달(음력)</span>
-            </label>
-            <label class="field">
-              <span>전화번호 (선택)</span>
-              <input id="signupPhone" type="tel" autocomplete="tel" placeholder="010-1234-5678" />
-            </label>
           </div>
+
+          <label class="field">
+            <span>전화번호 (선택)</span>
+            <input id="signupPhone" type="tel" autocomplete="tel" placeholder="010-1234-5678" />
+          </label>
 
           <div class="auth-field-group">
             <p class="auth-form-note"><strong>생년월일 (필수)</strong></p>
             <p class="auth-section-note">입력한 생년월일 기준으로 만 14세 미만은 가입할 수 없습니다.</p>
-            <div class="grid grid-birth">
-            <label class="field"><span>년</span><input id="signupYear" type="text" inputmode="numeric" maxlength="4" required /></label>
-            <label class="field"><span>월</span><input id="signupMonth" type="text" inputmode="numeric" maxlength="2" required /></label>
-            <label class="field"><span>일</span><input id="signupDay" type="text" inputmode="numeric" maxlength="2" required /></label>
-            <label class="field field-time-input">
-              <span>태어난 시간 (선택)</span>
-              <input id="signupBirthTime" type="text" inputmode="numeric" maxlength="5" placeholder="00:00" />
-            </label>
-            <label class="field checkbox time-unknown">
-              <input type="checkbox" id="signupUnknownTime" />
-              <span>시간 모름</span>
-            </label>
-          </div>
+            <div class="grid signup-grid-birth-primary">
+              <label class="field">
+                <span>년</span>
+                <input id="signupYear" type="text" inputmode="numeric" maxlength="4" required />
+              </label>
+              <div class="field signup-calendar-field">
+                <span>달력 기준</span>
+                <select id="signupCalendar">
+                  <option value="solar">양력</option>
+                  <option value="lunar">음력</option>
+                </select>
+                <label class="checkbox signup-calendar-extra">
+                  <input type="checkbox" id="signupLeapMonth" disabled />
+                  <span>윤달(음력)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="grid signup-grid-birth-day">
+              <label class="field">
+                <span>월</span>
+                <input id="signupMonth" type="text" inputmode="numeric" maxlength="2" required />
+              </label>
+              <label class="field">
+                <span>일</span>
+                <input id="signupDay" type="text" inputmode="numeric" maxlength="2" required />
+              </label>
+            </div>
+
+            <div class="grid signup-grid-birth-time">
+              <label class="field field-time-input">
+                <span>태어난 시각</span>
+                <input id="signupBirthTime" type="text" inputmode="numeric" maxlength="5" placeholder="00:00" />
+              </label>
+              <label class="field checkbox signup-time-unknown">
+                <input type="checkbox" id="signupUnknownTime" />
+                <span>시간 모름</span>
+              </label>
+            </div>
           </div>
 
           <p id="signupTimeFeedback" class="error hidden">태어난 시간을 올바르게 입력해 주세요.</p>
