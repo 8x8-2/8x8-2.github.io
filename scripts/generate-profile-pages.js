@@ -85,7 +85,7 @@ function buildHead(profile) {
   return `
     <head>
       <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       <meta name="theme-color" content="#111314" />
       <link rel="icon" href="/src/img/bi/favicon-stellarid.png" sizes="any" />
       <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-stellarid.png" />
