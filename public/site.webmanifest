@@ -1,0 +1,16 @@
+{
+  "name": "STELLAR-ID",
+  "short_name": "STELLAR-ID",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111314",
+  "theme_color": "#111314",
+  "icons": [
+    {
+      "src": "/src/img/bi/favicon-appicon.png",
+      "sizes": "1080x1080",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

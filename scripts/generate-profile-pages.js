@@ -87,8 +87,10 @@ function buildHead(profile) {
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       <meta name="theme-color" content="#111314" />
-      <link rel="icon" href="/src/img/bi/favicon-stellarid.png" sizes="any" />
-      <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-stellarid.png" />
+      <link rel="icon" media="(prefers-color-scheme: light)" href="/src/img/bi/favicon-stellarid-light.png" type="image/png" />
+      <link rel="icon" media="(prefers-color-scheme: dark)" href="/src/img/bi/favicon-stellarid-dark.png" type="image/png" />
+      <link rel="apple-touch-icon" sizes="180x180" href="/src/img/bi/favicon-appicon.png" />
+      <link rel="manifest" href="/site.webmanifest" />
       <title>${escapeHtml(seo.title)}</title>
       <meta name="description" content="${escapeHtml(seo.metaDescription)}" />
       <meta name="robots" content="${escapeHtml(seo.robots)}" />
