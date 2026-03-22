@@ -2755,8 +2755,8 @@ summary:focus-visible {
 
 .profile-id-caption {
   margin: 0;
-  color: var(--gray-08);
-  font-size: 0.875rem;
+  color: var(--gray-06);
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.08em;
 }
