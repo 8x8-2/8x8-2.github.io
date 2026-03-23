@@ -9,6 +9,14 @@ function getHeaderValue(headers, key) {
   return String(headers.get(key) || "").trim();
 }
 
+function getProjectRef() {
+  try {
+    return new URL(supabaseUrl).host.split(".")[0] || "supabase";
+  } catch {
+    return "supabase";
+  }
+}
+
 export function createSupabaseHeaders({ accessToken = null, headers: sourceHeaders = null } = {}) {
   const headers = new Headers(sourceHeaders || {});
   const safePublishableKey = String(supabasePublishableKey || "").trim();
@@ -26,28 +34,6 @@ export function createSupabaseHeaders({ accessToken = null, headers: sourceHeade
 
   return headers;
 }
-
-function withSupabaseHeaders(input, init = {}) {
-  const sourceHeaders = input instanceof Request
-    ? new Headers(input.headers)
-    : new Headers();
-
-  if (init.headers) {
-    new Headers(init.headers).forEach((value, key) => {
-      sourceHeaders.set(key, value);
-    });
-  }
-
-  const headers = createSupabaseHeaders({
-    headers: sourceHeaders,
-  });
-
-  return fetch(input, {
-    ...init,
-    headers,
-  });
-}
-
 export function isSupabaseConfigured() {
   return Boolean(supabaseUrl && supabasePublishableKey);
 }
@@ -67,13 +53,7 @@ export function getSupabaseClient() {
   if (!isSupabaseConfigured()) return null;
 
   if (!supabaseClient) {
-    const projectRef = (() => {
-      try {
-        return new URL(supabaseUrl).host.split(".")[0] || "supabase";
-      } catch {
-        return "supabase";
-      }
-    })();
+    const projectRef = getProjectRef();
 
     supabaseClient = createClient(supabaseUrl, supabasePublishableKey, {
       global: {

@@ -15,7 +15,12 @@ let notificationQueryMode = "full";
 let profileImageFunctionUnavailable = false;
 let profileImageStorageUnavailable = false;
 let accessTokenRefreshPromise = null;
+let invalidAuthSessionRepairPromise = null;
 let seoProfilesCachePromise = null;
+
+const MAX_PERSISTED_SUPABASE_SESSION_LENGTH = 32768;
+const MAX_SUPABASE_ACCESS_TOKEN_LENGTH = 8192;
+const MAX_AUTH_METADATA_IMAGE_URL_LENGTH = 2048;
 
 export const AUTH_STATE_STATUS = Object.freeze({
   UNKNOWN: "unknown",
@@ -35,6 +40,179 @@ const authStore = {
   manualSignOut: false,
   lifecycleInstalled: false,
 };
+
+function decodeJwtPayload(token) {
+  const normalizedToken = String(token || "").trim();
+  const tokenParts = normalizedToken.split(".");
+  if (tokenParts.length !== 3) {
+    return null;
+  }
+
+  try {
+    const payload = tokenParts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const paddedPayload = payload + "=".repeat((4 - (payload.length % 4)) % 4);
+    return JSON.parse(atob(paddedPayload));
+  } catch {
+    return null;
+  }
+}
+
+function isLikelySupabaseAccessToken(token, expectedUserId = "") {
+  const normalizedToken = String(token || "").trim();
+  if (!normalizedToken || normalizedToken.length > MAX_SUPABASE_ACCESS_TOKEN_LENGTH) {
+    return false;
+  }
+
+  if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(normalizedToken)) {
+    return false;
+  }
+
+  const payload = decodeJwtPayload(normalizedToken);
+  if (!payload || !Number.isFinite(Number(payload.exp || 0)) || Number(payload.exp || 0) <= 0) {
+    return false;
+  }
+
+  const normalizedUserId = String(expectedUserId || "").trim();
+  if (normalizedUserId && String(payload.sub || "").trim() !== normalizedUserId) {
+    return false;
+  }
+
+  return true;
+}
+
+function getUsableSupabaseSession(session) {
+  if (!session || typeof session !== "object") {
+    return null;
+  }
+
+  const userId = String(session?.user?.id || "").trim();
+  const accessToken = String(session?.access_token || "").trim();
+  if (!userId || !isLikelySupabaseAccessToken(accessToken, userId)) {
+    return null;
+  }
+
+  return session;
+}
+
+function isSafeAuthMetadataImageUrl(value) {
+  const normalizedValue = String(value || "").trim();
+  return Boolean(
+    normalizedValue
+    && !/^data:/i.test(normalizedValue)
+    && normalizedValue.length <= MAX_AUTH_METADATA_IMAGE_URL_LENGTH
+  );
+}
+
+function buildAuthUserMetadata(profile = null, metadata = null) {
+  const source = profile || {};
+  const fallbackMetadata = metadata || {};
+  const birthTimeKnown = Boolean(
+    source.birth_time_known ?? fallbackMetadata.birth_time_known ?? false
+  );
+  const nextMetadata = {
+    full_name: String(source.full_name ?? fallbackMetadata.full_name ?? "").trim(),
+    gender: String(source.gender ?? fallbackMetadata.gender ?? "male").trim() || "male",
+    phone: String(source.phone ?? fallbackMetadata.phone ?? "").trim(),
+    calendar_type: String(source.calendar_type ?? fallbackMetadata.calendar_type ?? "solar").trim() || "solar",
+    is_leap_month: Boolean(source.is_leap_month ?? fallbackMetadata.is_leap_month ?? false),
+    birth_year: source.birth_year ?? fallbackMetadata.birth_year ?? null,
+    birth_month: source.birth_month ?? fallbackMetadata.birth_month ?? null,
+    birth_day: source.birth_day ?? fallbackMetadata.birth_day ?? null,
+    birth_hour: birthTimeKnown ? (source.birth_hour ?? fallbackMetadata.birth_hour ?? null) : "",
+    birth_minute: birthTimeKnown ? (source.birth_minute ?? fallbackMetadata.birth_minute ?? null) : "",
+    birth_time_known: birthTimeKnown,
+    marketing_opt_in: Boolean(source.marketing_opt_in ?? fallbackMetadata.marketing_opt_in ?? false),
+    stellar_id: String(source.stellar_id ?? fallbackMetadata.stellar_id ?? "").trim(),
+    profile_image_path: "",
+    profile_image_url: "",
+    mbti: String(source.mbti ?? fallbackMetadata.mbti ?? "").trim(),
+    region_country: String(source.region_country ?? fallbackMetadata.region_country ?? "").trim(),
+    region_name: String(source.region_name ?? fallbackMetadata.region_name ?? "").trim(),
+    bio: "",
+    personality_visibility: String(source.personality_visibility ?? fallbackMetadata.personality_visibility ?? "public").trim() || "public",
+    health_visibility: String(source.health_visibility ?? fallbackMetadata.health_visibility ?? "public").trim() || "public",
+    love_visibility: String(source.love_visibility ?? fallbackMetadata.love_visibility ?? "public").trim() || "public",
+    ability_visibility: String(source.ability_visibility ?? fallbackMetadata.ability_visibility ?? "public").trim() || "public",
+    major_luck_visibility: String(source.major_luck_visibility ?? fallbackMetadata.major_luck_visibility ?? "public").trim() || "public",
+  };
+
+  const candidateProfileImageUrl = String(
+    source.profile_image_url ?? fallbackMetadata.profile_image_url ?? ""
+  ).trim();
+
+  if (isSafeAuthMetadataImageUrl(candidateProfileImageUrl)) {
+    nextMetadata.profile_image_url = candidateProfileImageUrl;
+  }
+
+  return nextMetadata;
+}
+
+async function clearCorruptedSupabaseSession(supabase = null, reason = "auth:corrupt-session") {
+  const storageKey = getPersistedSupabaseStorageKey();
+
+  if (typeof window !== "undefined" && window.localStorage && storageKey) {
+    window.localStorage.removeItem(storageKey);
+    window.localStorage.removeItem(`${storageKey}-code-verifier`);
+    window.localStorage.removeItem(`${storageKey}-user`);
+  }
+
+  if (supabase) {
+    await supabase.auth.signOut({ scope: "local" }).catch(() => null);
+  }
+
+  authStore.manualSignOut = false;
+  markUnauthenticated(reason);
+}
+
+async function repairInvalidSupabaseSession(supabase, session, reason = "auth:repair") {
+  if (!supabase || !session?.user) {
+    await clearCorruptedSupabaseSession(supabase, `${reason}:clear`);
+    return null;
+  }
+
+  if (!invalidAuthSessionRepairPromise) {
+    invalidAuthSessionRepairPromise = (async () => {
+      try {
+        const { data, error } = await supabase.auth.updateUser({
+          data: buildAuthUserMetadata(null, session.user.user_metadata || {}),
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        const repairedSession = getUsableSupabaseSession(data?.session || null);
+        if (repairedSession?.user) {
+          authStore.manualSignOut = false;
+          markAuthenticated(repairedSession, `${reason}:success`);
+          return repairedSession;
+        }
+      } catch {
+        // Fall through to the local sign-out below.
+      }
+
+      await clearCorruptedSupabaseSession(supabase, `${reason}:clear`);
+      return null;
+    })().finally(() => {
+      invalidAuthSessionRepairPromise = null;
+    });
+  }
+
+  return invalidAuthSessionRepairPromise;
+}
+
+async function resolveUsableSupabaseSession(session, supabase = null, reason = "auth:session") {
+  const usableSession = getUsableSupabaseSession(session);
+  if (usableSession?.user) {
+    return usableSession;
+  }
+
+  if (session?.user) {
+    return repairInvalidSupabaseSession(supabase, session, reason);
+  }
+
+  return null;
+}
 
 function getPersistedSupabaseStorageKey() {
   if (typeof window === "undefined") return "";
@@ -65,7 +243,7 @@ function pickPersistedSessionCandidate(payload) {
   }
 
   if (payload.access_token && payload.user) {
-    return payload;
+    return getUsableSupabaseSession(payload);
   }
 
   return pickPersistedSessionCandidate(payload.currentSession || payload.session || null);
@@ -84,7 +262,17 @@ function readPersistedSupabaseSession() {
   try {
     const rawValue = window.localStorage.getItem(storageKey);
     if (!rawValue) return null;
-    return pickPersistedSessionCandidate(JSON.parse(rawValue));
+
+    if (rawValue.length > MAX_PERSISTED_SUPABASE_SESSION_LENGTH) {
+      return null;
+    }
+
+    const persistedSession = pickPersistedSessionCandidate(JSON.parse(rawValue));
+    if (persistedSession?.user) {
+      return persistedSession;
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -144,10 +332,11 @@ function updateAuthStore({ status = authStore.status, session = authStore.sessio
 }
 
 function markAuthenticated(session, reason = "auth") {
-  if (!session?.user) return;
+  const usableSession = getUsableSupabaseSession(session);
+  if (!usableSession?.user) return;
   updateAuthStore({
     status: AUTH_STATE_STATUS.AUTHENTICATED,
-    session,
+    session: usableSession,
   });
 }
 
@@ -184,7 +373,11 @@ async function refreshAuthSession({
         return null;
       }
 
-      const currentSession = currentData?.session || recoverySession || null;
+      const currentSession = await resolveUsableSupabaseSession(
+        currentData?.session || recoverySession || null,
+        supabase,
+        `${reason}:current-session`
+      );
       if (!currentSession?.refresh_token) {
         if (currentSession?.user) {
           markAuthenticated(currentSession, `${reason}:current-session`);
@@ -206,7 +399,11 @@ async function refreshAuthSession({
         refresh_token: currentSession.refresh_token,
       });
 
-      const refreshedSession = refreshedData?.session || null;
+      const refreshedSession = await resolveUsableSupabaseSession(
+        refreshedData?.session || null,
+        supabase,
+        `${reason}:refreshed-session`
+      );
       if (refreshError || !refreshedSession?.user) {
         if (currentSession?.user && !authStore.manualSignOut) {
           markAuthenticated(currentSession, `${reason}:refresh-failed`);
@@ -254,7 +451,9 @@ async function hydrateAuthStore({
 
     authStore.bootstrapPromise = (async () => {
       const { data, error } = await supabase.auth.getSession();
-      const directSession = !error ? data?.session || null : null;
+      const directSession = !error
+        ? await resolveUsableSupabaseSession(data?.session || null, supabase, `${reason}:bootstrap-session`)
+        : null;
 
       if (directSession?.user) {
         authStore.manualSignOut = false;
@@ -281,9 +480,15 @@ async function hydrateAuthStore({
 }
 
 function handleSupabaseAuthStateChange(event, session) {
-  if (session?.user) {
+  const usableSession = getUsableSupabaseSession(session);
+  if (usableSession?.user) {
     authStore.manualSignOut = false;
-    markAuthenticated(session, `event:${event}`);
+    markAuthenticated(usableSession, `event:${event}`);
+    return;
+  }
+
+  if (session?.user) {
+    void repairInvalidSupabaseSession(getSupabaseClient(), session, `event:${event}`);
     return;
   }
 
@@ -747,6 +952,7 @@ async function fetchProfilesForSeoData() {
           Accept: "application/json",
         },
         body: JSON.stringify({}),
+        allowAnonFallback: true,
       });
 
       const data = await response.json().catch(() => []);
@@ -765,7 +971,9 @@ async function warmSupabaseAuthSession(supabase) {
 
   try {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    const activeSession = !sessionError ? sessionData?.session || null : null;
+    const activeSession = !sessionError
+      ? await resolveUsableSupabaseSession(sessionData?.session || null, supabase, "warm-session")
+      : null;
     if (activeSession?.user) {
       authStore.manualSignOut = false;
       markAuthenticated(activeSession, "warm-session");
@@ -881,14 +1089,17 @@ async function fetchSupabaseRestResponse(path, {
   allowAnonFallback = false,
 } = {}) {
   let resolvedAccessToken = String(accessToken || "").trim();
+  if (resolvedAccessToken && !isLikelySupabaseAccessToken(resolvedAccessToken)) {
+    resolvedAccessToken = "";
+  }
   if (!resolvedAccessToken) {
     const snapshotAccessToken = String(authStore.session?.access_token || "").trim();
-    if (snapshotAccessToken) {
+    if (snapshotAccessToken && isLikelySupabaseAccessToken(snapshotAccessToken)) {
       resolvedAccessToken = snapshotAccessToken;
     } else {
       const warmedSession = await getSession().catch(() => null);
       const warmedAccessToken = String(warmedSession?.access_token || "").trim();
-      if (warmedAccessToken) {
+      if (warmedAccessToken && isLikelySupabaseAccessToken(warmedAccessToken)) {
         resolvedAccessToken = warmedAccessToken;
       }
     }
@@ -1094,7 +1305,7 @@ export async function getSession(options = {}) {
     try {
       const { data, error } = await supabase.auth.getSession();
       if (error) return null;
-      const liveSession = data?.session || null;
+      const liveSession = await resolveUsableSupabaseSession(data?.session || null, supabase, reason);
       if (liveSession?.user) {
         authStore.manualSignOut = false;
         markAuthenticated(liveSession, reason);
@@ -1270,9 +1481,14 @@ export async function updateProfile(updates) {
   const supabase = ensureSupabase();
   const session = await getSession();
   const user = (await warmSupabaseAuthSession(supabase)) || session?.user || null;
+  let updateAccessToken = String(session?.access_token || authStore.session?.access_token || "").trim() || null;
 
   if (!user) {
     throw new Error("로그인 후 내 정보를 수정할 수 있습니다.");
+  }
+
+  if (!updateAccessToken) {
+    updateAccessToken = await refreshAccessTokenOnce().catch(() => null);
   }
 
   const currentProfile = await fetchProfile(user.id);
@@ -1400,18 +1616,22 @@ export async function updateProfile(updates) {
   let data = null;
   try {
     const performUpdate = async (nextPayload) => {
-      const { data: updatedRow, error } = await supabase
-        .from("profiles")
-        .update(nextPayload)
-        .eq("id", user.id)
-        .select("*")
-        .maybeSingle();
-
-      if (error) {
-        throw error;
-      }
-
-      return updatedRow || null;
+      const response = await fetchSupabaseRestResponse("/rest/v1/profiles", {
+        accessToken: updateAccessToken,
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Prefer: "return=representation",
+        },
+        searchParams: {
+          id: `eq.${user.id}`,
+          select: "*",
+        },
+        body: JSON.stringify(nextPayload),
+      });
+      const updatedRows = await response.json().catch(() => []);
+      return Array.isArray(updatedRows) ? updatedRows[0] || null : updatedRows || null;
     };
 
     const fullPayload = derivedPayload ? { ...payload, ...derivedPayload } : payload;
@@ -1479,32 +1699,7 @@ export async function updateProfile(updates) {
 
   try {
     await supabase.auth.updateUser({
-      data: {
-        full_name: resolvedData.full_name,
-        gender: resolvedData.gender,
-        phone: resolvedData.phone || "",
-        calendar_type: resolvedData.calendar_type,
-        is_leap_month: resolvedData.is_leap_month,
-        birth_year: resolvedData.birth_year,
-        birth_month: resolvedData.birth_month,
-        birth_day: resolvedData.birth_day,
-        birth_hour: resolvedData.birth_time_known ? resolvedData.birth_hour : "",
-        birth_minute: resolvedData.birth_time_known ? resolvedData.birth_minute : "",
-        birth_time_known: resolvedData.birth_time_known,
-        marketing_opt_in: resolvedData.marketing_opt_in,
-        stellar_id: resolvedData.stellar_id || "",
-        profile_image_path: resolvedData.profile_image_path || "",
-        profile_image_url: resolvedData.profile_image_url || "",
-        mbti: resolvedData.mbti || "",
-        region_country: resolvedData.region_country || "",
-        region_name: resolvedData.region_name || "",
-        bio: resolvedData.bio || "",
-        personality_visibility: resolvedData.personality_visibility || "public",
-        health_visibility: resolvedData.health_visibility || "public",
-        love_visibility: resolvedData.love_visibility || "public",
-        ability_visibility: resolvedData.ability_visibility || "public",
-        major_luck_visibility: resolvedData.major_luck_visibility || "public",
-      },
+      data: buildAuthUserMetadata(resolvedData, user.user_metadata || {}),
     });
   } catch {
     // profiles 테이블이 실제 표시용 데이터 소스라서, 메타데이터 동기화 실패는 저장 실패로 보지 않습니다.
@@ -1574,7 +1769,7 @@ export async function signUpWithPassword({
     password,
     options: {
       emailRedirectTo,
-      data: profile,
+      data: buildAuthUserMetadata(profile),
     },
   });
 
@@ -1761,6 +1956,7 @@ export async function searchPublicProfiles(query, limit = 20) {
         search_query: normalizedQuery,
         limit_count: limit,
       }),
+      allowAnonFallback: true,
     });
 
     const data = await response.json().catch(() => []);
