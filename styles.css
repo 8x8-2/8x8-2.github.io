@@ -2302,10 +2302,10 @@ summary:focus-visible {
   width: 88px;
   height: 44px;
   border-radius: 999px;
-  border: 1px solid rgba(56, 62, 75, 0.88);
-  background: linear-gradient(180deg, rgba(31, 36, 45, 0.84), rgba(23, 27, 34, 0.92));
   display: inline-flex;
   flex-shrink: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .social-brand {
@@ -2362,7 +2362,7 @@ summary:focus-visible {
 .social-brand-meta {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
   flex-wrap: nowrap;
   min-width: 0;
   max-width: 100%;
@@ -2377,6 +2377,7 @@ summary:focus-visible {
 }
 
 .social-brand-slash {
+  margin: 0 0 0 2px;
   flex: 0 0 auto;
   white-space: nowrap;
 }
