@@ -21,6 +21,14 @@ let seoProfilesCachePromise = null;
 const MAX_PERSISTED_SUPABASE_SESSION_LENGTH = 32768;
 const MAX_SUPABASE_ACCESS_TOKEN_LENGTH = 8192;
 const MAX_AUTH_METADATA_IMAGE_URL_LENGTH = 2048;
+const LEGACY_AUTH_METADATA_RESET = Object.freeze({
+  day_pillar_key: "",
+  day_pillar_hanja: "",
+  day_pillar_metaphor: "",
+  element_class: "unknown",
+  preview_summary: "",
+  public_snapshot: null,
+});
 
 export const AUTH_STATE_STATUS = Object.freeze({
   UNKNOWN: "unknown",
@@ -134,6 +142,7 @@ function buildAuthUserMetadata(profile = null, metadata = null) {
     love_visibility: String(source.love_visibility ?? fallbackMetadata.love_visibility ?? "public").trim() || "public",
     ability_visibility: String(source.ability_visibility ?? fallbackMetadata.ability_visibility ?? "public").trim() || "public",
     major_luck_visibility: String(source.major_luck_visibility ?? fallbackMetadata.major_luck_visibility ?? "public").trim() || "public",
+    ...LEGACY_AUTH_METADATA_RESET,
   };
 
   const candidateProfileImageUrl = String(
@@ -186,6 +195,30 @@ async function repairInvalidSupabaseSession(supabase, session, reason = "auth:re
           authStore.manualSignOut = false;
           markAuthenticated(repairedSession, `${reason}:success`);
           return repairedSession;
+        }
+
+        const { data: currentSessionData } = await supabase.auth.getSession();
+        const currentSession = getUsableSupabaseSession(currentSessionData?.session || null);
+        if (currentSession?.user) {
+          authStore.manualSignOut = false;
+          markAuthenticated(currentSession, `${reason}:current-session`);
+          return currentSession;
+        }
+
+        const refreshToken = String(session?.refresh_token || "").trim();
+        if (refreshToken) {
+          const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession({
+            refresh_token: refreshToken,
+          });
+
+          if (!refreshError) {
+            const refreshedSession = getUsableSupabaseSession(refreshedData?.session || null);
+            if (refreshedSession?.user) {
+              authStore.manualSignOut = false;
+              markAuthenticated(refreshedSession, `${reason}:refreshed`);
+              return refreshedSession;
+            }
+          }
         }
       } catch {
         // Fall through to the local sign-out below.
@@ -1749,10 +1782,21 @@ export async function signInWithPassword({ email, password }) {
   });
 
   if (error) throw normalizeAuthError(error, "signin");
-  if (data?.session?.user) {
+  const resolvedSession = await resolveUsableSupabaseSession(data?.session || null, supabase, "signin");
+  if (resolvedSession?.user) {
     authStore.manualSignOut = false;
-    markAuthenticated(data.session, "signin");
+    markAuthenticated(resolvedSession, "signin");
+    return {
+      ...data,
+      session: resolvedSession,
+      user: resolvedSession.user,
+    };
   }
+
+  if (data?.session?.user) {
+    throw new Error("로그인 세션을 복구하지 못했습니다. 다시 로그인해 주세요.");
+  }
+
   return data;
 }
 
@@ -1774,10 +1818,17 @@ export async function signUpWithPassword({
   });
 
   if (error) throw normalizeAuthError(error, "signup");
-  if (data?.session?.user) {
+  const resolvedSession = await resolveUsableSupabaseSession(data?.session || null, supabase, "signup");
+  if (resolvedSession?.user) {
     authStore.manualSignOut = false;
-    markAuthenticated(data.session, "signup");
+    markAuthenticated(resolvedSession, "signup");
+    return {
+      ...data,
+      session: resolvedSession,
+      user: resolvedSession.user,
+    };
   }
+
   return data;
 }
 
