@@ -140,7 +140,9 @@ function fillEditForm(profile) {
 
 function setEditMode(active) {
   $("profileEditCard").classList.toggle("hidden", !active);
+  $("profileSummary").classList.toggle("hidden", active);
   $("profileEditButton").classList.toggle("hidden", active);
+  $("profilePasswordLink").classList.toggle("hidden", active);
 }
 
 function consumeToastFromUrl() {

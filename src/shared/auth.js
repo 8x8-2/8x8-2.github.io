@@ -1285,35 +1285,103 @@ export async function updateProfile(updates) {
     ...updates,
   };
 
+  const hasOwnUpdateKey = (key) => Object.prototype.hasOwnProperty.call(updates || {}, key);
   const payload = {
-    full_name: mergedProfile.full_name,
-    gender: mergedProfile.gender,
-    phone: mergedProfile.phone || null,
-    calendar_type: mergedProfile.calendar_type,
-    is_leap_month: Boolean(mergedProfile.is_leap_month),
-    birth_year: mergedProfile.birth_year,
-    birth_month: mergedProfile.birth_month,
-    birth_day: mergedProfile.birth_day,
-    birth_hour: mergedProfile.birth_time_known ? mergedProfile.birth_hour : null,
-    birth_minute: mergedProfile.birth_time_known ? mergedProfile.birth_minute : null,
-    birth_time_known: Boolean(mergedProfile.birth_time_known),
-    marketing_opt_in: Boolean(mergedProfile.marketing_opt_in),
-    stellar_id: mergedProfile.stellar_id || null,
-    profile_image_path: mergedProfile.profile_image_path || null,
-    profile_image_url: mergedProfile.profile_image_url || null,
-    mbti: mergedProfile.mbti || null,
-    region_country: mergedProfile.region_country || null,
-    region_name: mergedProfile.region_name || null,
-    bio: normalizeProfileBio(mergedProfile.bio || ""),
-    personality_visibility: mergedProfile.personality_visibility || "public",
-    health_visibility: mergedProfile.health_visibility || "public",
-    love_visibility: mergedProfile.love_visibility || "public",
-    ability_visibility: mergedProfile.ability_visibility || "public",
-    major_luck_visibility: mergedProfile.major_luck_visibility || "public",
     updated_at: new Date().toISOString(),
   };
 
-  if (needsDerivedProfileFields(mergedProfile)) {
+  if (hasOwnUpdateKey("full_name")) {
+    payload.full_name = mergedProfile.full_name;
+  }
+
+  if (hasOwnUpdateKey("gender")) {
+    payload.gender = mergedProfile.gender;
+  }
+
+  if (hasOwnUpdateKey("phone")) {
+    payload.phone = mergedProfile.phone || null;
+  }
+
+  if (hasOwnUpdateKey("calendar_type")) {
+    payload.calendar_type = mergedProfile.calendar_type;
+  }
+
+  if (hasOwnUpdateKey("calendar_type") || hasOwnUpdateKey("is_leap_month")) {
+    payload.is_leap_month = Boolean(
+      mergedProfile.calendar_type === "lunar" ? mergedProfile.is_leap_month : false
+    );
+  }
+
+  ["birth_year", "birth_month", "birth_day"].forEach((key) => {
+    if (hasOwnUpdateKey(key)) {
+      payload[key] = mergedProfile[key];
+    }
+  });
+
+  if (hasOwnUpdateKey("birth_hour") || hasOwnUpdateKey("birth_minute") || hasOwnUpdateKey("birth_time_known")) {
+    payload.birth_hour = mergedProfile.birth_time_known ? mergedProfile.birth_hour : null;
+    payload.birth_minute = mergedProfile.birth_time_known ? mergedProfile.birth_minute : null;
+    payload.birth_time_known = Boolean(mergedProfile.birth_time_known);
+  }
+
+  if (hasOwnUpdateKey("marketing_opt_in")) {
+    payload.marketing_opt_in = Boolean(mergedProfile.marketing_opt_in);
+  }
+
+  if (hasOwnUpdateKey("stellar_id")) {
+    payload.stellar_id = mergedProfile.stellar_id || null;
+  }
+
+  if (hasOwnUpdateKey("profile_image_path")) {
+    payload.profile_image_path = mergedProfile.profile_image_path || null;
+  }
+
+  if (hasOwnUpdateKey("profile_image_url")) {
+    payload.profile_image_url = mergedProfile.profile_image_url || null;
+  }
+
+  if (hasOwnUpdateKey("mbti")) {
+    payload.mbti = mergedProfile.mbti || null;
+  }
+
+  if (hasOwnUpdateKey("region_country")) {
+    payload.region_country = mergedProfile.region_country || null;
+  }
+
+  if (hasOwnUpdateKey("region_name")) {
+    payload.region_name = mergedProfile.region_name || null;
+  }
+
+  if (hasOwnUpdateKey("bio")) {
+    payload.bio = normalizeProfileBio(mergedProfile.bio || "");
+  }
+
+  [
+    "personality_visibility",
+    "health_visibility",
+    "love_visibility",
+    "ability_visibility",
+    "major_luck_visibility",
+  ].forEach((key) => {
+    if (hasOwnUpdateKey(key)) {
+      payload[key] = mergedProfile[key] || "public";
+    }
+  });
+
+  const shouldRebuildDerivedProfile = [
+    "gender",
+    "calendar_type",
+    "is_leap_month",
+    "birth_year",
+    "birth_month",
+    "birth_day",
+    "birth_hour",
+    "birth_minute",
+    "birth_time_known",
+  ].some((key) => hasOwnUpdateKey(key));
+
+  let derivedPayload = null;
+  if (shouldRebuildDerivedProfile && needsDerivedProfileFields(mergedProfile)) {
     const { fields } = buildProfileDerivedFieldsFromInput({
       birthYear: mergedProfile.birth_year,
       birthMonth: mergedProfile.birth_month,
@@ -1326,15 +1394,15 @@ export async function updateProfile(updates) {
       gender: mergedProfile.gender,
     });
 
-    Object.assign(payload, fields);
+    derivedPayload = fields;
   }
 
   let data = null;
   try {
-    const performUpdate = async () => {
+    const performUpdate = async (nextPayload) => {
       const { data: updatedRow, error } = await supabase
         .from("profiles")
-        .update(payload)
+        .update(nextPayload)
         .eq("id", user.id)
         .select("*")
         .maybeSingle();
@@ -1346,11 +1414,40 @@ export async function updateProfile(updates) {
       return updatedRow || null;
     };
 
-    data = await performUpdate();
+    const fullPayload = derivedPayload ? { ...payload, ...derivedPayload } : payload;
+    const performUpdateWithCompatibilityFallback = async () => {
+      try {
+        return await performUpdate(fullPayload);
+      } catch (error) {
+        const combinedErrorMessage = [
+          error?.message,
+          error?.details,
+          error?.hint,
+        ].filter(Boolean).join(" ").toLowerCase();
+        const isCompatibilityLikeError = Boolean(
+          derivedPayload
+          && (
+            combinedErrorMessage.includes("schema cache")
+            || combinedErrorMessage.includes("column")
+            || combinedErrorMessage.includes("does not exist")
+            || combinedErrorMessage.includes("could not find")
+            || (Number(error?.status || 0) === 400 && isGenericBadRequestDetail(combinedErrorMessage))
+          )
+        );
+
+        if (!isCompatibilityLikeError) {
+          throw error;
+        }
+
+        return performUpdate(payload);
+      }
+    };
+
+    data = await performUpdateWithCompatibilityFallback();
 
     if (!data) {
       await ensureOwnProfile();
-      data = await performUpdate();
+      data = await performUpdateWithCompatibilityFallback();
     }
 
     if (!data) {
@@ -1360,7 +1457,18 @@ export async function updateProfile(updates) {
     if (isUniqueViolation(error) || String(error?.message || "").toLowerCase().includes("duplicate")) {
       throw new Error("이미 사용 중인 스텔라 ID입니다.");
     }
-    throw new Error(error?.message || "내 정보를 저장하지 못했습니다.");
+
+    const normalizedErrorMessage = [
+      error?.message,
+      error?.details,
+      error?.hint,
+    ].find((value) => typeof value === "string" && value.trim());
+
+    if (Number(error?.status || 0) === 400 && isGenericBadRequestDetail(normalizedErrorMessage || "")) {
+      throw new Error("프로필 저장 요청을 처리하지 못했습니다. Supabase schema.sql이 최신인지 확인해 주세요.");
+    }
+
+    throw new Error(normalizedErrorMessage || "내 정보를 저장하지 못했습니다.");
   }
 
   const resolvedData = normalizeProfileRecord(

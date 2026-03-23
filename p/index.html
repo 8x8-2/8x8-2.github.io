@@ -68,11 +68,11 @@
       <section id="profileSection" class="card hidden" aria-labelledby="profile-summary-heading">
         <div class="profile-head">
           <div class="section-intro">
-            <h2 id="profile-summary-heading">현재 계정 기준 정보</h2>
+            <h2 id="profile-summary-heading">현재 계정 정보</h2>
             <p class="muted">공개 프로필 설정은 별도 페이지에서, 계산 기준 정보는 여기에서 수정합니다.</p>
           </div>
           <div class="profile-head-actions">
-            <button id="profileEditButton" type="button">수정</button>
+            <button id="profileEditButton" class="button-primary" type="button">수정</button>
             <a id="profilePasswordLink" class="text-link-button" href="../account/password/">암호 변경</a>
           </div>
         </div>
@@ -80,7 +80,7 @@
         <div id="profileSummary"></div>
 
         <div id="profileEditCard" class="box profile-edit-card hidden">
-          <div class="title">계정 기준 정보 수정</div>
+          <div class="title">계정 정보 수정</div>
           <form id="profileForm" class="auth-form auth-form-wide">
             <div class="grid auth-grid-two">
               <label class="field">
@@ -136,7 +136,7 @@
             </label>
 
             <div class="actions">
-              <button type="submit">저장</button>
+              <button class="button-primary" type="submit">저장</button>
               <button id="profileEditCancel" class="button-muted" type="button">취소</button>
               <span id="profileStatus" class="muted"></span>
             </div>
