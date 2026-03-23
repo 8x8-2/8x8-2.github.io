@@ -156,6 +156,82 @@ function buildAuthUserMetadata(profile = null, metadata = null) {
   return nextMetadata;
 }
 
+function applyAuthenticatedSession(session, reason = "auth", {
+  clearManualSignOut = false,
+} = {}) {
+  const usableSession = getUsableSupabaseSession(session);
+  if (!usableSession?.user) {
+    return null;
+  }
+
+  if (clearManualSignOut) {
+    authStore.manualSignOut = false;
+  }
+
+  markAuthenticated(usableSession, reason);
+  return usableSession;
+}
+
+async function resolveSessionCandidate(session, supabase = null, {
+  reason = "auth:session",
+  allowRepair = true,
+} = {}) {
+  if (allowRepair) {
+    return resolveUsableSupabaseSession(session, supabase, reason);
+  }
+
+  return getUsableSupabaseSession(session);
+}
+
+async function readSupabaseSessionCandidate(supabase, {
+  reason = "auth:read-session",
+  allowRepair = true,
+} = {}) {
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      return null;
+    }
+
+    return resolveSessionCandidate(data?.session || null, supabase, {
+      reason,
+      allowRepair,
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function refreshSupabaseSessionCandidate(supabase, refreshToken, {
+  reason = "auth:refresh-session",
+  allowRepair = true,
+} = {}) {
+  const normalizedRefreshToken = String(refreshToken || "").trim();
+  if (!supabase || !normalizedRefreshToken) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase.auth.refreshSession({
+      refresh_token: normalizedRefreshToken,
+    });
+    if (error) {
+      return null;
+    }
+
+    return resolveSessionCandidate(data?.session || null, supabase, {
+      reason,
+      allowRepair,
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function clearCorruptedSupabaseSession(supabase = null, reason = "auth:corrupt-session") {
   const storageKey = getPersistedSupabaseStorageKey();
 
@@ -190,35 +266,33 @@ async function repairInvalidSupabaseSession(supabase, session, reason = "auth:re
           throw error;
         }
 
-        const repairedSession = getUsableSupabaseSession(data?.session || null);
+        const repairedSession = applyAuthenticatedSession(data?.session || null, `${reason}:success`, {
+          clearManualSignOut: true,
+        });
         if (repairedSession?.user) {
-          authStore.manualSignOut = false;
-          markAuthenticated(repairedSession, `${reason}:success`);
           return repairedSession;
         }
 
-        const { data: currentSessionData } = await supabase.auth.getSession();
-        const currentSession = getUsableSupabaseSession(currentSessionData?.session || null);
+        const currentSession = await readSupabaseSessionCandidate(supabase, {
+          reason: `${reason}:current-session`,
+          allowRepair: false,
+        });
         if (currentSession?.user) {
-          authStore.manualSignOut = false;
-          markAuthenticated(currentSession, `${reason}:current-session`);
+          applyAuthenticatedSession(currentSession, `${reason}:current-session`, {
+            clearManualSignOut: true,
+          });
           return currentSession;
         }
 
-        const refreshToken = String(session?.refresh_token || "").trim();
-        if (refreshToken) {
-          const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession({
-            refresh_token: refreshToken,
+        const refreshedSession = await refreshSupabaseSessionCandidate(supabase, session?.refresh_token, {
+          reason: `${reason}:refreshed`,
+          allowRepair: false,
+        });
+        if (refreshedSession?.user) {
+          applyAuthenticatedSession(refreshedSession, `${reason}:refreshed`, {
+            clearManualSignOut: true,
           });
-
-          if (!refreshError) {
-            const refreshedSession = getUsableSupabaseSession(refreshedData?.session || null);
-            if (refreshedSession?.user) {
-              authStore.manualSignOut = false;
-              markAuthenticated(refreshedSession, `${reason}:refreshed`);
-              return refreshedSession;
-            }
-          }
+          return refreshedSession;
         }
       } catch {
         // Fall through to the local sign-out below.
@@ -396,8 +470,7 @@ async function refreshAuthSession({
       const { data: currentData, error: currentError } = await supabase.auth.getSession();
       if (currentError) {
         if (recoverySession && !authStore.manualSignOut) {
-          markAuthenticated(recoverySession, `${reason}:preserve`);
-          return recoverySession;
+          return applyAuthenticatedSession(recoverySession, `${reason}:preserve`);
         }
 
         if (markUnauthenticatedOnFailure || authStore.manualSignOut) {
@@ -406,20 +479,18 @@ async function refreshAuthSession({
         return null;
       }
 
-      const currentSession = await resolveUsableSupabaseSession(
+      const currentSession = await resolveSessionCandidate(
         currentData?.session || recoverySession || null,
         supabase,
-        `${reason}:current-session`
+        { reason: `${reason}:current-session` }
       );
       if (!currentSession?.refresh_token) {
         if (currentSession?.user) {
-          markAuthenticated(currentSession, `${reason}:current-session`);
-          return currentSession;
+          return applyAuthenticatedSession(currentSession, `${reason}:current-session`);
         }
 
         if (recoverySession && !authStore.manualSignOut) {
-          markAuthenticated(recoverySession, `${reason}:preserve-no-refresh-token`);
-          return recoverySession;
+          return applyAuthenticatedSession(recoverySession, `${reason}:preserve-no-refresh-token`);
         }
 
         if (markUnauthenticatedOnFailure || authStore.manualSignOut) {
@@ -428,19 +499,12 @@ async function refreshAuthSession({
         return null;
       }
 
-      const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession({
-        refresh_token: currentSession.refresh_token,
+      const refreshedSession = await refreshSupabaseSessionCandidate(supabase, currentSession.refresh_token, {
+        reason: `${reason}:refreshed-session`,
       });
-
-      const refreshedSession = await resolveUsableSupabaseSession(
-        refreshedData?.session || null,
-        supabase,
-        `${reason}:refreshed-session`
-      );
-      if (refreshError || !refreshedSession?.user) {
+      if (!refreshedSession?.user) {
         if (currentSession?.user && !authStore.manualSignOut) {
-          markAuthenticated(currentSession, `${reason}:refresh-failed`);
-          return currentSession;
+          return applyAuthenticatedSession(currentSession, `${reason}:refresh-failed`);
         }
 
         if (markUnauthenticatedOnFailure || authStore.manualSignOut) {
@@ -449,9 +513,9 @@ async function refreshAuthSession({
         return null;
       }
 
-      authStore.manualSignOut = false;
-      markAuthenticated(refreshedSession, reason);
-      return refreshedSession;
+      return applyAuthenticatedSession(refreshedSession, reason, {
+        clearManualSignOut: true,
+      });
     })().finally(() => {
       accessTokenRefreshPromise = null;
     });
@@ -479,24 +543,23 @@ async function hydrateAuthStore({
         session: null,
       });
     } else {
-      markAuthenticated(previousSession, `${reason}:preserve`);
+      applyAuthenticatedSession(previousSession, `${reason}:preserve`);
     }
 
     authStore.bootstrapPromise = (async () => {
       const { data, error } = await supabase.auth.getSession();
       const directSession = !error
-        ? await resolveUsableSupabaseSession(data?.session || null, supabase, `${reason}:bootstrap-session`)
+        ? await resolveSessionCandidate(data?.session || null, supabase, { reason: `${reason}:bootstrap-session` })
         : null;
 
       if (directSession?.user) {
-        authStore.manualSignOut = false;
-        markAuthenticated(directSession, reason);
-        return directSession;
+        return applyAuthenticatedSession(directSession, reason, {
+          clearManualSignOut: true,
+        });
       }
 
       if (previousSession && !authStore.manualSignOut) {
-        markAuthenticated(previousSession, `${reason}:preserve`);
-        return previousSession;
+        return applyAuthenticatedSession(previousSession, `${reason}:preserve`);
       }
 
       if (allowUnauthenticatedFallback || authStore.manualSignOut) {
@@ -513,10 +576,10 @@ async function hydrateAuthStore({
 }
 
 function handleSupabaseAuthStateChange(event, session) {
-  const usableSession = getUsableSupabaseSession(session);
+  const usableSession = applyAuthenticatedSession(session, `event:${event}`, {
+    clearManualSignOut: true,
+  });
   if (usableSession?.user) {
-    authStore.manualSignOut = false;
-    markAuthenticated(usableSession, `event:${event}`);
     return;
   }
 
@@ -534,7 +597,7 @@ function handleSupabaseAuthStateChange(event, session) {
 
     const persistedSession = readPersistedSupabaseSession() || authStore.session;
     if (persistedSession?.user) {
-      markAuthenticated(persistedSession, `event:${event}:preserve`);
+      applyAuthenticatedSession(persistedSession, `event:${event}:preserve`);
       return;
     }
 
@@ -547,7 +610,7 @@ function handleSupabaseAuthStateChange(event, session) {
 
   const persistedSession = readPersistedSupabaseSession() || authStore.session;
   if (persistedSession?.user && !authStore.manualSignOut) {
-    markAuthenticated(persistedSession, `event:${event}:preserve`);
+    applyAuthenticatedSession(persistedSession, `event:${event}:preserve`);
     return;
   }
 
@@ -575,8 +638,9 @@ function installAuthLifecycleObservers() {
     if (authStore.session?.user) {
       const persistedSession = readPersistedSupabaseSession();
       if (persistedSession?.user && String(persistedSession.user.id || "") === String(authStore.session.user.id || "")) {
-        authStore.manualSignOut = false;
-        markAuthenticated(persistedSession, "resume:preserve");
+        applyAuthenticatedSession(persistedSession, "resume:preserve", {
+          clearManualSignOut: true,
+        });
       }
       return;
     }
@@ -1003,13 +1067,13 @@ async function warmSupabaseAuthSession(supabase) {
   if (!supabase) return null;
 
   try {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    const activeSession = !sessionError
-      ? await resolveUsableSupabaseSession(sessionData?.session || null, supabase, "warm-session")
-      : null;
+    const activeSession = await readSupabaseSessionCandidate(supabase, {
+      reason: "warm-session",
+    });
     if (activeSession?.user) {
-      authStore.manualSignOut = false;
-      markAuthenticated(activeSession, "warm-session");
+      applyAuthenticatedSession(activeSession, "warm-session", {
+        clearManualSignOut: true,
+      });
       return activeSession.user;
     }
 
@@ -1333,21 +1397,13 @@ export async function getSession(options = {}) {
   const supabase = isSupabaseConfigured() ? ensureSupabase() : null;
 
   const readLiveSession = async (reason = "get-session:live") => {
-    if (!supabase) return null;
-
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) return null;
-      const liveSession = await resolveUsableSupabaseSession(data?.session || null, supabase, reason);
-      if (liveSession?.user) {
-        authStore.manualSignOut = false;
-        markAuthenticated(liveSession, reason);
-        return liveSession;
-      }
-      return null;
-    } catch {
-      return null;
+    const liveSession = await readSupabaseSessionCandidate(supabase, { reason });
+    if (liveSession?.user) {
+      return applyAuthenticatedSession(liveSession, reason, {
+        clearManualSignOut: true,
+      });
     }
+    return null;
   };
 
   const liveSession = await readLiveSession();
@@ -1361,7 +1417,7 @@ export async function getSession(options = {}) {
 
   const persistedSession = readPersistedSupabaseSession();
   if (persistedSession?.user && !authStore.manualSignOut) {
-    markAuthenticated(persistedSession, "get-session:persisted");
+    applyAuthenticatedSession(persistedSession, "get-session:persisted");
     if ([AUTH_STATE_STATUS.UNKNOWN, AUTH_STATE_STATUS.LOADING].includes(authStore.status)) {
       void hydrateAuthStore({
         reason: "get-session:persisted",
@@ -1782,14 +1838,17 @@ export async function signInWithPassword({ email, password }) {
   });
 
   if (error) throw normalizeAuthError(error, "signin");
-  const resolvedSession = await resolveUsableSupabaseSession(data?.session || null, supabase, "signin");
+  const resolvedSession = await resolveSessionCandidate(data?.session || null, supabase, {
+    reason: "signin",
+  });
   if (resolvedSession?.user) {
-    authStore.manualSignOut = false;
-    markAuthenticated(resolvedSession, "signin");
+    const activeSession = applyAuthenticatedSession(resolvedSession, "signin", {
+      clearManualSignOut: true,
+    });
     return {
       ...data,
-      session: resolvedSession,
-      user: resolvedSession.user,
+      session: activeSession,
+      user: activeSession.user,
     };
   }
 
@@ -1818,14 +1877,17 @@ export async function signUpWithPassword({
   });
 
   if (error) throw normalizeAuthError(error, "signup");
-  const resolvedSession = await resolveUsableSupabaseSession(data?.session || null, supabase, "signup");
+  const resolvedSession = await resolveSessionCandidate(data?.session || null, supabase, {
+    reason: "signup",
+  });
   if (resolvedSession?.user) {
-    authStore.manualSignOut = false;
-    markAuthenticated(resolvedSession, "signup");
+    const activeSession = applyAuthenticatedSession(resolvedSession, "signup", {
+      clearManualSignOut: true,
+    });
     return {
       ...data,
-      session: resolvedSession,
-      user: resolvedSession.user,
+      session: activeSession,
+      user: activeSession.user,
     };
   }
 
