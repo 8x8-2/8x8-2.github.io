@@ -1169,6 +1169,232 @@ body.has-modal {
   line-height: 1.72;
 }
 
+.tojeong-hero-card {
+  display: grid;
+  gap: 16px;
+}
+
+.tojeong-hero-pills {
+  margin-top: -2px;
+}
+
+.tojeong-grid-primary {
+  grid-template-columns: minmax(0, 1.3fr) minmax(180px, 0.7fr);
+}
+
+.tojeong-time-note {
+  margin: -4px 0 0;
+}
+
+.tojeong-result-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.tojeong-highlight-card {
+  padding: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(250, 240, 214, 0.95), transparent 36%),
+    linear-gradient(180deg, rgba(255, 251, 245, 0.98) 0%, rgba(247, 239, 229, 0.94) 100%);
+}
+
+.tojeong-highlight-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tojeong-highlight-title {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.tojeong-highlight-subtitle,
+.tojeong-summary-copy,
+.tojeong-month-summary {
+  margin: 0;
+  line-height: 1.72;
+}
+
+.tojeong-highlight-subtitle {
+  margin-top: 6px;
+  color: #4b5563;
+}
+
+.tojeong-summary-copy {
+  margin-top: 14px;
+}
+
+.tojeong-code-badge {
+  flex: 0 0 auto;
+  min-width: 72px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(17, 24, 39, 0.92);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+.tojeong-meta-grid,
+.tojeong-month-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.tojeong-meta-card,
+.tojeong-month-card {
+  display: grid;
+  gap: 12px;
+}
+
+.tojeong-formula-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tojeong-formula-item {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(17, 24, 39, 0.04);
+  text-align: center;
+}
+
+.tojeong-formula-item strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.1rem;
+}
+
+.tojeong-formula-label {
+  display: block;
+  color: var(--mut);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tojeong-line-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tojeong-line-item {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(17, 24, 39, 0.04);
+}
+
+.tojeong-line-hanja {
+  font-family: "Iowan Old Style", "Songti SC", "Noto Serif KR", serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.tojeong-line-reading {
+  margin-top: 4px;
+  color: var(--mut);
+  font-size: 0.94rem;
+}
+
+.tojeong-month-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tojeong-tone-pill {
+  border: 1px solid transparent;
+}
+
+.tojeong-tone-good {
+  background: rgba(14, 159, 110, 0.12);
+  color: #047857;
+  border-color: rgba(4, 120, 87, 0.18);
+}
+
+.tojeong-tone-neutral {
+  background: rgba(17, 24, 39, 0.08);
+  color: #374151;
+  border-color: rgba(55, 65, 81, 0.12);
+}
+
+.tojeong-tone-warn {
+  background: rgba(185, 28, 28, 0.1);
+  color: #b91c1c;
+  border-color: rgba(185, 28, 28, 0.16);
+}
+
+.tojeong-cta-actions {
+  gap: 10px;
+}
+
+.tojeong-floating-cta {
+  position: fixed;
+  right: 2rem;
+  bottom: 2rem;
+  z-index: 16;
+  display: grid;
+  gap: 2px;
+  min-width: 214px;
+  padding: 14px 18px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.94);
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 18px 40px rgba(17, 24, 39, 0.22);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.tojeong-floating-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 44px rgba(17, 24, 39, 0.26);
+}
+
+.tojeong-floating-label {
+  font-weight: 800;
+}
+
+.tojeong-floating-subtitle {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 12px;
+}
+
+body[data-page-name="tojeong"] main.container {
+  padding-bottom: 104px;
+}
+
+@media (max-width: 720px) {
+  .tojeong-grid-primary,
+  .tojeong-formula-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .tojeong-highlight-head,
+  .tojeong-month-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tojeong-floating-cta {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
+    min-width: 0;
+    border-radius: 20px;
+  }
+}
+
 .soulday-search-row {
   display: flex;
   flex-wrap: wrap;

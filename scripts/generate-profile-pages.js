@@ -336,6 +336,7 @@ function buildSitemapEntries(profiles) {
   const today = new Date().toISOString();
   const coreEntries = [
     { path: "/", lastmod: today },
+    { path: "/tojeong/", lastmod: today },
     { path: "/privacy/", lastmod: today },
     { path: "/soulday/", lastmod: today },
     ...getAllDayPillarEntries().map((entry) => ({

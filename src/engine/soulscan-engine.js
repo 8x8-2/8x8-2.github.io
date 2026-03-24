@@ -154,48 +154,70 @@ export function lunarToSolar(year, month, day, isLeapMonth = false) {
   };
 }
 
+export function getLeapMonthForYear(year) {
+  return getLeapMonth(year);
+}
+
+export function getLunarMonthLength(year, month, isLeapMonth = false) {
+  if (isLeapMonth) {
+    return getLeapMonth(year) === month ? getLeapMonthDays(year) : getLunarMonthDays(year, month);
+  }
+
+  return getLunarMonthDays(year, month);
+}
+
 export function solarToLunar(year, month, day) {
   const targetDate = new Date(year, month - 1, day);
-  let remainingDays = Math.floor((targetDate.getTime() - LUNAR_BASE_DATE.getTime()) / MS_PER_DAY);
   let lunarYear = 1900;
 
-  for (let currentYear = 1900; currentYear < 2100 && remainingDays > 0; currentYear += 1) {
-    const daysInYear = getLunarYearDays(currentYear);
-    if (remainingDays < daysInYear) {
+  for (let currentYear = 1900; currentYear < 2100; currentYear += 1) {
+    const yearStart = lunarToSolar(currentYear, 1, 1, false);
+    const yearStartDate = new Date(yearStart.year, yearStart.month - 1, yearStart.day);
+    const nextYearStart = lunarToSolar(currentYear + 1, 1, 1, false);
+    const nextYearStartDate = new Date(nextYearStart.year, nextYearStart.month - 1, nextYearStart.day);
+
+    if (targetDate >= yearStartDate && targetDate < nextYearStartDate) {
       lunarYear = currentYear;
       break;
     }
-    remainingDays -= daysInYear;
   }
 
-  const leapMonth = getLeapMonth(lunarYear);
-  let lunarMonth = 1;
-  let isLeapMonth = false;
+  const yearStart = lunarToSolar(lunarYear, 1, 1, false);
+  let remainingDays = Math.floor(
+    (targetDate.getTime() - new Date(yearStart.year, yearStart.month - 1, yearStart.day).getTime()) / MS_PER_DAY
+  );
 
-  for (let currentMonth = 1; currentMonth <= 12 && remainingDays > 0; currentMonth += 1) {
-    let daysInMonth = getLunarMonthDays(lunarYear, currentMonth);
-
-    if (leapMonth > 0 && currentMonth === leapMonth + 1 && !isLeapMonth) {
-      daysInMonth = getLeapMonthDays(lunarYear);
-      isLeapMonth = true;
-      currentMonth -= 1;
-    } else {
-      isLeapMonth = false;
+  for (let currentMonth = 1; currentMonth <= 12; currentMonth += 1) {
+    const regularMonthDays = getLunarMonthDays(lunarYear, currentMonth);
+    if (remainingDays < regularMonthDays) {
+      return {
+        year: lunarYear,
+        month: currentMonth,
+        day: remainingDays + 1,
+        isLeapMonth: false,
+      };
     }
+    remainingDays -= regularMonthDays;
 
-    if (remainingDays < daysInMonth) {
-      lunarMonth = currentMonth;
-      break;
+    if (getLeapMonth(lunarYear) === currentMonth) {
+      const leapMonthDays = getLeapMonthDays(lunarYear);
+      if (remainingDays < leapMonthDays) {
+        return {
+          year: lunarYear,
+          month: currentMonth,
+          day: remainingDays + 1,
+          isLeapMonth: true,
+        };
+      }
+      remainingDays -= leapMonthDays;
     }
-
-    remainingDays -= daysInMonth;
   }
 
   return {
     year: lunarYear,
-    month: lunarMonth,
+    month: 12,
     day: remainingDays + 1,
-    isLeapMonth,
+    isLeapMonth: false,
   };
 }
 
